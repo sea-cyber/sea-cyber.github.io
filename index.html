@@ -1,7 +1,106 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-<title>Welcome!</title>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="main.css"></link>
+    <title>Document</title>
 </head>
-  <h1>I'm sea-cyber!,who are you?</h1>
+<style>
+   .top {
+    /* 设置宽度高度背景颜色 */
+    height: 10%;
+    /*高度改为自动高度*/
+    width:100%;
+    margin-left: 0;
+    /*固定在顶部*/
+    position: fixed;
+    /*离顶部的距离为0*/
+    top: 0;
+    margin-bottom: 0px;
+    background: rgb(197, 197, 109);
+    
+}
+
+.top ul {
+    /* 清除ul标签的默认样式 */
+    width: auto;
+    /*宽度也改为自动*/
+    list-style-type: none;
+    margin-right: 5%;
+    padding: 0;
+}
+
+.top li {
+    /* 使li内容横向浮动，即横向排列  */
+    float: left;
+    /* 两个li之间的距离*/
+    margin-left: 15%;
+    position: relative;
+    
+}
+
+.top li a {
+    /* 设置链接内容显示的格式*/
+    display: block;
+    /* 把链接显示为块元素可使整个链接区域可点击 */
+    color: black;
+    text-align: center;
+    padding: 3px;
+    overflow: hidden;
+    text-decoration: none;
+    /* 去除下划线 */
+}
+
+.top li a:hover {
+    /* 鼠标选中时背景颜色 */
+    background-color: rgb(46, 158, 253);
+}
+.main-content {
+    float:right;
+    height: 80%;
+    /*高度改为自动高度*/
+    width: 100%;
+    margin-right: 0;
+    /*固定在顶部*/
+    position: fixed;
+    /*离顶部的距离为0*/
+    bottom: 10%;
+    margin-bottom: 0px;
+    background: rgb(107, 128, 86);
+    background-color: aquamarine;
+}
+
+.bottom{
+    width: 100%;
+    height: 10%;
+    bottom: 0%;
+    position: fixed;
+    background-color: rgb(99, 113, 223);
+  background-image: url(R-C.png);
+}
+body{
+    margin: 0;
+    padding: 0;
+}
+</style>
+<body>
+    <div class="top">
+        
+        <ul>
+            
+            <li><a href="#">文章</a></li>
+            <li><a href="#">妹纸</a></li>
+            <li><a href="#">运动</a></li>
+            <li><a href="http://www.cumt.edu.cn/">学校</a></li>
+        </ul>
+    <div >
+
+    <div class="main-content">
+       
+        </div>
+    
+<div  class="bottom"></div>
 </body>
 </html>
