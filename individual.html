@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="main.css">
+    <script src="imageturns.js"></script>
+    <script src="login.js"></script>
+    <title>徐州市房地产信息服务系统</title>
+    <style>
+    </style>
+</head>
+<body>
+    <!-- 页面首端导航栏 -->
+    <div class="head">
+        <div class="tltle"></div>
+     <ul class="headnav">
+        <li><a href="inedx.html">首页</a></li>
+        <li><a href="list.html">房源</a></li>
+        <li><a href="./可视化/01.html">可视化</a></li>
+        <li><a href="mapsearch.html">地图找房</a></li>
+     </ul>
+     <ul class="headnav2" >
+        <!-- <li id="login" >未登录</li> -->
+        <!-- 更多下面是设置，个人中心，注销账户 -->
+        <li class="more">头像
+          <ul>  
+            <li id="login" onclick="show()">登录</li>
+            <li><a href="individual.html">个人中心</a></li>
+           
+          </ul>
+        </li>
+     </ul>
+    </div>
+    <!-- 登录页面 -->
+    <div id="loginbox">
+      <div class="signbox_main" id="signbox_main" >
+          <div class="title">welcome come to here</div>
+          <div class="login_list"> 
+              <li onclick="loginisvisual()">登录</li> 
+              <li onclick="signisvisual()">注册</li>
+         </div>  
+      
+      <div class="loginbox_main_input">
+           <div><input type="text"  placeholder="    请输入手机号或邮箱" class="name"  id="sign_acount"></div>  
+           <!-- <div><input type="email" placeholder="    请输入邮箱" class="password"></div>  -->
+           <div><input type="email" placeholder="    请输入密码" class="password"  id="sign_password"></div> 
+           <div><input type="text" placeholder="    确认密码" class="password"    id="sign_fonfirm_password"></div>
+        <div class="loginbox_main_forget">
+          <a href="#"  onclick="forgotname()">忘记密码？</a>
+          </div>
+          <button onclick="sign()">注册</button>
+          </div>
+          <div id="cancel_login" onclick="cancellogin()">取消</div>
+      </div>
+  
+  <div class="loginbox_main"  id="loginbox_main">
+      <div class="title">welcome come to here</div>
+      <div class="login_list"> 
+          <li onclick="loginisvisual()">登录</li> 
+          <li onclick="signisvisual()">注册</li>
+         
+       </div>
+  
+  <div class="loginbox_main_input">
+  <div><input type="text" placeholder="    请输入手机号或邮箱" class="name" id="login_acount"></div>  
+  <div><input type="text" placeholder="    请输入密码" class="password"  id="login_password"></div> 
+      <div class="loginbox_main_forget">
+          <a href="#"  onclick="forgotname()">忘记密码？</a>
+      </div>
+      <button onclick="login()">登录</button>
+  </div>
+         <div id="cancel_login" onclick="cancellogin()">取消</div>
+</div> 
+
+<div class="change_password_main"  id="change_password_main">
+  <div class="title">welcome come to here</div>
+  <div class="login_list"> 
+      <li onclick="loginisvisual()">登录</li> 
+      <li onclick="signisvisual()">注册</li>
+     
+   </div>
+
+<div class="loginbox_main_input" >  
+<div><input type="text"   placeholder="      请输入手机或邮箱"    class="name"          id="change_acount">      </div>  
+<div><input type="submit" placeholder="      请输入用户名"        class="password" value="发送验证码" id="change_sendcode">  </div> 
+<div><input type="text" placeholder="      请输入验证码"        class="password"  id="change_checkcode">  </div> 
+<div><input type="text"   placeholder="      请输入密码"          class="name" id="change_password" >      </div>  
+<div><input type="text"   placeholder="      请确认新密码"      class="password" id="change_confirmpasssword"> </div> 
+  <div class="loginbox_main_forget">
+      <a href="#"  onclick="forgotname()">忘记密码？</a>
+  </div>
+  <button onclick="changepassword()">修改密码</button>
+</div>
+     <div id="cancel_login" onclick="cancellogin()">取消</div>
+</div>
+
+  <div class="loginbox_img" >
+      <img src=".img/1.png" alt=""> 
+  </div>
+</div>
+      <div class="body">
+        <div class="personal_img"></div>
+        <!-- 左侧的div放房产信息列表 -->
+     <div class="personal">
+        <div class="personal_list">
+            
+                <li>个人中心</li>
+                <li>收藏夹</li>
+                <li>我的关注</li>
+                <li>看房记录</li>
+                <li>我的问答</li>
+                <li>我的搜索</li>
+          
+        </div>
+        <div class="personal_content">
+               
+                
+        </div>
+     </div>
+      <!-- 页面底端 -->
+     
+      </div>
+      <script >
+
+    // 注册登录接口
+document.getElementsByClassName("button").onclick = function(){
+    alert('输入框不能为空');
+        //判断输入框的数据是不是空
+                if(document.getElementsByClassName("name").value&&document.getElementsByClassName("name").value){
+                            //向后端发送请求，使用异步操作当获取到后端的相应的时候改变用户的名称
+                            //根据相应的结果来判断是否检验成功，如果检验成功，则进行跳转
+                }
+                else{
+                    alert('输入框不能为空')
+                }
+}
+      </script>
+      
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
