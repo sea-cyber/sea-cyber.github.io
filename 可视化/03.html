@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="../main.css">
+    <script src="imageturns.js"></script>
+    <script src="js/echarts.min.js"></script>
+    <script src="http://api.map.baidu.com/api?v=1.0&type=webgl&ak=1pcGA0pQFYk6b0noC2p6uLGSEpyeI2ua"></script>
+    <script src="js/common.js"></script>
+    <script src="../login.js"></script>
+    <script src="http://mapv.baidu.com/build/mapv.min.js"></script>
+    <script src="https://unpkg.com/mapvgl@1.0.0-beta.168/dist/mapvgl.min.js"></script>
+    
+    <title>徐州市房地产信息服务系统</title>
+    <style>
+    
+ 
+    </style>
+</head>
+<body>
+    <!-- 页面首端导航栏 -->
+    <div class="head">
+       
+     <ul class="headnav">
+      <li><a href="../index.html">首页</a></li>
+      <li><a href="01.html">可视化</a></li>
+      <li><a href="mapsearch.html">地图找房</a></li>
+       
+     </ul>
+     <ul class="headnav2" >
+        <!-- <li id="login" >未登录</li> -->
+        <!-- 更多下面是设置，个人中心，注销账户 -->
+        <li class="more" >  <span id="name">头像</span>
+          <ul>  
+            <li id="login" onclick="show()">登录</li>
+            <li><a href="../individual.html">个人中心</a></li>
+           
+          </ul>
+        </li>
+     </ul>
+    </div>
+    <!-- 登录页面 -->
+    <div id="loginbox">
+      <div class="signbox_main" id="signbox_main" >
+          <div class="title">welcome come to here</div>
+          <div class="login_list"> 
+              <li onclick="loginisvisual()">登录</li> 
+              <li onclick="signisvisual()">注册</li>
+         </div>  
+      
+      <div class="loginbox_main_input">
+           <div><input type="text"  placeholder="    请输入手机号或邮箱" class="name"  id="sign_acount"></div>  
+           <!-- <div><input type="email" placeholder="    请输入邮箱" class="password"></div>  -->
+           <div><input type="email" placeholder="    请输入密码" class="password"  id="sign_password"></div> 
+           <div><input type="text" placeholder="    确认密码" class="password"    id="sign_fonfirm_password"></div>
+        <div class="loginbox_main_forget">
+          <a href="#"  onclick="forgotname()">忘记密码？</a>
+          </div>
+          <button onclick="sign()">注册</button>
+          </div>
+          <div id="cancel_login" onclick="cancellogin()">取消</div>
+      </div>
+  
+  <div class="loginbox_main"  id="loginbox_main">
+      <div class="title">welcome come to here</div>
+      <div class="login_list"> 
+          <li onclick="loginisvisual()">登录</li> 
+          <li onclick="signisvisual()">注册</li>
+         
+       </div>
+  
+  <div class="loginbox_main_input">
+  <div><input type="text" placeholder="    请输入手机号或邮箱" class="name" id="login_acount"></div>  
+  <div><input type="text" placeholder="    请输入密码" class="password"  id="login_password"></div> 
+      <div class="loginbox_main_forget">
+          <a href="#"  onclick="forgotname()">忘记密码？</a>
+      </div>
+      <button onclick="login()">登录</button>
+  </div>
+         <div id="cancel_login" onclick="cancellogin()">取消</div>
+</div> 
+
+<div class="change_password_main"  id="change_password_main">
+  <div class="title">welcome come to here</div>
+  <div class="login_list"> 
+      <li onclick="loginisvisual()">登录</li> 
+      <li onclick="signisvisual()">注册</li>
+     
+   </div>
+
+<div class="loginbox_main_input" >  
+<div><input type="text"   placeholder="      请输入手机或邮箱"    class="name"          id="change_acount">      </div>  
+<div><input type="submit" placeholder="      请输入用户名"        class="password" value="发送验证码" id="change_sendcode">  </div> 
+<div><input type="text" placeholder="      请输入验证码"        class="password"  id="change_checkcode">  </div> 
+<div><input type="text"   placeholder="      请输入密码"          class="name" id="change_password" >      </div>  
+<div><input type="text"   placeholder="      请确认新密码"      class="password" id="change_confirmpasssword"> </div> 
+  <div class="loginbox_main_forget">
+      <a href="#"  onclick="forgotname()">忘记密码？</a>
+  </div>
+  <button onclick="changepassword()">修改密码</button>
+</div>
+     <div id="cancel_login" onclick="cancellogin()">取消</div>
+</div>
+
+  <div class="loginbox_img" >
+      <img src="../img/1.png" alt=""> 
+  </div>
+</div>
+      <!-- 页面主体-->
+      <div class="body">
+<!-- 开关按钮 -->
+
+<p class="btn-on" onclick="on_off()">   
+    <!-- 圆点 -->    
+    <span class="btn-on-circle"></span>    
+    <!-- 文字 -->    
+    <span class="btn-on-text">ON</span>  
+</p>
+
+<!--数据柱状图-->
+<div id='div1' style='width: 500px; height:400px;position: absolute;z-index: 999; top: 400px;left: 40px;'></div>
+<!--数据圆图1-->
+<div id='div2' style='width: 260px; height:300px;position: absolute;z-index: 999; top: 136px;left: 38px;'></div>
+<!--数据圆图2-->
+<div id='div3' style='width: 260px; height:300px;position: absolute;z-index: 999; top: 136px;left: 328px;'></div>
+
+
+<div id="map_container"></div>
+      </div>
+      <!-- 页面底端 -->
+     
+      <script >
+
+    // 注册登录接口
+document.getElementsByClassName("button").onclick = function(){
+    alert('输入框不能为空');
+        //判断输入框的数据是不是空
+                if(document.getElementsByClassName("name").value&&document.getElementsByClassName("name").value){
+                            //向后端发送请求，使用异步操作当获取到后端的相应的时候改变用户的名称
+                            //根据相应的结果来判断是否检验成功，如果检验成功，则进行跳转
+                }
+                else{
+                    alert('输入框不能为空')
+                }
+}
+// 轮播图代码
+
+      </script>
+     
+          <script>
+              /* global BMapGL */
+
+            /* global mapv */
+
+            /* global mapvgl */
+
+            /* global initMap */
+
+            /* global whiteStyle */
+
+            var map = initMap({
+                tilt: 30,
+                heading: 0,
+                center: [116.943827,32.325098],
+                zoom: 8,
+                style: whiteStyle,
+                skyColors: [
+                    // 地面颜色
+                    'rgba(226, 237, 248, 0)',
+                    // 天空颜色
+                    'rgba(186, 211, 252, 1)',
+                ],
+            });          
+
+            var citys = [
+                {name:'连云港',x:119.16,y:34.59,price:20.1},
+                {name:'淮安市',x:119.02,y:33.62,price:17.13},
+                {name:'盐城市',x:120.15,y:33.35,price:21.45},
+                {name:'泰州市',x:119.9,y:32.49,price:19.8},
+                {name:'宿迁市',x:118.3,y:33.96,price:15.81},
+                {name:'徐州市',x:117.2,y:34.26,price:17.9},
+                {name:'镇江市',x:119.44,y:32.2,price:18.25},
+                {name:'无锡市',x:120.29,y:31.59,price:28.04},
+                {name:'常州市',x:119.95,y:31.79,price:24.67},
+                {name:'扬州市',x:119.42,y:32.39,price:23.65},
+                {name:'苏州市',x:120.26,y:31.32,price:33.85},
+                {name:'南通市',x:120.86,y:32.01,price:21.59},
+                {name:'南京市',x:118.78,y:32.04,price:55.99},
+            ];
+            var randomCount = citys.length;
+
+            let data=[];
+            // 构造数据
+            while (randomCount--) {
+                var cityName = citys[randomCount].name;
+                
+                data.push({
+                    geometry: {
+                        type: 'Point',
+                        coordinates: [citys[randomCount].x, citys[randomCount].y],
+                    },
+                    properties: {
+                        text: cityName +'\n' + citys[randomCount].price,
+    
+                        // textColor: '#fff',
+                        // borderColor: ['#0f0', '#f00', '#00f'][randomCount % 3],
+                        // backgroundColor: ['#0f0', '#f00', '#00f'][randomCount % 3],
+                    },
+                });
+            }
+
+            var view = new mapvgl.View({
+                map: map,
+            });
+            
+            var layer = new mapvgl.MarkerListLayer({
+                fillColor: 'rgba(255, 153,18, 0.6)',
+                fillSize: 50,                  
+                shadowColor: 'rgba(255, 80, 110, 0.7)',   
+                fontColor:'#00FFFF',
+                shadowSize: 40,   
+
+                // pickedTextColor: '#fff',
+                // pickedBorderColor: '#666',
+                // pickedBackgroundColor: '#666',
+
+                collides: true, // 是否开启碰撞检测, 数量较多时建议打开
+                enablePicked: true,
+                autoSelect: true,
+                onClick: e => {
+                    // 点击事件
+                    console.log('click', e);
+                },
+            });
+            view.addLayer(layer);
+            layer.setData(data);
+
+            <!--柱状图-->
+            var mycharts = echarts.init(document.getElementById("div1"));
+            const colors = ['#5470C6', '#91CC75', '#EE6666'];
+option = {
+  color: colors,
+  tooltip: {
+    trigger: 'axis',
+    axisPointer: {
+      type: 'cross'
+    }
+  },
+  grid: {
+    right: '20%'
+  },
+  toolbox: {
+    feature: {
+      dataView: { show: true, readOnly: false },
+      restore: { show: true },
+      saveAsImage: { show: true }
+    }
+  },
+  legend: {
+    data: ['平均租房面积', '平均房价', '平均租房单价']
+  },
+  xAxis: [
+    {
+      type: 'category',
+      axisTick: {
+        alignWithLabel: true
+      },
+      // prettier-ignore
+      data: ['连云港', '淮安市', '盐城市', '泰州市', '宿迁市', '徐州市', '镇江市', '无锡市', '常州市', '扬州市', '苏州市', '南通市','南京市']
+    }
+  ],
+  yAxis: [
+    {
+      type: 'value',
+      name: '面积(m²)',
+      position: 'right',
+      alignTicks: true,
+      axisLine: {
+        show: true,
+        lineStyle: {
+          color: colors[0]
+        }
+      },
+      axisLabel: {
+        formatter: '{value}'
+      }
+    },
+    {
+      type: 'value',
+      name: '房价(元/m²)',
+      position: 'right',
+      alignTicks: true,
+      offset: 60,
+      axisLine: {
+        show: true,
+        lineStyle: {
+          color: colors[1]
+        }
+      },
+      axisLabel: {
+        formatter: '{value} '
+      }
+    },
+    {
+      type: 'value',
+      name: '单价(元/月/m²)',
+      position: 'left',
+      alignTicks: true,
+      axisLine: {
+        show: true,
+        lineStyle: {
+          color: colors[2]
+        }
+      },
+      axisLabel: {
+        formatter: '{value} '
+      }
+    }
+  ],
+  series: [
+    {
+      name: '平均租房面积',
+      type: 'bar',
+      data: [
+       88.09, 84.52, 83.08, 81.97, 79.46, 79.07, 78.90, 76.85, 72.67, 72.08, 68.38,67.22,56.63
+      ]
+    },
+    {
+      name: '平均房价',
+      type: 'bar',
+      yAxisIndex: 1,
+      data: [
+        10641, 9646, 10097,12348,10103, 10367, 9058, 15343, 15113, 13541, 21173, 14552,25329
+      ]
+    },
+    {
+      name: '平均租房单价',
+      type: 'line',
+      yAxisIndex: 2,
+      data: [20.1, 17.13, 21.45, 19.8,15.81,17.9, 18.25, 28.04, 24.67, 23.65, 33.85, 21.59,55.99]
+    }
+  ]
+};
+        mycharts.setOption(option);
+
+   
+        var mycharts = echarts.init(document.getElementById("div2"));
+        option = {
+            title: {
+                text: '2023年租客长期租房接受程度',
+                padding:'5px',
+                width:'100%',
+                height:'100%',
+                
+            },
+  series: [
+    {
+      type: 'gauge',
+      center: ['50%', '60%'],
+      startAngle: 200,
+      endAngle: -20,
+      min: 0,
+      max: 100,
+      splitNumber:5,
+      itemStyle: {
+        color: '#FFAB91'
+      },
+      progress: {
+        show: true,
+        width: 20
+      },
+      pointer: {
+        show: false
+      },
+      axisLine: {
+        lineStyle: {
+          width: 20
+        }
+      },
+      axisTick: {
+        distance: -25,
+        splitNumber: 5,
+        lineStyle: {
+          width: 2,
+          color: '#999'
+        }
+      },
+      splitLine: {
+        distance: -35,
+        length: 12,
+        lineStyle: {
+          width: 3,
+          color: '#999'
+        }
+      },
+      axisLabel: {
+        distance: -16,
+        color: '#999',
+        fontSize: 15
+      },
+      anchor: {
+        show: false
+      },
+      title: {
+        show: false
+      },
+      detail: {
+        valueAnimation: true,
+        width: '60%',
+        lineHeight: 50,//字句间隔
+        borderRadius: 8,
+        offsetCenter: [0, '-15%'],
+        fontSize: 20,
+        fontWeight: 'bolder',
+        formatter: '五年以上'+'\n'+'{value} %',
+        color: 'inherit'
+      },
+      data: [
+        {
+          value: 51
+        }
+      ]
+    },
+    {
+      type: 'gauge',
+      center: ['50%', '60%'],
+      startAngle: 200,
+      endAngle: -20,
+      min: 0,
+      max: 60,
+      itemStyle: {
+        color: '#FD7347'
+      },
+      progress: {
+        show: true,
+        width: 8
+      },
+      pointer: {
+        show: false
+      },
+      axisLine: {
+        show: false
+      },
+      axisTick: {
+        show: false
+      },
+      splitLine: {
+        show: false
+      },
+      axisLabel: {
+        show: false
+      },
+      detail: {
+        show: false
+      },
+     
+    }
+  ]
+};
+mycharts.setOption(option);
+
+
+var mycharts = echarts.init(document.getElementById("div3"));
+        option = {
+  series: [
+    {
+      type: 'gauge',
+      center: ['50%', '60%'],
+      startAngle: 200,
+      endAngle: -20,
+      min: 0,
+      max: 50,
+      splitNumber: 5,
+      itemStyle: {
+        color: '#FFAB91'
+      },
+      progress: {
+        show: true,
+        width: 20
+      },
+      pointer: {
+        show: false
+      },
+      axisLine: {
+        lineStyle: {
+          width: 20
+        }
+      },
+      axisTick: {
+        distance: -25,
+        splitNumber: 5,
+        lineStyle: {
+          width: 2,
+          color: '#999'
+        }
+      },
+      splitLine: {
+        distance: -35,
+        length: 12,
+        lineStyle: {
+          width: 3,
+          color: '#999'
+        }
+      },
+      axisLabel: {
+        distance: -16,
+        color: '#999',
+        fontSize: 15
+      },
+      anchor: {
+        show: false
+      },
+      title: {
+        show: false
+      },
+      detail: {
+        valueAnimation: true,
+        width: '60%',
+        lineHeight: 50,//字句间隔
+        borderRadius: 8,
+        offsetCenter: [0, '-15%'],
+        fontSize: 20,
+        fontWeight: 'bolder',
+        formatter: '十年以上'+'\n'+'{value} %',
+        color: 'inherit'
+      },
+      data: [
+        {
+          value: 18
+        }
+      ]
+    },
+    {
+      type: 'gauge',
+      center: ['50%', '60%'],
+      startAngle: 200,
+      endAngle: -20,
+      min: 0,
+      max: 60,
+      itemStyle: {
+        color: '#FD7347'
+      },
+      progress: {
+        show: true,
+        width: 8
+      },
+      pointer: {
+        show: false
+      },
+      axisLine: {
+        show: false
+      },
+      axisTick: {
+        show: false
+      },
+      splitLine: {
+        show: false
+      },
+      axisLabel: {
+        show: false
+      },
+      detail: {
+        show: false
+      },
+     
+    }
+  ]
+};
+mycharts.setOption(option);
+function on_off(type){
+    var btn = document.getElementsByClassName("btn-on")[0];
+    var circle = document.getElementsByClassName("btn-on-circle")[0];
+    var text = document.getElementsByClassName("btn-on-text")[0];
+
+    if(!type){
+      btn.style= "background-color: #ccc;"
+      circle.style="left: 40px;background-color: #888;box-shadow: 0 0 10px #888;";
+      text.style="right: 30px;color: #888;font-size:14px";
+      text.innerText="江苏";
+      
+    } else {
+      btn.style= ""
+      circle.style="";
+      text.style="";
+      text.innerText="徐州";
+      window.location.href="01.html"
+    }
+    btn.setAttribute("onclick", "on_off(" + !type + ")"); // 修改状态
+  }
+  on_off(false)// 关闭按钮
+        </script>
+      
+      
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
