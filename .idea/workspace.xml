@@ -14,6 +14,7 @@
     <option name="RECENT_TEMPLATES">
       <list>
         <option value="Python Script" />
+        <option value="CSS File" />
       </list>
     </option>
   </component>
@@ -33,6 +34,7 @@
     &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
     &quot;WebServerToolWindowFactoryState&quot;: &quot;false&quot;,
+    &quot;list.type.of.created.stylesheet&quot;: &quot;CSS&quot;,
     &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
     &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
     &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
@@ -173,7 +175,8 @@
       <workItem from="1690860513115" duration="11398000" />
       <workItem from="1690898757087" duration="3099000" />
       <workItem from="1690942653492" duration="9049000" />
-      <workItem from="1691026435275" duration="9158000" />
+      <workItem from="1691026435275" duration="9247000" />
+      <workItem from="1691043467708" duration="3173000" />
     </task>
     <servers />
   </component>
