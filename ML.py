@@ -1,0 +1,1 @@
+import keras.datasets.mnist as mnist
