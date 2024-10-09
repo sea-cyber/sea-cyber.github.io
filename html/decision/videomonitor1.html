@@ -1,0 +1,433 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>视频监控</title>
+    <link rel="stylesheet" href="../../theme/default/easyui.css" />
+    <link rel="stylesheet" type="text/css" href="../../theme/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/app.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/icon.css" />
+    <link type="text/css" href="../../css/dev.css" rel="stylesheet" />
+    <script type="text/javascript" src="../../js/jquery.min.js"></script>
+    <script type="text/javascript" src="../../js/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="../../js/easyui-lang-zh_CN.js"></script>
+    <script type="text/javascript" src="../../js/data.util.js"></script>
+    <script type="text/javascript" src="../../js/linq.min.js"></script>
+    <script type="text/javascript" src="../../js/jquery.dev.control.js"></script>
+    <script type="text/javascript" src="../../js/dev.ui.js"></script>
+    <script type="text/javascript" src="../../js/ezuikit.js"></script>
+    <style type="text/css">
+        .analyCloseBtn {
+            top: 0px;
+            width: 30px;
+            height: 40px;
+            text-align: center;
+            right: 0px;
+            color: rgb(255, 255, 255);
+            line-height: 35px;
+            padding-left: 10px;
+            font-size: 30px;
+            font-weight: bold;
+            position: absolute;
+            border-bottom-left-radius: 60px;
+            background-color: rgba(0, 0, 0, 0.6);
+            cursor: pointer;
+        }
+
+        .videomonitor {
+            width: 100%;
+            height: 100%;
+            background: #FFFFFF;
+            position: relative;
+        }
+
+            .videomonitor .leftBox {
+                height: 100%;
+                width: 20%;
+                min-width: 280px;
+                position: absolute;
+                border-right: 1px solid #ddd;
+                left: 0px;
+                top: 0px;
+            }
+
+            .videomonitor .rightBox {
+                height: 100%;
+                position: absolute;
+                top: 0px;
+            }
+
+                .videomonitor .rightBox .videoitem {
+                    background-color: #ddd;
+                    display: inline-block;
+                    /*background: url(../../image/agri/novideo.png);*/
+                    background-position: center;
+                    background-repeat: no-repeat;
+                    position: relative;
+                }
+
+        .buttom {
+            position: absolute;
+            width: 490px;
+            border-radius: 5px;
+            height: 40px;
+            top: -100px;
+            -webkit-transition: all .5s ease-in;
+            transition: all .5s ease-in;
+            -moz-transition: all .5s ease-in;
+            background: rgba(0,0,0, 0.5);
+            opacity: 0;
+        }
+
+            .buttom > div {
+                float: left;
+                width: 70px;
+                height: 40px;
+                border-radius: 5px;
+                color: white;
+                font-size: 14px;
+                line-height: 40px;
+                text-align: center;
+                cursor: pointer;
+            }
+
+                .buttom > div:hover {
+                    background-color: rgba(255,255,255, 0.5);
+                }
+
+        .icon-b {
+            float: left;
+            height: 16px;
+            width: 16px;
+            margin-top: 11px;
+            margin-left: 10px;
+        }
+    </style>
+    <script type="text/javascript">
+        var Dev = window.top.window.dev;
+        var parent;
+        var treeControl, selectdata;
+        var flashDialog;
+        var accesstoken;
+        var cameralist = [];
+        function WidgetCommunication(s) {
+            parent = s.parent;
+            initTree();//初始化站点树
+            $(window).resize(function () { resize(); });
+            flashDialog = new Dev.Messager({ Height: 95, Width: 200, AutoShow: false, Type: "question", Timeout: 1500, ButtonVisible: false, AutoVisible: true, Effect: "normal" });
+            resize();
+            $(".analyCloseBtn").click(function () { Dev.App.MenuInit.CloseCurrentWidget(); });
+            parent.one("onClosing", function () { clear(); });
+        }
+        function initTree() {
+            treeControl = new Dev.Tree({ //初始化树
+                ValueField: "id",
+                TextField: "no",
+                ChildrenField: "child",
+                OnlyLeafCheckBox: true,
+            });
+            $(".leftBox").append(treeControl.Target);
+            treeControl.bind("onChecked", function (s, e) {
+                if (e.checked) getCamerabyAms(e.node[0].$this.serialnumber);
+                //如果个数大于4个那么不允许第五个选中并提示
+                var checks = treeControl.GetChecked(true);
+                if (Dev.IsNull(checks) || checks.length == 0) return;
+                var showchecks = [];
+                for (var i = 0; i < checks.length; i++) {
+                    if (treeControl.IsLeaf(checks[i]) && !Dev.IsNull(checks[i].$this.no)) showchecks.push(checks[i].$this);
+                }
+                if (showchecks.length > 4) {
+                    flashDialog.Alert("做多只能展示4个监测站！请重新选择");
+                    treeControl.Check(e.node, false);
+                    return;
+                }
+                initvideo();
+            });
+            getAmsTreeData();
+            //显示选中站点视频
+        }//初始化监测站点树
+        function getAmsTreeData() {
+            var orgid = Dev.cookie.user.orgid;
+            var ajaxrequest = $.ajax({
+                type: "GET",
+                contentType: "application/json",
+                url: Dev.cookie.baseUri + "amstation/findSyncOrgAndAmstation/" + orgid,
+                success: function (response) {
+                    if (Dev.IsNull(response.org) || Dev.IsNull(response.ams)) return;
+                    var selectdata;
+                    if (response.ams.length > 0) selectdata = response.ams[0];
+                    response.ams[0].checked = true;
+                    var neworglist = [];
+                    for (var i = 0; i < response.org.length; i++) {
+                        var orgchild = Enumerable.From(response.org).Where('s=>s.parentid=="' + response.org[i].id + '"').ToArray();
+                        var tempreal = Enumerable.From(response.ams).Where('s=>s.orgid=="' + response.org[i].id + '"').ToArray();
+                        if ((!Dev.IsNull(orgchild) && orgchild.length > 0) || (!Dev.IsNull(tempreal) && tempreal.length > 0)) neworglist.push(response.org[i]);
+                    }
+                    var rootdata = Enumerable.From(neworglist).Where('s=>s.id=="' + orgid + '"').FirstOrDefault();
+                    rootdata.child = converttreeedata(neworglist, response.ams, orgid);
+                    var r_amschild = Enumerable.From(response.ams).Where('s=>s.orgid=="' + orgid + '"').ToArray();
+                    if (r_amschild.length > 0) {
+                        for (var i = 0; i < r_amschild.length; i++) rootdata.child.push(r_amschild[i]);
+                    }
+                    rootdata.no = rootdata.name;
+                    rootdata.state = "open";
+                    treeControl.LoadData([rootdata]);
+                    if (!Dev.IsNull(selectdata)) getCamerabyAms(selectdata.serialnumber);
+                    initvideo();
+                }
+            });
+        }//获取站点树数据
+        function initvideo() {
+            //获取勾选的监测站点
+            $(".rightBox").empty();
+            var checks = treeControl.GetChecked(true);
+            if (Dev.IsNull(checks) || checks.length == 0) return;
+            var showchecks = [];
+            for (var i = 0; i < checks.length; i++) {
+                if (treeControl.IsLeaf(checks[i]) && !Dev.IsNull(checks[i].$this.no)) showchecks.push(checks[i].$this);
+            }
+            if (showchecks.length > 4) {
+                flashDialog.Alert("做多只能展示4个监测站！请重新选择");
+                return;
+            }
+            //显示视频
+            if (showchecks.length == 1) {
+                var onediv = $('<div class="videoitem" tag="' + showchecks[0].serialnumber + '" name="' + showchecks[0].no + '" style="height:100%;width:100%;"></div>').appendTo($(".rightBox"));
+            }
+            if (showchecks.length == 2) {
+                var twodiv = $('<div class="videoitem" tag="' + showchecks[0].serialnumber + '" name="' + showchecks[0].no + '" style="height:100%;width:50%;"></div>').appendTo($(".rightBox"));
+                var twodiv1 = $('<div class="videoitem" tag="' + showchecks[1].serialnumber + '" name="' + showchecks[1].no + '" style="height:100%;width:calc(50% - 6px);margin-left:6px;"></div>').appendTo($(".rightBox"));
+            }
+            if (showchecks.length == 3) {
+                var thirddiv = $('<div style="height:50%;width:100%;min-width:812px;min-height:300px;position:relative;"><div class="videoitem" tag="' + showchecks[0].serialnumber + '" name="' + showchecks[0].no + '" style="height:100%;width:50%;"></div><div class="videoitem" tag="' + showchecks[1].serialnumber + '" name="' + showchecks[1].no + '" style="height:100%;width:calc(50% - 6px);margin-left:6px;"></div></div>').appendTo($(".rightBox"));
+                var thirddiv1 = $('<div class="videoitem" tag="' + showchecks[2].serialnumber + '" name="' + showchecks[2].no + '"  id="' + showchecks[2].serialnumber + '" style="height:calc(50% - 6px);width:100%;min-width:812px;min-height:300px;margin-top:6px;"></div>').appendTo($(".rightBox"));
+            }
+            if (showchecks.length == 4) {
+                var fouthdiv = $('<div style="height:50%;width:100%;min-width:812px;min-height:300px;position:relative;"><div class="videoitem" tag="' + showchecks[0].serialnumber + '" name="' + showchecks[0].no + '" style="height:100%;width:50%;"></div><div class="videoitem" tag="' + showchecks[1].serialnumber + '" name="' + showchecks[1].no + '" style="height:100%;width:calc(50% - 6px);margin-left:6px;"></div></div>').appendTo($(".rightBox"));
+                var fouthdiv1 = $('<div style="height:calc(50% - 6px);width:100%;min-width:812px;min-height:300px;position:relative;margin-top:6px;"><div class="videoitem" tag="' + showchecks[2].serialnumber + '" name="' + showchecks[2].no + '" style="height:100%;width:50%;"></div><div class="videoitem" tag="' + showchecks[3].serialnumber + '" name="' + showchecks[3].no + '" style="height:100%;width:calc(50% - 6px);margin-left:6px;"></div></div>').appendTo($(".rightBox"));
+            }
+            var videoitems = $(".videoitem", $(".rightBox"));
+            for (var i = 0; i < videoitems.length; i++) {
+                var tag = $(videoitems[i]).attr("tag");
+                var currcamer = Enumerable.From(carmelist).Where('s=>s.key=="' + tag + '"').FirstOrDefault();
+                var name = $(videoitems[i]).attr("name");
+                var typeDiv = $('<div style="width:100%;min-width:400px;height:30px;background-color: #afb8e64a;"></div>').appendTo($(videoitems[i]));
+                var title1 = $('<div style="height:30px;color:black;line-height:30px;margin-left:10px;font-family: sans-serif;float:left"><span>' + name + " — " + tag + '</span></div>').appendTo(typeDiv);
+                if (!Dev.IsNull(currcamer.cameras) && currcamer.cameras.length > 1) {
+                    cameralist = [];
+                    var titleDiv = new Dev.Combobox({
+                        "Required": true,
+                        Height: 26,
+                        Width: 200,
+                        IsOverShow: true,
+                        HeaderCSS: { "padding": "0px", "width": "80px", "background-color": "transparent" },
+                        CSS: { "margin-left": "50%", "margin-top": "2px" },
+                        Padding: "0px 5px",
+                        Title: "<div class=\"Title\"><span>选择摄像头:</span></div>",
+                        TextField: "no",
+                        ValueField: "videoaddress"
+                    });
+                    typeDiv.append(titleDiv.Target);
+                    titleDiv.Layout();
+                    for (var j = 0; j < currcamer.cameras.length; j++) {
+                        cameralist.push(currcamer.cameras[j]);
+                    }
+                    titleDiv.SetData(cameralist);
+                    titleDiv.SetSelectedIndex(0);
+                    titleDiv.bind("onSelectChanged", function (s, e) {
+                        if (Dev.IsNull(e)) return;
+                        var swithToAddr = e.videoaddress;//地址
+                        var videoDiv = $(this).parent().next();
+                        videoDiv.remove();
+                        if (Dev.IsNull(swithToAddr)) $(this).parent().parent().css("background-image", "url(" + Dev.App.Root + "image/agri/novideo.png)");
+                        else {
+                            var videoId = $(this).parent().parent().attr("tag") + "play";
+                            var newVideoDiv = $('<div style="width:100%;height:calc(100% - 30px);position:absolute;top:30px;left:0px;"><video id="' + videoId + '" width="' + $(this).parent().parent().width() + 'px;" height="' + ($(this).parent().parent().height() - 30) + 'px" poster="" controls playsinline webkit-playsinline autoplay><source src="' + swithToAddr + '"type="" /><source src="' + swithToAddr + '" type="application/x-mpegURL" /></video></div>').appendTo($(this).parent().parent());
+                            //切换视频地址
+                            var palyer = new EZUIPlayer(videoId);
+                        }
+
+                    });
+                }
+
+                if (Dev.IsNull(currcamer) || currcamer.cameras.length == 0) { $(videoitems[i]).css("background-image", "url(" + Dev.App.Root + "image/agri/novideo.png)"); continue; }
+
+                if (Dev.IsNull(currcamer.cameras[0].videoaddress)) { $(videoitems[i]).css("background-image", "url(" + Dev.App.Root + "image/agri/novideo.png)"); continue; }
+                var rtmp = currcamer.cameras[0].videoaddress;
+                var http = currcamer.cameras[0].videoaddress;
+                accesstoken = currcamer.cameras[0].accessToken;
+                var videoDiv = $('<div style="width:100%;height:calc(100% - 30px);position:absolute;top:30px;left:0px;"><video id="' + tag + 'play" width="' + $(videoitems[i]).width() + 'px;" height="' + ($(videoitems[i]).height() - 30) + 'px" poster="" controls playsinline webkit-playsinline autoplay><source src="' + rtmp + '"type="" /><source src="' + http + '" type="application/x-mpegURL" /></video></div>').appendTo($(videoitems[i]));
+                $('<div class="buttom" style="left:' + (videoDiv.width() - 490) / 2 + 'px" tag=' + currcamer.cameras[0].serialnumber + '><div id="enlarge' + i + '"><div class="icon-b" style="background-image: url(../../image/videoopt/enlarge.png)"></div>放大</div><div id="narrow' + i + '"><div class="icon-b" style="background-image: url(../../image/videoopt/narrow.png)"></div>缩小</div><div id="up' + i + '">'
+                    + '<div class="icon-b" style="background-image: url(../../image/videoopt/up.png)"></div>向上</div><div id="down' + i + '"><div class="icon-b" style="background-image: url(../../image/videoopt/down.png)"></div>向下</div><div id="right' + i + '"><div class="icon-b" style="background-image: url(../../image/videoopt/right.png)"></div>向右</div><div id="left' + i + '"><div class="icon-b" style="background-image: url(../../image/videoopt/left.png)"></div>向左</div><div id="stop' + i + '"><div class="icon-b" style="background-image: url(../../image/videoopt/stop.png)"></div>停止</div></div>').appendTo(videoDiv);
+                var cplay = new EZUIPlayer(tag + "play");
+                $("#" + tag + "play").mouseover(function (e) {
+                    $('.buttom', this.parentElement).css({ "opacity": "1", "top": "10px" });
+                });
+                $("#" + tag + "play").mouseleave(function (e) {
+                    if ((!Dev.IsNull(e.toElement) && e.toElement.parentElement.className == "buttom") || (!Dev.IsNull(e.relatedTarget) && e.relatedTarget.parentElement.className == "buttom")) return;
+                    $('.buttom').css({ "top": "-100px", "opacity": "0" });
+                });
+                $("#enlarge" + i).click(function (e) {
+                    $.ajaxSettings.async = false;
+                    $.post("https://open.ys7.com/api/lapp/device/ptz/start",
+                       {
+                           accessToken: accesstoken,
+                           deviceSerial: $(this).parent().attr("tag"),
+                           channelNo: 1,
+                           direction: 8,
+                           speed: 1
+                       },
+                       function (data, status) {
+                           alert("数据：" + data + "\n状态：" + status);
+                       }
+                       );
+
+                });
+                $("#narrow" + i).click(function (e) {
+                    $.post("https://open.ys7.com/api/lapp/device/ptz/start",
+                       {
+                           accessToken: accesstoken,
+                           deviceSerial: $(this).parent().attr("tag"),
+                           channelNo: 1,
+                           direction: 9,
+                           speed: 1
+                       });
+                    setTimeout(function () {
+                        stopvideo(e);
+                    }, 600);
+                });
+                $("#up" + i).click(function (e) {
+                    $.post("https://open.ys7.com/api/lapp/device/ptz/start",
+                       {
+                           accessToken: accesstoken,
+                           deviceSerial: $(this).parent().attr("tag"),
+                           channelNo: 1,
+                           direction: 0,
+                           speed: 1
+                       });
+                    setTimeout(function () {
+                        stopvideo(e);
+                    }, 600);
+                });
+                $("#down" + i).click(function (e) {
+                    $.post("https://open.ys7.com/api/lapp/device/ptz/start",
+                       {
+                           accessToken: accesstoken,
+                           deviceSerial: $(this).parent().attr("tag"),
+                           channelNo: 1,
+                           direction: 1,
+                           speed: 1
+                       });
+                    setTimeout(function () {
+                        stopvideo(e);
+                    }, 600);
+                });
+                $("#left" + i).click(function (e) {
+                    $.post("https://open.ys7.com/api/lapp/device/ptz/start",
+                       {
+                           accessToken: accesstoken,
+                           deviceSerial: $(this).parent().attr("tag"),
+                           channelNo: 1,
+                           direction: 2,
+                           speed: 1
+                       });
+                    setTimeout(function () {
+                        stopvideo(e);
+                    }, 600);
+                });
+                $("#right" + i).click(function (e) {
+                    $.post("https://open.ys7.com/api/lapp/device/ptz/start",
+                       {
+                           accessToken: accesstoken,
+                           deviceSerial: $(this).parent().attr("tag"),
+                           channelNo: 1,
+                           direction: 3,
+                           speed: 1
+                       });
+                    setTimeout(function () {
+                        stopvideo(e);
+                    }, 600);
+                });
+                $("#stop" + i).click(function (e) {
+                    stopvideo(e);
+                });
+            }
+        }
+        function stopvideo(e) {
+            $.post("https://open.ys7.com/api/lapp/device/ptz/stop",
+            {
+                accessToken: accesstoken,
+                deviceSerial: $(e.target).parent().attr("tag"),
+                channelNo: 1,
+            });
+        }
+        //根据监测站点获取对应觉得摄像头
+        var carmelist = [];
+        function getCamerabyAms(amsseries) {
+            if (Dev.IsNull(amsseries)) return;
+            var ishave = Enumerable.From(carmelist).Where('s=>s.key=="' + amsseries + '"').FirstOrDefault();
+            if (!Dev.IsNull(ishave)) return;
+            $.ajax({
+                type: "POST",
+                data: "\"AMSSERNUM\"='" + amsseries + "' AND \"BRANDTYPE\"='球机'",
+                contentType: "application/json",
+                async: false,
+                url: Dev.GetSystemUrlByRelID("Service") + "camera/getbyfilter",
+                success: function (result) {
+                    var data = result.data;
+                    if (Dev.IsNull(result) || result.data.length == 0) data = [];
+                    carmelist.push({ key: amsseries, cameras: data });
+                }
+            });
+        }
+        //辅助函数
+        function converttreeedata(org, reatilist, id) {
+            if (Dev.IsNull(org) || org.length == 0 || Dev.IsNull(reatilist) || reatilist.length == 0) return [];
+            var rootData = Enumerable.From(org).Where('s=>s.parentid=="' + id + '"').ToArray();
+            if (Dev.IsNull(rootData) || rootData.length == 0) {
+                return rootData;
+            }
+            for (var i = 0; i < rootData.length; i++) {
+                rootData[i].no = rootData[i].name;
+                rootData[i].state = "open";
+                rootData[i].child = converttreeedata(org, reatilist, rootData[i].id);
+                var reatichild = Enumerable.From(reatilist).Where('s=>s.orgid=="' + rootData[i].id + '"').ToArray();
+                if (!Dev.IsNull(reatichild) && reatichild.length > 0) {
+                    for (var j = 0; j < reatichild.length; j++) {
+                        rootData[i].child.push(reatichild[j]);
+                    }
+                }
+            }
+            return rootData;
+        }
+        function resize() {
+            if (!Dev.IsNull(treeControl)) treeControl.SetHeight($(window).height());
+            var width = $(window).width();
+            var lw = $(".leftBox").outerWidth();
+            $(".rightBox").css({ "left": lw + "px", "width": (width - lw) + "px" });
+            var videodivs = $(".videoitem");
+            for (var i = 0; i < videodivs.length; i++) {
+                var currw = $(videodivs[i]).width();
+                var currh = $(videodivs[i]).height();
+                if (currw < 400) currw = 400;
+                if (currh < 300) currh = 300;
+                $("embed", $(videodivs[i])).width(currw).height(currh - 30);
+            }
+        }
+        function clear() {
+            treeControl.unbind("onChecked");
+            $(".rightBox").empty();
+        }
+    </script>
+</head>
+<body>
+    <div class="videomonitor">
+        <div class="leftBox">
+        </div>
+        <div class="rightBox">
+        </div>
+        <div class="analyCloseBtn">×</div>
+    </div>
+</body>
+</html>

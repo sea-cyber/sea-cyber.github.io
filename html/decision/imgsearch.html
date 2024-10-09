@@ -1,0 +1,402 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>图像查询</title>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+    <link rel="stylesheet" href="../../theme/default/easyui.css" />
+    <link rel="stylesheet" type="text/css" href="../../theme/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/app.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/dev.css" />
+    <script type="text/javascript" src="../../js/jquery.min.js"></script>
+    <script type="text/javascript" src="../../js/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="../../js/easyui-lang-zh_CN.js"></script>
+    <script type="text/javascript" src="../../js/linq.min.js"></script>
+    <script type="text/javascript" src="../../js/data.util.js"></script>
+    <script type="text/javascript" src="../../js/jquery.dev.control.js"></script>
+    <script type="text/javascript" src="../../js/dev.ui.js"></script>
+    <script type="text/javascript" src="../../js/highcharts.js"></script>
+    <script type="text/javascript" src="../../js/highcharts-more.js"></script>
+    <script type="text/javascript" src="../../js/solid-gauge.js"></script>
+    <script type="text/javascript">
+        var Dev = window.top.window.dev;
+        var parent;
+        var treecontrol, selectedOrgid;
+        var selectpoint;
+        var singleclick;
+        var con;
+        var amsdata;
+        var currentResolution, maxFeatureCount, livesource, pointskey = [];//聚合
+        function WidgetCommunication(s) {//部件通讯
+            parent = s.parent;
+            inittree();
+            initmapclick();
+            resize();
+            $(window).resize(function () {
+                resize();
+            });
+            parent.one("onClosing", function () {
+                Dev.App.MapPanel.Target.unbind("onMapRefresh");
+                Dev.App.FillPanel.unbind("onResize");
+                parent.unbind("onResize");
+                if (!Dev.IsNull(treecontrol)) {
+                    Dev.App.EventObject.unbind("selectchange");
+                    treecontrol.unbind("onSelectChanged");
+                    treecontrol = null;
+                }
+                if (!Dev.IsNull(singleclick)) {
+                    Dev.App.Map.unByKey(singleclick);
+                    singleclick = null;
+                }
+                Dev.MapUtils.ClearFeature("tempGraphicLayer");
+                clearmapdata();
+                $("#map_monitor", Dev.App.FillPanel.Target).remove();
+                var element = $("#imgsearchdetail", Dev.App.FillPanel.Target);
+                if (!Dev.IsNull(element)) {
+                    element.triggerHandler("onClosing");
+                    element.remove();
+                }
+            })
+
+            Dev.App.MapPanel.Target.bind("onMapRefresh", function () {
+                mapproj = Dev.App.Map.getView().getProjection();
+                setTimeout(initlayer, 2000);
+            });
+
+        }
+
+        //初始化行政区划tree
+        function inittree() {
+            treecontrol = new Dev.Tree({ //初始化树
+                ValueField: "id",
+                TextField: "name",
+                ChildrenField: "child"
+            });
+            $(".content").append(treecontrol.Target);//将树添加到滚动框中
+            //获取组织数据
+            var orgid = Dev.cookie.user.orgid;
+            treecontrol.bind("onSelectChanged", function (sender, e) {//根据选中的组织找到对应一体机下的监测站点
+                if (Dev.IsNull(e)) return;
+                var currvalue = e.$this.id;
+                var orgids = [];
+                orgids.push(currvalue);
+                var isleaf = treecontrol.IsLeaf(e);
+                if (!isleaf) {
+                    var allchilds = treecontrol.GetAllChildren(e);
+                    for (var i = 0; i < allchilds.length; i++) orgids.push(allchilds[i].id);
+                }
+
+                con = "";
+                if (Dev.IsNull(orgids) || orgids.length == 0) return;
+                con = "\"ORGID\"  IN(";
+                for (var i = 0; i < orgids.length; i++) con += "'" + orgids[i] + "',";
+                con = con.substr(0, con.length - 1);
+                con += ")";
+                orgcon = con;
+                getamstationByorgid(con);//根据组织机构查询对应含有图片的监测站点
+                Dev.App.EventObject.triggerHandler("selectchange", { con: con });
+            });
+            $.ajax({
+                url: Dev.GetSystemUrlByRelID("Service") + "organize/gettreebyid/" + orgid + "?" + new Date().getTime(),
+                type: "Get",
+                contentType: 'application/json',
+                dataType: 'json',
+                success: function (result) {
+                    var treeData = Dev.ConvertTreeData(result.data, orgid);
+                    treecontrol.LoadData(treeData);
+                    if (treeData.length > 0) treecontrol.SetSelectNode(treecontrol.GetRoots()[0]);
+                }
+            });
+        }
+
+        //根据行政区划查询监测站点
+        function getamstationByorgid(con) {
+            $.ajax({
+                url: Dev.GetSystemUrlByRelID("Service") + "amstation/getbyfilter",
+                type: "Post",
+                contentType: 'application/json',
+                dataType: 'json',
+                data: con,
+                success: function (result) {
+                    //清空界面
+                    Dev.MapUtils.ClearFeature("tempGraphicLayer");
+                    clearmapdata();
+                    if (result.statusCode != 200 || result.data.length == 0) return;
+                    showpagedata(result.data);
+                    amsdata = result.data;
+                    initlayer();
+                }
+            });
+        }
+
+        //将查询出来的内容算出居中位置
+        function showpagedata(data) {
+            if (Dev.IsNull(data) || data.length == 0) return;
+            var features = [];
+            for (var i = 0; i < data.length; i++) {
+                var x = data[i].longitude;
+                var y = data[i].latitude;
+                var currfeature = new Dev.Feature(new Dev.geom.Point([parseFloat(x), parseFloat(y)]));
+                currfeature.set("serialnumber", data[i].serialnumber);
+                currfeature.set("indepeid", data[i].indepeid);
+                features.push(currfeature);
+            }
+            var extentd = Dev.getExtentByFeatures(features);
+            var mapproj = Dev.App.Map.getView().getProjection();
+            if (mapproj.getCode() != Dev.App.Config.SystemMap.DataEPSG) extentd = Dev.proj.transformExtent(extentd, Dev.App.Config.SystemMap.DataEPSG, mapproj.getCode());
+            Dev.App.Map.getView().fit(extentd, Dev.App.Map.getSize());
+        }
+
+        //初始化地图单击事件
+        function initmapclick() {
+            singleclick = Dev.App.Map.on("singleclick", function (e) {
+                var pixel = this.getPixelFromCoordinate(e.coordinate);
+                var feature_info;
+                Dev.App.Map.forEachFeatureAtPixel(pixel, function (feature) {
+                    var orgrif = feature.get("features");
+                    if (!orgrif) return;
+                    var size = orgrif.length;
+                    if (size == 1) {
+                        feature_info = orgrif[0];
+                    }
+                });
+                if (Dev.IsNull(feature_info)) return;
+                var key = feature_info.getProperties().id;
+                Dev.App.Map.getView().setCenter(feature_info.getGeometry().getCoordinates());
+                ////判断上次选中的点是否存在，并且该点跟此次点击的点不是同一个点，就给上个点加上绿色的闪烁
+                //if (!Dev.IsNull(selectpoint) && selectpoint.getProperties().id != key) {
+                //    var pointKey_select = Dev.MapUtils.PointSymbolStyle(selectpoint, 1, 'rgba(0, 255, 0, 1)', Dev.App.Map);
+                //    pointskey.push({ key: selectpoint.getProperties().id, pointKey: pointKey_select });
+                //}
+                //// 取消该次点击的点的绿色闪烁,并且在pointskey数组里面删掉该点
+                //var pointkey_new = Enumerable.From(pointskey).Where('s=>s.key=="' + key + '"').FirstOrDefault();
+                //if (!Dev.IsNull(pointkey_new)) Dev.App.Map.unByKey(pointkey_new.pointKey);
+                //pointkey_new = null;
+                //pointskey = Enumerable.From(pointskey).Where('s=>s.key!="' + key + '"').ToArray();
+                ////给此次点击的点加上红色闪烁
+                //if (!Dev.IsNull(pointkey_map)) { Dev.App.Map.unByKey(pointkey_map); pointkey_map = null; }
+                //pointkey_map = Dev.MapUtils.PointSymbolStyle(feature_info, 1, 'rgba(255,0,0,1)', Dev.App.Map);
+                selectpoint = feature_info;
+                showdetailIframe(feature_info);
+            });
+        }
+
+        //展示iframe窗口
+        function showdetailIframe(feature) {
+            Dev.App.FillPanel.Add(Dev.App.Root + "html/decision/imgsearchdetail.html", { selectmonitor: feature, con: con }, "imgsearchdetail");
+        }
+
+        //地图点的聚合
+        function initlayer() {
+            var data = amsdata;
+            if (Dev.IsNull(data) || data.length == 0) return;
+            clearCluster();
+            var distance = 15;
+            var count = data.count;
+            var features = new Array(count);
+            for (var i = 0; i < data.length; i++) {
+                var c_point = [parseFloat(data[i].longitude), parseFloat(data[i].latitude)];
+                var mapproj = Dev.App.Map.getView().getProjection();
+                if (mapproj.getCode() != Dev.App.Config.SystemMap.DataEPSG) c_point = Dev.proj.transform(c_point, Dev.App.Config.SystemMap.DataEPSG, mapproj.getCode());
+                var currf = new Dev.Feature(new Dev.geom.Point(c_point));
+                currf.setProperties(data[i]);
+                currf.setId(data[i].id);
+                features[i] = currf;
+            }
+            livesource = new Dev.source.Vector({ features: features });
+            var clusterSource = new Dev.source.Cluster({ distance: distance, source: livesource });
+            var clusters = new Dev.layer.Vector({
+                id: "clusterlayer",
+                source: clusterSource,
+                style: styleFunction,
+                zIndex: 10005,
+                type: "TempVector"
+            });
+            Dev.App.Map.addLayer(clusters);
+        }
+
+        //设置聚合的样式
+        function styleFunction(feature, resolution) {
+            if (resolution != currentResolution) {
+                calculateClusterInfo(resolution);
+                currentResolution = resolution;
+            }
+            var style;
+            var size = feature.get("features").length;
+            if (size > 1) {
+                var color = "rgba(255,0,0,0.5)";
+                var fillcolor = [255, 0, 0, Math.min(0.8, 0.4 + (size / maxFeatureCount))]
+                if (size > 100 && size < 200) {
+                    color = "rgba(255, 204, 0, 0.6)";
+                    fillcolor = [255, 153, 0, Math.min(0.8, 0.4 + (size / maxFeatureCount))]
+                }
+                if (size >= 200) {
+                    color = "rgba(0,255, 0, 0.6)";
+                    fillcolor = [0, 255, 0, Math.min(0.8, 0.4 + (size / maxFeatureCount))]
+                }
+                //设置闪烁的点
+                var features = feature.get("features");
+                for (var i = 0; i < features.length; i++) {
+                    var key = features[i].getProperties().id;
+                    var pointkey = Enumerable.From(pointskey).Where('s=>s.key=="' + key + '"').FirstOrDefault();
+                    if (!Dev.IsNull(pointkey)) {
+                        Dev.MapUtils.removePointKey(key);
+                        pointkey = null;
+                    }
+                    pointskey = Enumerable.From(pointskey).Where('s=>s.key!="' + key + '"').ToArray();
+                }
+
+                style = new Dev.style.Style({
+                    image: new Dev.style.Circle({
+                        fill: new Dev.style.Fill({ color: fillcolor }),
+                        stroke: new Dev.style.Stroke({ color: color, width: 1 }),
+                        radius: feature.get('radius'),
+                        points: 4
+                    }),
+                    text: new Dev.style.Text({
+                        text: size.toString(),
+                        fill: new Dev.style.Fill({ color: "#fff" }),
+                        stroke: new Dev.style.Stroke({ color: 'rgba(0, 0, 0, 0.6)', width: 3 })
+                    })
+                });
+            } else {
+                var originalFeature = feature.get('features')[0];
+                //设置闪烁的点
+                var key = originalFeature.getProperties().id;
+                var pointkey = Enumerable.From(pointskey).Where('s=>s.key=="' + key + '"').FirstOrDefault();
+                if (!Dev.IsNull(pointkey)) {
+                    Dev.MapUtils.removePointKey(key);
+                    pointkey = null;
+                }
+                pointskey = Enumerable.From(pointskey).Where('s=>s.key!="' + key + '"').ToArray();
+                var iconsrc = Dev.App.Root + "image/agri/ams-online1.png";
+                var color = "rgba(63,85,225,1)";
+                var fillcolor = "rgba(63,85,225,0.5)";
+                style = new Dev.style.Style({
+                    fill: new Dev.style.Fill({ color: [236, 179, 73, 0.2] }),
+                    image: new Dev.style.Icon({ src: Dev.App.Root + "image/agri/ams-online1.png" }),
+                    text: new Dev.style.Text({ text: originalFeature.getProperties().no, font: "15px serif", offsetX: 5, offsetY: -20, fill: new Dev.style.Fill({ color: [255, 255, 255, 1] }) })
+                });
+                if (!Dev.IsNull(selectpoint) && selectpoint.getProperties().id == key) {
+                    color = "rgba(0, 21, 42, 1)";
+                    fillcolor = "rgba(0,21,42,0.5)";
+                }
+                //originalFeature.setId(originalFeature.getProperties().id);
+                var pointKey = Dev.MapUtils.PointSymbolStyle1(originalFeature, 1, color, fillcolor, 30, Dev.App.Map, false);
+                pointskey.push({ key: originalFeature.getProperties().id, pointKey: pointKey });
+            }
+            return style;
+            //if (resolution != currentResolution) {
+            //    calculateClusterInfo(resolution);
+            //    currentResolution = resolution;
+            //}
+            //var style;
+            //var size = feature.get("features").length;
+            //if (size > 1) {
+            //    var color = "rgba(255,0,0,0.5)";
+            //    var fillcolor = [255, 0, 0, Math.min(0.8, 0.4 + (size / maxFeatureCount))]
+            //    if (size > 100 && size < 200) {
+            //        color = "rgba(255, 204, 0, 0.6)";
+            //        fillcolor = [255, 153, 0, Math.min(0.8, 0.4 + (size / maxFeatureCount))]
+            //    }
+            //    if (size >= 200) {
+            //        color = "rgba(0,255, 0, 0.6)";
+            //        fillcolor = [0, 255, 0, Math.min(0.8, 0.4 + (size / maxFeatureCount))]
+            //    }
+            //    //设置闪烁的点
+            //    var features = feature.get("features");
+            //    for (var i = 0; i < features.length; i++) {
+            //        var key = features[i].getProperties().id;
+            //        var pointkey = Enumerable.From(pointskey).Where('s=>s.key=="' + key + '"').FirstOrDefault();
+            //        if (!Dev.IsNull(pointkey)) Dev.MapUtils.removePointKey(key);
+            //        pointkey = null;
+            //        pointskey = Enumerable.From(pointskey).Where('s=>s.key!="' + key + '"').ToArray();
+            //    }
+            //    style = new Dev.style.Style({
+            //        image: new Dev.style.Circle({
+            //            fill: new Dev.style.Fill({ color: fillcolor }),
+            //            stroke: new Dev.style.Stroke({ color: color, width: 1 }),
+            //            radius: feature.get('radius'),
+            //            points: 4
+            //        }),
+            //        text: new Dev.style.Text({
+            //            text: size.toString(),
+            //            fill: new Dev.style.Fill({ color: "#fff" }),
+            //            stroke: new Dev.style.Stroke({ color: 'rgba(0, 0, 0, 0.6)', width: 3 })
+            //        })
+            //    });
+            //} else {
+            //    var originalFeature = feature.get('features')[0];
+            //    //设置闪烁的点
+            //    var key = originalFeature.getProperties().id;
+            //    var pointkey = Enumerable.From(pointskey).Where('s=>s.key=="' + key + '"').FirstOrDefault();
+            //    if (!Dev.IsNull(pointkey)) Dev.MapUtils.removePointKey(key);
+            //    pointkey = null;
+            //    pointskey = Enumerable.From(pointskey).Where('s=>s.key!="' + key + '"').ToArray();
+            //    var iconsrc = Dev.App.Root + "image/agri/ams-online1.png";
+            //    var color = "rgba(63,85,225,1)";
+            //    var fillcolor = "rgba(63,85,225,0.5)";
+            //    style = new Dev.style.Style({
+            //        fill: new Dev.style.Fill({ color: [236, 179, 73, 0.2] }),
+            //        image: new Dev.style.Icon({ src: Dev.App.Root + "image/agri/ams-online1.png" }),
+            //        text: new Dev.style.Text({ text: originalFeature.getProperties().no, font: "15px serif", offsetX: 5, offsetY: -20, fill: new Dev.style.Fill({ color: [255, 255, 255, 1] }) })
+            //    });
+            //    if (!Dev.IsNull(selectpoint) && selectpoint.getProperties().id == key) {
+            //        color = "rgba(0, 21, 42, 1)";
+            //        fillcolor = "rgba(0,21,42,0.5)";
+            //    }
+            //    var pointKey = Dev.MapUtils.PointSymbolStyle1(originalFeature, 1, color, fillcolor, 30, Dev.App.Map,false);
+            //    pointskey.push({ key: originalFeature.getProperties().id, pointKey: pointKey });
+            //}
+            //return style;
+        }
+
+        function calculateClusterInfo() {
+            maxFeatureCount = 0;
+            var currlayer = Dev.MapUtils.GetLayer("clusterlayer", Dev.App.Map);
+            var features = currlayer.getSource().getFeatures();
+            var feature, radius;
+            for (var i = features.length - 1; i >= 0; i--) {
+                feature = features[i];
+                var originalFeatures = feature.get('features');
+                var extent = Dev.extent.createEmpty();
+                for (var j = 0; j < originalFeatures.length; j++) Dev.extent.extend(extent, originalFeatures[j].getGeometry().getExtent());
+                maxFeatureCount = Math.max(maxFeatureCount, originalFeatures.length);
+                feature.set('radius', 15);
+            }
+        }
+
+        function clearCluster() {
+            currentResolution = undefined;
+            maxFeatureCount = undefined;
+            clearmapdata();
+            var haslayer = Dev.MapUtils.GetLayer("clusterlayer", Dev.App.Map);
+            if (!Dev.IsNull(haslayer)) Dev.MapUtils.RemoveLayer("clusterlayer");
+        }
+
+        function clearmapdata() {
+            for (var i = 0; i < pointskey.length; i++) {
+                Dev.MapUtils.removePointKey(pointskey[i].key);
+                pointskey[i].pointKey = null
+                pointskey[i] = null;
+            }
+            pointskey = [];
+            if (!Dev.IsNull(livesource)) livesource.clear();
+        }
+
+
+        //窗口重置
+        function resize() {
+            if (!Dev.IsNull(treecontrol)) {
+                treecontrol.SetHeight($(window).height());
+                treecontrol.SetWidth($(window).width());
+            }
+        }
+
+    </script>
+</head>
+<body style="height: 100%; width: 100%;">
+    <div class="content"></div>
+</body>
+</html>

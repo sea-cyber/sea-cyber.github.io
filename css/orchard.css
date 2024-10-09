@@ -1,0 +1,130 @@
+﻿body {
+}
+
+/*果园查询*/
+.orchardquery {
+    height: 35px;
+    width: 384px;
+    position: relative;
+}
+
+    .orchardquery .content {
+        height: 100%;
+        width: 100%;
+        background-color: #fcfcfc;
+    }
+
+        .orchardquery .content .querycon {
+            height: 33px;
+            width: 317px;
+            display: inline-block;
+            float: left;
+            border: 1px solid #ddd;
+        }
+
+            .orchardquery .content .querycon .inputdiv {
+                height: 33px;
+                width: 282px;
+                display: inline-block;
+                float: left;
+            }
+
+            .orchardquery .content .querycon .geomselect {
+                width: 25px;
+                height: 33px;
+                display: inline-block;
+                float: left;
+            }
+
+                .orchardquery .content .querycon .geomselect:hover {
+                    background-color: #dfeefe;
+                }
+
+                .orchardquery .content .querycon .geomselect .icon {
+                    height: 16px;
+                    width: 16px;
+                    margin-top: 8px;
+                    margin-left: 4px;
+                    display: inline-block;
+                    float: left;
+                }
+
+            .orchardquery .content .querycon .geomcombo {
+                width: 10px;
+                height: 33px;
+                display: inline-block;
+            }
+
+                .orchardquery .content .querycon .geomcombo:hover {
+                    background-color: #dfeefe;
+                }
+
+        .orchardquery .content .querybtn {
+            background-position: center;
+            width: 65px;
+            height: 35px;
+            display: inline-block;
+            background-color: rgb(94,49,243);
+            background-repeat: no-repeat;
+            background-image: url(../image/agri/query.png);
+        }
+
+            .orchardquery .content .querybtn:hover {
+                background-color: #5227de;
+            }
+
+/*.querygeompopup {
+    width: 33px;height: 122px; border-left: 1px solid #ddd; border-right: 1px solid #ddd; border-bottom: 1px solid #ddd;position: absolute; left: 319px; background-color: #fff; top: 34px;
+}
+
+    .querygeompopup .BPanel {
+        height: 30px;
+        width: 33px;
+        margin-top: 0px;
+    }
+
+        .querygeompopup .BPanel .icon {
+            height: 16px;
+            width: 16px;
+            margin-left: 8px;
+            margin-top: 7px;
+            float: left;
+        }
+
+        .querygeompopup .BPanel:hover {
+            background-color: #dfeefe;
+        }
+
+    .querygeompopup .splitslider {
+        height: 1px;
+        width: 20px;
+        background-color: #ddd;
+        margin-left: 7px;
+    }*/
+
+.icon-draw-polygon {
+    background-position: -220px -93px;
+    background-image: url(../image/l1.png);
+}
+
+.icon-draw-rect {
+    background-position: -196px -93px;
+    background-image: url(../image/l1.png);
+}
+
+.icon-draw-circle {
+    background-position: -244px -93px;
+    background-image: url(../image/l1.png);
+}
+
+.icon-maptool-clearmap1 {
+    background-image: url(../image/maptool/clearmap1.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-comboarrow {
+    background-image: url(../image/l1.png);
+    background-position: -301px -61px;
+    background-repeat: no-repeat;
+}

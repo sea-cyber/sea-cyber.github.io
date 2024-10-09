@@ -1,0 +1,994 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>方案管理</title>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+    <link rel="stylesheet" href="../../theme/default/easyui.css" />
+    <link rel="stylesheet" type="text/css" href="../../theme/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/app.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/icon.css" />
+    <link type="text/css" href="../../css/dev.css" rel="stylesheet" />
+    <script type="text/javascript" src="../../js/jquery.min.js"></script>
+    <script type="text/javascript" src="../../js/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="../../js/easyui-lang-zh_CN.js"></script>
+    <script type="text/javascript" src="../../js/data.util.js"></script>
+    <script type="text/javascript" src="../../js/linq.min.js"></script>
+    <script type="text/javascript" src="../../js/jquery.dev.control.js"></script>
+    <script type="text/javascript" src="../../js/dev.ui.js"></script>
+    <script type="text/javascript" src="../../js/guid.js"></script>
+    <style type="text/css">
+        .content {
+            height: 100%;
+            width: 100%;
+            position: relative;
+        }
+
+        .Title {
+            width: 75px;
+            text-align: right;
+            line-height: 40px;
+            height: 40px;
+            display: inline-block;
+            float: left;
+        }
+
+            .Title .Icon {
+                width: 16px;
+                height: 16px;
+                display: inline-block;
+                margin-top: 11px;
+            }
+
+            .Title .Text {
+                display: inline-block;
+                float: right;
+                width: 49px;
+            }
+
+        .content .SearchDiv {
+            width: 210px;
+            height: 40px;
+            display: inline-block;
+            margin-left: 0px;
+            margin-right: 0px;
+            float: left;
+        }
+
+        .content .Button {
+            width: 70px;
+            height: 26px;
+            float: left;
+            margin-top: 7px;
+            background-color: #16dbbb;
+            /*border-radius: 5px;*/
+            text-align: center;
+            border: 1px solid #16dbbb;
+            display: inline-block;
+            margin-left: 5px;
+        }
+
+            .content .Button:hover {
+                background-color: #5227de;
+                border: 1px solid #5227de;
+                cursor: pointer;
+            }
+
+              .content .Button:active {
+                background-color: #210097;
+                border: 1px solid #210097;
+                cursor: pointer;
+            }
+
+        /*.datagrid-body {
+            overflow-y: hidden;
+        }*/
+    </style>
+    <script type="text/javascript">
+        var Dev = window.top.window.dev;
+        var parent;
+        var treeControl, dataGrid, orgFilter;
+        var pageIndex = 1, pageSize = 5;
+        var editWin, comboTree1, xzqControl;
+        var realRuleNum = 0;
+        var selectOrgid1;
+        var dialog,flashDialog;
+        var updateId;
+        var years, months, plandatas = [];
+        var plantControl;
+        var addBtn;
+        var isallow = true;
+        var AGRI_PROGRAMME_TYPE = {
+            ONE : "一年一熟",
+            MORE : "一年多熟"
+        };
+        var MSG_CONTENT  = {
+            netout: "网络超时，请稍后再试！",
+            deleteFailed: "删除失败，请稍后再试",
+            deleteSuccess: "删除成功！",
+            saveSuccess: "保存成功！",
+            saveFailed: "保存失败，请稍后再试！",
+            saveRepetition: "保存失败，方案名重复"
+        };
+        var MSG_ICON = {
+            SUCCESS: "success",
+            INFO: "info",
+            ERROR: "error"
+        };
+
+        function WidgetCommunication(s) {//部件通讯
+            parent = s.parent;
+            //Dev.App.BottomPanel.SetHeight(262);
+            Dev.App.BottomPanel.Header.css({ "background": "#14cdad", "color": "#fcfcfc", "font-weight": "bold" });
+            Dev.App.BottomPanel.SetIconCls("machine-caralarm");
+            initDataGrid();
+            initTree();//获取树数据
+            $(window).resize(function () { resize(); });
+            $('.Button').click(function () {
+                var tag = $(this).attr("tag");
+                if (tag == "search") { pageIndex = 1; queryData(); }
+                if (tag == "searchClear") { pageIndex = 1; searchClear(); queryData(); }
+                if (tag == "add") initWin(true);
+                if (tag == "cancel") editWin.Close();
+                if (tag == "save") saveInfo();
+            });
+            //释放
+            parent.one("onClosing", function () {
+                Dev.App.BottomPanel.SetHeight(262);
+                //进行释放
+                if (!Dev.IsNull(treeControl)) {
+                    treeControl.unbind("onSelectChanged");
+                    treeControl.Clear();
+                    treeControl = null;
+                }
+                if (!Dev.IsNull(dataGrid)) {
+                    dataGrid.Target.unbind("onSelectPage");
+                    dataGrid.Target.unbind("onPageSizeChange");
+                    dataGrid = null;
+                }
+                if (!Dev.IsNull(comboTree1)) {
+                    comboTree1.unbind("onSelectChanged");
+                    comboTree1.Clear();
+                    comboTree1 = null;
+                }
+                if (!Dev.IsNull(editWin)) {
+                    editWin.Close();
+                    editWin.unbind("onClosing");
+                    editWin.Destroy();
+                    editWin = null;
+                }
+                if (!Dev.IsNull(plantControl)) {
+                    plantControl.unbind("onSelectChanged");
+                    plantControl = null;
+                }
+                if (!Dev.IsNull(detailWin)) {
+                    detailWin.Close();
+                    detailWin.Destroy();
+                    detailWin = null;
+                }
+            });
+            resize();
+            flashDialog = new Dev.Messager({Height: 95,Width:200, AutoShow: false, Type: "question", Timeout: 1500, ButtonVisible: false, AutoVisible: true, Effect: "normal" });
+            dialog = new Dev.Messager({ AutoShow: false, Type: "question" });//删除提示框
+        }
+        //初始化组织树
+        function initTree() {
+            treeControl = $('.dev-tree').prop("$this");
+            var orgid = Dev.cookie.user.orgid;
+            $.ajax({
+                url: Dev.GetSystemUrlByRelID("Service") + "organize/gettreebyid/" + orgid + "?" + new Date().getTime(),
+                type: "GET",
+                contentType: 'application/json',
+                dataType: 'json',
+                success: function (result) {
+                    var treedata = Dev.ConvertTreeData(result.data, orgid);
+                    treeControl.LoadData(treedata);
+                    if (treedata.length > 0) treeControl.SetSelectNode(treeControl.GetRoots()[0]);
+                }
+            });
+            /*组织数的点击切换事件*/
+            treeControl.bind("onSelectChanged", function (s, e) {
+                getOrgFilter(e);
+                searchClear();
+                pageIndex = 1;
+                if (!Dev.IsNull(editWin)) { editWin.Close(); }
+                if (!Dev.IsNull(dataGrid)) { queryData(); }
+            });
+        }
+        //根据当前节点获取orgid
+        function getOrgFilter(e) {
+            var treenode = e;
+            var orgids = [];
+            var isleaf = treeControl.IsLeaf(treenode);
+            orgFilter = " \"ORGID\" IN ('" + e.id + "',";
+            orgids.push(e.id);
+            if (!isleaf) {
+                var allchilds = treeControl.GetAllChildren(treenode);
+                for (var i = 0; i < allchilds.length; i++) {
+                    orgFilter += "'" + allchilds[i].id + "',";
+                    orgids.push(allchilds[i].id);
+                }
+            }
+            orgFilter = orgFilter.substr(0, orgFilter.length - 1);
+            orgFilter += ")";
+        }
+        /*初始化展示列表 */
+        function initDataGrid() {
+            if (Dev.IsNull(dataGrid)) {
+                $("#gridDiv").empty();
+                var columns = [
+                    { field: "programmename", width: 65, align: 'center', title: '方案名称', sortable: false },
+                    { field: "type", width: 35, align: 'center', title: '种植类型', sortable: false },
+                    { field: "programmecontent", width: 100, align: 'center', title: '方案内容', sortable: false },
+                    {
+                        field: "_address", width: 130, align: 'center', title: '详细地址', sortable: false,
+                        formatter: function (value, row, index) {
+                            var str = "";
+                            if (!Dev.IsNullAll(row.province)) str += row.province;
+                            if (!Dev.IsNullAll(row.city)) str += row.city;
+                            if (!Dev.IsNullAll(row.county)) str += row.county;
+                            if (!Dev.IsNullAll(row.town)) str += row.town;
+                            if (!Dev.IsNullAll(row.village)) str += row.village;
+                            if (str == "") { str = "中国" }
+                            return str;
+                        }
+                    },
+                    {
+                        field: "createdate", width: 65, align: 'center', title: '创建时间', sortable: false,
+                        formatter: function (value, row, index) {
+                            if (Dev.IsNull(value) || value.length == 0) return "-";
+                            return Dev.GetDateString(value);
+                        }
+                    },
+                    {
+                        field: "updatedate", width: 65, align: 'center', title: '更新时间', sortable: false,
+                        formatter: function (value, row, index) {
+                            if (Dev.IsNull(value) || value.length == 0) return "-";
+                            return Dev.GetDateString(value);
+                        }
+                    },
+                    {
+                        field: "_oprate", width: 50, align: 'center', title: '操作', sortable: false,
+                        formatter: function (value, row, index) {
+                            return '<a href="javascript:void(0)" style="color:blue;"onclick="updateInfo(\'' + index + '\')"><img src="../../image/agri/update.png" title="修改"/></a>' +
+                                   '&nbsp;<a href="javascript:void(0)" style="color:blue;margin-left:6px;" onclick="showdetail(\'' + index +'\')" title="详细信息"><img src="../../image/agri/cartype.png"/>'+
+                                   '&nbsp;<a href="javascript:void(0)" style="color:blue;margin-left:6px;" onclick="deleteInfo(\'' + row.id + '\')"><img src="../../image/agri/delete.png" title="删除"/></a>';
+                        }
+                    }
+                ];
+                dataGrid = new UCDataGrid(Dev, { PageIndex: pageIndex, PageSize: pageSize, RowNumbers: false, ID: "taskverifiGrid", pagequery: false, IsSizeSelect: true });
+                $("#gridDiv").append(dataGrid.Target);
+                dataGrid.Layout(columns);
+                dataGrid.Target.bind("onSelectPage", function (s, e) {
+                    pageIndex = e.index;
+                    queryData();
+                });
+                dataGrid.Target.bind("onPageSizeChange", function (s, e) {
+                    if (Dev.IsNull(e)) return;
+                    pageIndex = 1;
+                    pageSize = e;
+                    queryData();
+                });
+            }
+        }
+        /*查询*/
+        function queryData() {
+            var con = getCondition();
+            $.ajax({
+                url: Dev.GetSystemUrlByRelID("Service") + "programme/findpagebyfilter/" + pageIndex + "/" + pageSize,
+                type: "POST",
+                contentType: "application/json",
+                dataType: 'json',
+                data: con,
+                success: function (result) {
+                    if (result.statusCode != 200 || Dev.IsNull(result.data.dataSource)) result.data = { dataSource: [], pageInfo: { pageCount: 0, pageIndex: pageIndex, pageSize: 5, totalCount: 0 } };
+                    dataGrid.Load(result.data.dataSource, result.data.pageInfo);
+                    resize();
+                }
+            });
+        }
+        //修改
+        function updateInfo(index) {
+            if (Dev.IsNull(index)) return;
+            dataGrid.DataGrid.datagrid("selectRow", index);
+            var row = dataGrid.DataGrid.datagrid("getSelected");
+            var rowNum = row.list.length;
+            realRuleNum = 1;
+            if (rowNum > 3) rowNum = 3;
+            var editHeight = 257 + rowNum * 35;
+            initWin(false, row, editHeight);
+        }
+        // 初始化新增、修改窗口
+        function initWin(isadd, row, editHeight) {
+            var ico = isadd ? "machine-add" : "icon-featureupdate";
+            var title = isadd ? "方案新增" : "方案修改";
+            if (Dev.IsNull(editWin)) {
+                editWin = new Dev.Window({
+                    ID: "programmeWin",
+                    IconCls: ico,
+                    Title: title,
+                    Parent: Dev.App.FillPanel.Target,
+                    Maximizable: false,
+                    Modal: true,
+                    Draggable: true,
+                    HAlign: 'center',
+                    VAlign: 'center',
+                    Resizable: false,
+                    Content: $("#EditDiv"),
+                    Height: isadd ? 257 : editHeight,
+                    Width: 512
+                });
+                initOrgTree();//初始化组织下拉树
+                initRegionsTree();//初始化行政区划
+                plantChgRule();//给种植方式绑定事件
+                editWin.Target.bind("onClosing", function () { clearWin(); });//关闭时清空
+            }
+            else {
+                editWin.SetTitle(title);
+                if (!isadd) { editWin.SetHeight(editHeight);}
+                editWin.SetIconCls(ico);
+                editWin.Open();
+            }
+            plandatas = Dev.GetDicData(["CropType"]);//所有作物
+            //用节点加载组织下拉树
+            var selectnode = treeControl.GetSelectNode();
+            comboTree1.SetData(selectnode[0].$this);
+            //编辑窗口数据填充
+            isadd ? updateId = null : loadData(row);
+        }
+        //清空窗口
+        function clearWin() {
+            $("#errormsg", editWin.Target).html(""); //清空错误提示信息
+            var programmeControl = $(".dev-textbox[name='programmename']", $(".TaskWorkEdit", Dev.App.FillPanel.Target)).prop("$this");
+            programmeControl.SetValue("");
+            if (!Dev.IsNull(comboTree1)) { //组织
+                comboTree1.text.Clear();
+                comboTree1.tree.SelectedItem = null;
+            }
+            if (!Dev.IsNull(xzqControl)) { //行政区划
+                xzqControl.combotree("tree").tree("collapseAll");//折叠所有节点
+                xzqControl.combotree("hidePanel");//隐藏下拉面板
+                xzqControl.combotree("clear");//清空值
+            }
+            //轮作规则
+            var rulediv = $('.Rules', $(".TaskWorkEdit", Dev.App.FillPanel.Target));
+            rulediv.empty();
+            rulediv.css({ "height": "0px", "display": "none", "overflow-y": "visible" });//display没有清空导致占了肉眼能见得高度
+            //备注
+            var remarkControl = $(".dev-textbox[name='remark']", $(".TaskWorkEdit", Dev.App.FillPanel.Target)).prop("$this");
+            remarkControl.SetValue("");
+            //每次关窗初始化窗口高、规则栏行数
+            editWin.SetHeight(257);
+            realRuleNum = 0;
+            plantControl.SetValue("");
+            plandatas = [];
+        }
+        // 删除
+        function deleteInfo(id) {
+            if (Dev.IsNull(id)) return null;
+            dialog.Confirm('该操作将会删除方案及其关联数据，确定执行？', function (r) {
+                if (!r) return;
+                var url = Dev.GetSystemUrlByRelID("Service") + "programme/deleteprogramme/" + id;
+                $.ajax({
+                    url: url,
+                    type: "GET",
+                    contentType: 'application/json',
+                    dataType: 'json',
+                    success: function (result) {
+                        if (result.statusCode != 200) { flashDialog.Alert(MSG_CONTENT.deleteFailed ,MSG_ICON.ERROR); return; }
+                        pageIndex = 1;
+                        queryData();
+                        flashDialog.Alert(MSG_CONTENT.deleteSuccess ,MSG_ICON.SUCCESS);
+                    },
+                    error: function (e) {
+                        flashDialog.Alert(MSG_CONTENT.netout ,MSG_ICON.ERROR);
+                    }
+                });
+            })
+        }
+        //保存
+        function saveInfo() {
+            if (!isallow) {  return;}
+            $("#errormsg", editWin.Target).html("");
+            var model = {};
+            var programmename = $(".dev-textbox[name='programmename']", editWin.Target).prop("$this").GetValue().trim(); //方案名称
+            if (Dev.IsNull(programmename)) { $("#errormsg", editWin.Target).html("请输入方案名称!"); return; }
+            if (programmename.length > 26) { $("#errormsg", editWin.Target).html("方案名称过长!"); return; }
+            model.programmename = programmename;
+            model.orgid = selectOrgid1;
+            model.regionsid = xzqControl.combotree("getValue"); //行政区划
+            if (Dev.IsNull(model.regionsid)) { $("#errormsg", editWin.Target).html("请选择行政区划!"); return; }
+            model.province = Dev.IsNull(xzqValues.province) ? null : xzqValues.province;
+            model.city = Dev.IsNull(xzqValues.city) ? null : xzqValues.city;
+            model.county = Dev.IsNull(xzqValues.county) ? null : xzqValues.county;
+            model.town = Dev.IsNull(xzqValues.town) ? null : xzqValues.town;
+            model.village = Dev.IsNull(xzqValues.village) ? null : xzqValues.village;
+            model.type = plantControl.GetValue(); //种植方式
+            if (Dev.IsNull(model.type)) { $("#errormsg", editWin.Target).html("请选择种植方式!"); return; }
+
+            var rules = [];
+            var rulerows = $(".Rule", editWin.Target);
+            if (Dev.IsNull(rulerows) || rulerows.length == 0) { $("#errormsg", editWin.Target).html("轮作规则不能有空!"); return; }
+            for (var i = 0; i < rulerows.length; i++) {
+                var rule = {};
+                var rulecontrols = $('.dev-combobox', rulerows[i]);
+                for (var j = 0; j < rulecontrols.length; j++) {
+                    var tag = $(rulecontrols[j]).attr("tag");
+                    var curControl = $(rulecontrols[j]).prop("$this");
+                    var value ;
+                    if (tag =="crop") { value = curControl.GetValue(); }
+                    else {
+                        value = curControl.GetText();
+                        if (!Dev.IsNull(value)) { value = parseInt(value); }
+                    }
+                    if (Dev.IsNull(value)) rule[tag] = value;
+                    else rule[tag] = (tag == "year" || tag == "mouth") ? parseInt(value) : value;
+                }
+                rules.push(rule);
+            }
+            if (model.type == AGRI_PROGRAMME_TYPE.ONE) rules = Enumerable.From(rules).Except(Enumerable.From(rules).Where('s=>(s.year==null || s.year==undefined || s.year=="") && (s.crop==null || s.crop==undefined || s.crop=="")').ToArray()).ToArray();
+            if (model.type == AGRI_PROGRAMME_TYPE.MORE) rules = Enumerable.From(rules).Except(Enumerable.From(rules).Where('s=>(s.year==null || s.year==undefined || s.year=="") && (s.crop==null || s.crop==undefined || s.crop=="")&&(s.mouth==null || s.mouth==undefined || s.mouth=="")').ToArray()).ToArray();
+            if (Dev.IsNull(rules) || rules.length == 0 ) { $("#errormsg", editWin.Target).html("轮作规则不能有空!"); return; }
+            var ishasempty1 = Enumerable.From(rules).Where('s=>s.year==null || s.year==undefined || s.year=="" || s.crop==null || s.crop==undefined || s.crop==""').ToArray();
+            if (model.type == AGRI_PROGRAMME_TYPE.MORE) var ishasempty2 = Enumerable.From(rules).Where('s=>s.mouth==null || s.mouth==undefined || s.mouth==""').ToArray();
+            if (!Dev.IsNull(ishasempty1) && ishasempty1.length > 0) { $("#errormsg", editWin.Target).html("轮作规则不能有空!"); return; }
+            if (!Dev.IsNull(ishasempty2) && ishasempty2.length > 0) { $("#errormsg", editWin.Target).html("轮作规则不能有空!"); return; }
+            //记录任意属性不能为空
+            var verifyinfo = verifyRules(rules, model.type);
+            if (!verifyinfo.isok) { $("#errormsg", editWin.Target).html(verifyinfo.msg); return; }
+            var remarkControl = $(".dev-textbox[name='remark']", $(".TaskWorkEdit", Dev.App.FillPanel.Target)).prop("$this");
+            var remark = remarkControl.GetValue().trim();
+            if (remark.length > 120) { $("#errormsg", editWin.Target).html("备注过过长!"); return; }
+            model.remark = remark;Enumerable.From(rules).Where('s=>(s.year==null || s.year==undefined || s.year=="") && (s.crop==null || s.crop==undefined || s.crop=="")&&(s.mouth==null || s.mouth==undefined || s.mouth=="")').ToArray()
+            var programmecontent = getProgrammecontent(rules);
+            model.programmecontent = programmecontent;
+            model.relationtable = JSON.stringify(rules);
+            var programmecontent = getProgrammecontent(rules, model.type);
+            model.programmecontent = programmecontent;
+            if (!Dev.IsNull(updateId)) {
+                model.id = updateId;
+                updateId = null;
+            }//新增和更新共用一个借口，需要保证新增时updateid为空
+            var url = Dev.GetSystemUrlByRelID("Service") + "programme/addorupdateprogramme";
+            isallow = false;
+            $.ajax({
+                url: url,
+                type: "POST",
+                contentType: 'application/json',
+                dataType: 'json',
+                data: JSON.stringify(model),
+                success: function (result) {
+                    if (result.statusCode != 200) { flashDialog.Alert(MSG_CONTENT.saveFailed ,MSG_ICON.ERROR); return;}
+                    var errormsg = $("#errormsg", $(".TaskWorkEdit", Dev.App.FillPanel.Target));
+                    if (result.data == "方案名称已存在") { flashDialog.Alert(MSG_CONTENT.saveRepetition ,MSG_ICON.ERROR); }
+                    else if (result.data == "false") { flashDialog.Alert(MSG_CONTENT.saveFailed ,MSG_ICON.ERROR); }
+                    else if (result.data == "true") {
+                        editWin.Close();
+                        pageIndex = 1;
+                        searchClear();
+                        queryData();
+                        flashDialog.Alert(MSG_CONTENT.saveSuccess ,MSG_ICON.SUCCESS);
+                    }
+                },
+                error: function (e) {
+                    flashDialog.Alert(MSG_CONTENT.netout ,MSG_ICON.ERROR);
+                },
+                complete: function () {
+                    isallow = true;
+                }
+            });
+        }
+        function verifyRules(relationArr, type) {
+            /*校验农耕规则*/
+            var relationArr4Y = Enumerable.From(relationArr).GroupBy('s=>s.year').ToArray();//按年分组
+            if (type == AGRI_PROGRAMME_TYPE.ONE) {//一年一熟规则
+                if (relationArr.length != relationArr4Y.length) return { isok: false, msg: "年份请勿重复" };
+                for (var i = 0; i < relationArr.length; i++) {//遍历所有规则
+                    var rule = relationArr[i];
+                    var nearYear = "" + (parseInt(rule.year) + 1);
+                    var nearRule = Enumerable.From(relationArr).Where('s=>s.year=="' + nearYear + '"').FirstOrDefault();
+                    if (!Dev.IsNull(nearRule) && rule.crop == nearRule.crop) return { isok: false, msg: "同一作物次年请勿重复种植" };
+                }
+            }
+
+            var year = new Date().getFullYear();
+            var month = new Date().getMonth() + 1;
+            if (type == AGRI_PROGRAMME_TYPE.MORE) {//一年多熟规则
+                for (var i = 0; i < relationArr4Y.length; i++) {
+                    var ruleSameYear = relationArr4Y[i].source;
+                    var ruleArr4M = Enumerable.From(ruleSameYear).GroupBy('s=>s.mouth').ToArray();//相同年份 按照月份分组
+                    if (ruleArr4M.length != ruleSameYear.length) return { isok: false, msg: "同一年月份请勿重复" };
+                    //对同一年的月份进行排序，开始剔除连续季度种植的情况
+                    var rulesOrderByM = Enumerable.From(ruleSameYear).OrderBy('s=>s.mouth').ToArray();
+                    for (var n = 0; n < rulesOrderByM.length; n++) {
+                        var rule = rulesOrderByM[n];
+
+                        //和另外的月份比较
+                        if (n == rulesOrderByM.length - 1) break;//逻辑上应该和次年的月份比较，暂时放着!!!
+                        if (rule.crop == rulesOrderByM[n + 1].crop) return { isok: false, msg: "同一作物请勿连续季度种植" };
+                    }
+                }
+            }
+            return { isok: true };
+        }
+        //由规则数组 自动生成方案内容
+        function getProgrammecontent(rulesArr, type) {
+            var rulesOrderByM = Enumerable.From(rulesArr).OrderBy('s=>s.mouth').ToArray();
+            var rulesOrderByY = Enumerable.From(rulesOrderByM).OrderBy('s=>s.year').ToArray();
+            var resultArr = rulesOrderByY.map(function (value) {
+                var str = value.year + "";
+                if (value.hasOwnProperty("mouth") && !Dev.IsNull(value.mouth)) { str += "." + value.mouth;}
+                return str + "-" + value.crop;
+            });
+            return resultArr.join(",");
+        }
+        //编辑窗口填充数据
+        function loadData(row) {
+            updateId = row.id;
+            var programmeControl = $(".dev-textbox[name='programmename']", $(".TaskWorkEdit", Dev.App.FillPanel.Target)).prop("$this");
+            programmeControl.SetValue(row.programmename);
+            if (!Dev.IsNull(comboTree1)) comboTree1.SetValueEx(row.orgid);
+            if (!Dev.IsNull(xzqControl)) loadXZQNode(row.regionsid);
+            plantControl.SetValue(row.type);
+            var rulesArr = row.list;
+            for (var i = 1; i < rulesArr.length; i++) addBtn.click();
+            loadRules(rulesArr);//填充规则数据
+            var remarkControl = $(".dev-textbox[name='remark']", $(".TaskWorkEdit", Dev.App.FillPanel.Target)).prop("$this");
+            remarkControl.SetValue(row.remark);
+        }
+        //规则栏填充数据
+        function loadRules(rulesArr) {
+            var ruleControl = $(".dev-combobox", $(".Rule", Dev.App.FillPanel.Target))
+            if (!Dev.IsNull(ruleControl) && ruleControl.length > 0) {
+                var count = 0;
+                for (var i = 0; i < ruleControl.length; i++) {
+                    var tag = $(ruleControl[i]).attr("tag");
+                    var curControl = $(ruleControl[i]).prop("$this");
+                    var curValue = eval("rulesArr[" + count + "]." + tag);
+                    if (tag =="crop") { curControl.SetValue(curValue); }
+                    else curControl.SetText(curValue);
+                    if (tag == "crop") count += 1;
+                }
+            }
+        }
+        //初始化新增窗口中的组织树
+        function initOrgTree() {
+            if (Dev.IsNull(comboTree1)) {
+                comboTree1 = new Dev.Combotree({ Required: true, PopupHeight: 120, TipInfo: "选择组织", MultiSelect: false, ValueField: "id", TextField: "name", ChildrenField: "child", Height: 25, Border: "1px", Width: 149 });
+                $("#orgtreecomboDiv", editWin.Target).append(comboTree1.Target);
+                comboTree1.Layout();
+                comboTree1.bind("onSelectChanged", function (n, e) { selectOrgid1 = e.id; });
+            }
+        }
+        //初始化行政区
+        var xzqValues = {};
+        function initRegionsTree() {
+            xzqControl = $("#regionsTree", $(".TaskWorkEdit", Dev.App.FillPanel.Target));
+            xzqControl.combotree({
+                width: 150,
+                height: 25,
+                method: "post",
+                url: Dev.GetSystemUrlByRelID("Service") + 'dictionary/asyncdata/canton',
+                panelWidth: '150',
+                onClick: function (node) {
+                    xzqValues = {};
+                    getSelectValue(node);
+                },
+                onBeforeExpand: function (node, param) {
+                    xzqControl.combotree('tree').tree('options').url = Dev.GetSystemUrlByRelID("Service") + 'dictionary/asyncdata/canton?id=' + node.id;
+                },
+                onLoadSuccess: function () {
+                    $("li:eq(0)", $("#regionsTree", $(".TaskWorkEdit", Dev.App.FillPanel.Target))).find("div").addClass("tree-node-selected");
+                    var n = xzqControl.combotree('tree').tree("getSelected");
+                    if (n != null) xzqControl.combotree('tree').tree("select", n.target);
+                },
+                loadFilter: function (data) {
+                    data = data.data;
+                    for (var i = 0; i < data.length; i++) {
+                        if ('data' in data[i]) {
+                            data[i].text = data[i].data;
+                        }
+                    }
+                    return data;
+                }
+            });
+        }
+        //生成详细地址 获取选中节点的所有上层节点名
+        function getSelectValue(node) {
+            var type = node.remark;
+            if (Dev.IsNull(type)) return;
+            if (type == "省") type = "province";
+            if (type == "市") type = "city";
+            if (type == "县") type = "county";
+            if (type == "镇") type = "town";
+            if (type == "村") type = "village";
+            xzqValues[type] = node.text;
+            var parent = xzqControl.combotree("tree").tree("getParent", node.target);
+            if (!Dev.IsNull(parent)) getSelectValue(parent);
+        }
+        //展开指定节点,获取根节点到指定节点的所有节点
+        function loadXZQNode(id) {
+            $.ajax({
+                type: 'post',
+                url: Dev.GetSystemUrlByRelID("Service") + '/dictionary/expandto/' + id,
+                success: function (result) {
+                    xzqControl.combotree("tree").tree("loadData", result);
+                    xzqControl.combotree("setValue", id);
+                    var node = xzqControl.combotree("tree").tree('find', id);
+                    getSelectValue(node);
+                }
+            })
+        }
+        //改变种植方式时变更规则栏
+        function plantChgRule() {
+            var plantDiv = $(".dev-combobox[name='planting']", editWin.Target);
+            plantControl = plantDiv.prop("$this");
+            plantControl.bind("onSelectChanged", function (s, e) {
+                if (Dev.IsNull(plandatas) || Dev.IsNull(e)) return;
+                //初始化overflow属性
+                $('.Rules', $(".TaskWorkEdit", Dev.App.FillPanel.Target)).css({ "overflow-y": "visible" });
+                initRules(e.text);//初始化规则栏
+                if (realRuleNum == 0) { changeSize("addHeight"); }
+                else { realRuleNum = 0; changeSize("addHeight"); }//初始化行数、窗口高度
+            });
+        }
+        //构建下拉数据
+        function buildRuleData() {
+            if (Dev.IsNull(years)) {
+                years = [];
+                var year = new Date().getFullYear();
+                for (var i = 0; i < 5; i++) years.push(year + i);
+            }
+            if (Dev.IsNull(months)) {
+                months = [];
+                for (var i = 1; i <= 12; i++) months.push(i);
+            }
+        }
+        //初始化规则栏
+        function initRules(type) {
+            var rulediv = $('.Rules', editWin.Target);
+            rulediv.empty();
+            if (Dev.IsNull(rulediv)) return;
+            rulediv.css({ "display": "block", "height": "36px" });
+            var head = $('<div class="header"><span>轮作规则</span></div>').appendTo(rulediv);
+            var content = $(' <div class="content"></div>').appendTo(rulediv);
+            buildRuleData();//年和月份
+            addRule(type);
+        }
+        //初始化每条规则
+        function addRule(type) {
+            /*生成一行规则*/
+            var parent = $('.content', $(".Rules", Dev.App.FillPanel.Target));//content
+            var item = $('<div class="Rule"></div>').prependTo(parent);
+            var yearwidth = type == AGRI_PROGRAMME_TYPE.ONE ? 191 : 128;
+            var cropwidth = type == AGRI_PROGRAMME_TYPE.ONE ? 191 : 128;
+            var yeardiv = $('<div style="width:' + yearwidth + 'px; height: 35px; line-height: 35px; display: inline-block; float: left;"></div>').appendTo(item);
+            var yearCombo = new Dev.Combobox({
+                Data: years,
+                Height: 26,
+                Width: yearwidth,
+                PopupHeight: 110,
+                Required: true,
+                IsOverShow: true,
+                HeaderCSS: { "padding": "0px", "width": "50px" },
+                CSS: { "margin-top": "5px" },
+                Padding: "0px 5px",
+                Title: "<div class=\"Title\"><span>年份</span></div>"
+            });
+            yearCombo.bind("onSelectChanged", function (s, e) {
+                if (Dev.IsNull(e)) return;
+                var curryear = new Date().getFullYear();
+                var monthdiv = $(".monthparent", $(s.target).parent().parent());
+               var monthcombo = $(monthdiv.children()[0]).prop("$this");
+                    if (e == curryear) {
+                        var currmonth = new Date().getMonth() + 1;
+                        var ms = [];
+                        for (var i = currmonth; i <= 12; i++) ms.push(i);
+                        monthcombo.SetData(ms);
+                    }
+                    else monthcombo.SetData(months);
+
+            });
+            yearCombo.Target.attr("tag", "year");
+            yeardiv.append(yearCombo.Target);
+            if (type == AGRI_PROGRAMME_TYPE.MORE) {//月份
+                var monthdiv = $('<div class="monthparent" style="width: 127px; height: 35px; line-height: 35px; display: inline-block; float: left;">').appendTo(item);
+                var monthCombo = new Dev.Combobox({
+                    Data: months,
+                    Height: 26,
+                    Width: 127,
+                    PopupHeight: 110,
+                    Required: true,
+                    IsOverShow: true,
+                    HeaderCSS: { "padding": "0px", "width": "50px" },
+                    CSS: { "margin-top": "5px" },
+                    Padding: "0px 5px",
+                    Title: "<div class=\"Title\"><span>月份</span></div>"
+                });
+                monthCombo.Target.attr("tag", "mouth");
+                monthdiv.append(monthCombo.Target);
+            }
+            var cropdiv = $('<div style="width:' + cropwidth + 'px; height: 35px; line-height: 35px; display: inline-block; float: left;"></div>').appendTo(item);
+            var cropCombo = new Dev.Combobox({
+                Data: plandatas,
+                ValueField: "data",
+                TextField: "data",
+                Height: 26,
+                Width: cropwidth,
+                PopupHeight: plandatas.length < 5 ? 22 * plandatas.length : 110,
+                Required: true,
+                IsOverShow: true,
+                HeaderCSS: { "padding": "0px", "width": (type == AGRI_PROGRAMME_TYPE.ONE ? "75px" : "50px") },
+                CSS: { "margin-top": "5px" },
+                Padding: "0px 5px",
+                Title: "<div class=\"Title\"><span>作物</span></div>"
+            });
+            cropCombo.Target.attr("tag", "crop");
+            cropdiv.append(cropCombo.Target);
+            /*生成按钮*/
+            var addbtndiv = $('<div style="width: 30px; height: 35px; display: inline-block;"></div>').appendTo(item);
+            addBtn = $('<div class="Btn machine-add" tag="' + type + '"></div>').appendTo(addbtndiv);
+            addBtn.click(function () {
+                if ($(this).hasClass("machine-add")) {//新增
+                    if (realRuleNum >= 5) { return; } //当前行是5行时，不能新增
+                    $(this).removeClass("machine-add").addClass("icon-maptool-clearmap");
+                    var contentDiv = $(".content", $(".Rules", editWin.Target));
+                    var oldheight = contentDiv.outerHeight();
+                    var newheight = oldheight + 35;
+                    if (newheight > 106) {
+                        $(".Rules", editWin.Target).css("overflow-y", "auto");
+                    }
+                    else {
+                        // contentDiv.css("overflow-y", null);
+                        $(".Rules", editWin.Target).height(newheight);
+                    }
+                    contentDiv.height(newheight);
+                    var type = $(this).attr("tag");
+                    $(".header", $(".Rules", editWin.Target)).css({ "height": newheight + "px", "line-height": newheight + "px" });
+                    changeSize("addHeight");
+                    addRule(type);
+                    if (realRuleNum == 5) {//添加到5行后，改变第一行按钮
+                        $(".machine-add" ,$(".content" ,editWin)).addClass("icon-maptool-clearmap");
+                        $(".machine-add" ,$(".content" ,editWin)).removeClass("machine-add");
+                    }
+                }
+                else if ($(this).hasClass("icon-maptool-clearmap")) {//移除
+                    if (realRuleNum <= 1) { return; }
+                    var contentDiv = $(".content", $(".Rules", editWin.Target));
+                    var oldheight = contentDiv.outerHeight();
+                    $(this).parent().parent().remove();
+                    var newheight = oldheight - 35;
+                    contentDiv.height(newheight);
+                    if (newheight > 106) $(".Rules", editWin.Target).css("overflow-y", "auto");
+                    else {
+                        $(".Rules", editWin.Target).height(newheight);
+                        $(".Rules", editWin.Target).css("overflow-y", "visible");
+                    }
+                    $(".header", $(".Rules", editWin.Target)).css({ "height": newheight + "px", "line-height": newheight + "px" });
+                    $(".icon-maptool-clearmap" ,editWin);
+                    changeSize("deleteHeight");
+                    if (realRuleNum  == 4) {//移除到4行后，改变按钮
+                        $(".icon-maptool-clearmap:first" ,$(".content" ,editWin)).addClass("machine-add");
+                        $(".icon-maptool-clearmap:first" ,$(".content" ,editWin)).removeClass("icon-maptool-clearmap");
+                    }
+                }
+            });
+        }
+
+        //详细信息
+        var detailWin;
+        function showdetail(index) {
+            dataGrid.DataGrid.datagrid("selectRow", index);
+            var selectRowData = dataGrid.DataGrid.datagrid("getSelected");
+            if (Dev.IsNull(selectRowData)) return;
+            if (!Dev.IsNull(detailWin)) { detailWin.Close(); detailWin.Destroy(); detailWin = null;}
+            detailWin = new Dev.Window({
+                ID: "programmedetailWin",
+                IconCls: 'machine-trackedit',
+                Title: "详细信息",
+                Parent: Dev.App.FillPanel.Target,
+                Maximizable: false,
+                Modal: true,
+                Draggable: true,
+                HAlign: 'center',
+                VAlign: 'center',
+                Resizable: false,
+                Url: Dev.App.Root + "html/rotation/programmedetail.html",
+                Height: 425,
+                Width: 520,
+                Parameters: { showdata: selectRowData }
+            });
+        }
+
+        //辅助函数
+        function resize() {
+            //  Dev.App.BottomPanel.SetHeight(262);
+            var wh = Dev.App.BottomPanel.Target.outerHeight();
+            $(".datagrid-row").css({ "height": "28px" });//初始化
+            var height = $(window).height();
+            treeControl.SetHeight(height == 0 ? (wh - 26) : (height - 26));
+            var gridheight = height - 40;
+            var gridwidth = $(window).width() * 0.80 - 1;//searchDiv、gridDiv的左边框都占了1，
+            if (gridwidth < 1050) {
+                gridwidth = 1050;
+                gridheight = parseInt(gridheight) - 17;//X轴滚动条的宽度
+                $(".datagrid-row").css({ "height": "25px" });//当有滑动条时，减小行高适应
+            }
+            $("#searchDiv").width(gridwidth);
+            $("#gridDiv").height(gridheight).width(gridwidth);
+            if (!Dev.IsNull(dataGrid)) dataGrid.Resize(gridwidth, gridheight);
+        }
+        function getCondition() { //获取查询条件
+            var con = " 1=1 ";
+            var programmeControl = $("#programmename").prop("$this");
+            if (!Dev.IsNull(programmeControl)) {
+                var programmename = programmeControl.GetValue();
+                if (!Dev.IsNull(programmename)) con += " AND \"PROGRAMMENAME\" LIKE '%" + $.trim(programmename) + "%'";
+            }
+            var typeControl = $("#type").prop("$this");
+            if (!Dev.IsNull(typeControl)) {
+                var type = typeControl.GetValue();
+                if (!Dev.IsNull(type)) { con += " AND \"TYPE\" = '" + type + "'"; }
+            }
+            //时间
+            var time1 = $("#createdate1").datebox("getValue");
+            var time2 = $("#createdate2").datebox("getValue");
+            if (!Dev.IsNull(time1) && !Dev.IsNull(time2)) {
+                var t1 = new Date(time1.replace(/-/g, "/"));
+                var t2 = new Date(time2.replace(/-/g, "/"));
+                if (t1.getTime() > t2.getTime()) {
+                    var temp = time1;
+                    time1 = time2;
+                    time2 = temp;
+                }
+            }
+            if (!Dev.IsNull(time1)) con += " AND \"CREATEDATE\">='" + time1 + " 00:00:00'";
+            if (!Dev.IsNull(time2)) con += " AND \"CREATEDATE\"<='" + time2 + " 23:59:59'";
+            //组织机构
+            if (!dev.IsNull(orgFilter)) con += " AND  " + orgFilter;
+            con += " ORDER BY \"CREATEDATE\" DESC ";
+            return con;
+        }
+        function searchClear() {//清空查询条件
+            var textControl = $('.dev-textbox', $("#searchDiv"));
+            for (var i = 0; i < textControl.length; i++) {
+                var curControl = $(textControl[i]).prop("$this");
+                curControl.Clear();
+            }
+            var comboControl = $(".dev-combobox" ,$("#searchDiv"));
+            for (var i = 0; i < comboControl.length; i++) {
+                var curControl =  $(comboControl[i]).prop("$this");
+                curControl.SetValue("");
+            }
+            $("#createdate1", $("#searchDiv")).datebox("setValue", "");
+            $("#createdate2", $("#searchDiv")).datebox("setValue", "");
+        }
+        function changeSize(type) {//实际规则行数
+            type == "addHeight" ? realRuleNum += 1 : realRuleNum -= 1;
+            if (realRuleNum <= 3) editWin.SetHeight(257 + 35 * realRuleNum);
+        }
+    </script>
+</head>
+<body style="height: 100%; width: 100%">
+    <div id="content" class="content">
+        <div style="height: 100%; width: 20%; position: absolute;">
+            <!--<div style="height: 26px; line-height: 26px; width: 100%; background-color: #ddd;"><span style="margin-left: 15px; color: #0099cc; line-height: 26px; letter-spacing: 3px; font-size: 12px;">组织机构</span></div>-->
+            <div id="treeDiv" style="width: 100%; height: 100%;">
+                <div class="dev-tree" opt='{"ValueField":"id","TextField":"name","ChildrenField":"child","Height":220}'></div>
+            </div>
+        </div>
+        <div style="height: 100%; width: 80%; position: absolute; left: 20%; overflow-x: auto; overflow-y: hidden">
+            <div id="searchDiv" style="height: 40px; width: 100%; border-left: 1px solid #ddd; position: relative;">
+                <div style="height: 40px; position: absolute; left: 0px;">
+                    <div class="SearchDiv">
+                        <div id="programmename" class="dev-textbox" style="z-index: 2; width: 190px; display: inline-block;" opt='{"TipInfo":"","HeaderCSS":{"padding":"0px","width":"75px"},"IsOverShow":true,"Padding":"0px 5px","TextAlign":"left","BodyCSS": { "background-color": "transparent","margin-top":"8px","margin-left":"8px" },"Title":"<div class=\"Title\"><div class=\"Icon machine-carnum\"></div><span class=\"Text\">方案名称</span></div>"}'></div>
+                    </div>
+                    <div class="SearchDiv">
+                        <div class="Title">
+                            <div class="Icon machine-carnum"></div>
+                            <span class="Text">种植类型</span>
+                        </div>
+                        <div style="height: 26px; width: 130px; display: inline-block; margin-top: 8px;">
+                            <div id="type" class="dev-combobox" opt='{"Data":["一年一熟","一年多熟"],"Width":"120","TipInfo":"请选择","IsOverShow":true,"Padding":"0px 5px","TextAlign":"left","CSS":{"background-color":"transparent","margin-left":"8px"}}'></div>
+                        </div>
+                    </div>
+                    <div class="SearchDiv" style="margin-left: 5px;">
+                        <div style="width: 75px; height: 40px; line-height: 40px; text-align: right; display: inline-block; float: left;">
+                            <div class="icon-calendar" style="height: 16px; width: 16px; display: inline-block; float: left; margin-left: 5px; margin-top: 11px;"></div>
+                            <span style="height: 40px; line-height: 40px; width: 49px; float: right;">创建时间</span>
+                        </div>
+                        <div style="width: 120px; height: 40px; line-height: 38px; padding: 0px 5px; display: inline-block; float: left; margin-top: 0px;">
+                            <input id="createdate1" class="easyui-datebox" data-options="width:120,height:24,editable: false" />
+                        </div>
+                    </div>
+                    <div class="SearchDiv">
+                        <div style="width: 25px; height: 40px; display: inline-block; line-height: 40px; text-align: center;">至</div>
+                        <div style="width: 120px; height: 40px; line-height: 38px; padding: 0px 5px; display: inline-block; margin-top: 0px;">
+                            <input id="createdate2" class="easyui-datebox" data-options="width:120,height:24,editable: false" />
+                        </div>
+                    </div>
+                </div>
+                <div style="width: 231px; height: 100%; position: absolute; right: 19px; z-index: 2">
+                    <div class="Button" tag="search">
+                        <div class="machine-query" style="height: 16px; width: 16px; margin-top: 4px; margin-left: 4px; display: inline-block; float: left;"></div>
+                        <span style="line-height: 26px; color: #fcfcfc;">查&nbsp;询</span>
+                    </div>
+                    <div class="Button" tag="searchClear">
+                        <div class="machine-reset" style="height: 16px; width: 16px; margin-top: 4px; margin-left: 4px; display: inline-block; float: left;"></div>
+                        <span style="line-height: 26px; color: #fcfcfc;">重&nbsp;置</span>
+                    </div>
+                    <div class="Button" tag="add">
+                        <div class="machine-add" style="height: 16px; width: 16px; margin-top: 4px; margin-left: 4px; display: inline-block; float: left;"></div>
+                        <span style="line-height: 26px; color: #fcfcfc;">新&nbsp;增</span>
+                    </div>
+                </div>
+            </div>
+            <div id="gridDiv" style="width: 100%; border-left: 1px solid #ddd; border-top: 1px solid #ddd;"></div>
+        </div>
+    </div>
+    <div id="EditDiv" class="TaskWorkEdit">
+        <div class="Row" style="height: 35px; width: 100%; border-bottom: 1px solid #ddd;">
+            <div class="Cell" style="height: 35px; width: 488px;">
+                <div style="width: 69px; height: 100%; line-height: 35px; text-align: right; padding-right: 5px; float: left">
+                    方案名称
+                </div>
+                <div class="dev-textbox" name="programmename" style="width: 414px; height: 27px; margin-top: 5px; float: left"
+                    opt='{"MaxLength":26,"Required": true,"TipInfo":"","HeaderCSS":{"padding":"0px 5px","width":"80px", "text-align": "RIGHT"},"IsOverShow":true,"Padding":"5px"}'>
+                </div>
+            </div>
+        </div>
+        <div class="Row" style="height: 35px; width: 100%; border-bottom: 1px solid #ddd;">
+            <div class="Cell" style="width: 50%">
+                <div style="width: 69px; height: 100%; line-height: 35px; text-align: right; padding-right: 5px; float: left">
+                    组织机构
+                </div>
+                <div id="orgtreecomboDiv"
+                    style="height: 24px; width: 150px; margin-top: 5px; display: block; float: left;">
+                </div>
+            </div>
+            <div class="Cell" style="width: 50%">
+                <div style="width: 78px; height: 100%; line-height: 35px; text-align: right; padding-right: 5px; float: left">
+                    行政区划
+                </div>
+                <div style="height: 100%; line-height: 32px; text-align: right; float: left">
+                    <div id="regionsTree"></div>
+                    <div style="position: absolute; height: 10px; width: 10px; top: 49px; right: 45px; color: red; line-height: 10px;">*</div>
+                </div>
+            </div>
+        </div>
+        <div class="Row" style="height: 35px; width: 100%; border-bottom: 1px solid #ddd;">
+            <div class="Cell">
+                <div style="width: 69px; height: 100%; line-height: 35px; text-align: right; padding-right: 5px; float: left">
+                    种植方式
+                </div>
+                <div style="width: 150px; height: 100%; line-height: 38px; line-height: 32px; float: left; margin-top: 0px;">
+                    <div class="dev-combobox" name="planting" style="z-index: 3; width: 149px; margin-top: 5px;" opt='{"Required":true,"TipInfo":"请选择","Height":26,"HeaderCSS":{"padding":"0px","width":"75px"},"ValueField":"text","TextField":"text","Data":[{"id":"1","text":"一年一熟"},{"id":"2","text":"一年多熟"}],"IsOverShow":true,"Padding":"0px 5px","TextAlign":"left","BodyCSS": { "background-color": "transparent" }}'></div>
+                </div>
+            </div>
+        </div>
+        <div class="Row Rules" style="max-height: 106px; width: 510px;"></div>
+        <div class="Row" style="height: 65px; width: 100%; border-bottom: 1px solid #ddd;">
+            <div class="Cell" style="height: 60px; width: 488px;">
+                <div style="width: 69px; height: 100%; line-height: 65px; text-align: right; padding-right: 5px; float: left">
+                    备注
+                </div>
+                <div class="dev-textbox" name="remark" style="z-index: 2; width: 414px; height: 55px; margin-top: 5px; float: left"
+                    opt='{"MaxLength":120,"TipInfo":"","Type":"multi-text","HeaderCSS":{"padding":"0px 5px","width":"80px", "text-align": "RIGHT"},"IsOverShow":true,"Padding":"5px"}'>
+                </div>
+            </div>
+        </div>
+        <div id="errormsg"
+            style="height: 35px; width: 200px; line-height: 35px; display: inline-block; color: red; padding-left: 10px; margin-left: 20px;">
+        </div>
+        <div class="Submit" style="margin-top: 2px">
+            <div class="Button" tag="save">
+                <span style="line-height: 26px; color: #fcfcfc;">保&nbsp;&nbsp;存</span>
+            </div>
+            <div class="Button" tag="cancel">
+                <span style="line-height: 26px; color: #fcfcfc;">取&nbsp;&nbsp;消</span>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

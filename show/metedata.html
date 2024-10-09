@@ -1,0 +1,988 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>农业大数据研究与管理平台</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <link rel="stylesheet" href="../theme/default/easyui.css" />
+    <link rel="stylesheet" type="text/css" href="../theme/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../css/app.css" />
+    <link rel="stylesheet" type="text/css" href="../css/main.css" />
+    <link rel="stylesheet" type="text/css" href="../css/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../css/dev.css" />
+    <script type="text/javascript" src="../js/jquery.min.js"></script>
+    <script type="text/javascript" src="../js/dev.ui.js"></script>
+    <script type="text/javascript" src="js/show.gis.js"></script>
+    <script type="text/javascript" src="../js/jquery.dev.js"></script>
+    <script type="text/javascript" src="../js/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="../js/easyui-lang-zh_CN.js"></script>
+    <script type="text/javascript" src="../js/linq.min.js"></script>
+    <script type="text/javascript" src="../js/data.util.js"></script>
+    <script type="text/javascript" src="js/highcharts.js"></script>
+    <script type="text/javascript" src="js/highcharts-more.js"></script>
+    <script type="text/javascript" src="js/solid-gauge.js"></script>
+    <script type="text/javascript" src="../js/jquery.dev.control.js"></script>
+    <script type="text/javascript" src="../js/ezuikit.js"></script>
+    <link rel="icon" type="image/x-icon" href="../image/logo.ico" />
+    <style type="text/css">
+        .content {
+            width: 100%;
+            height: calc(100% - 33px);
+            background: url(showimg/logo.png) no-repeat top,-webkit-radial-gradient(#000c09 30%,#000c09 70%);
+            background: url(showimg/logo.png) no-repeat top,-o-radial-gradient(#000c09 30%,#000c09 70%);
+            background: url(showimg/logo.png) no-repeat top,-moz-radial-gradient(#000c09 30%,#000c09 70%);
+            background: url(showimg/logo.png) no-repeat top,radial-gradient(#000c09 30%,#000c09 70%);
+        }
+
+            .content > div {
+                float: left;
+                width: 40%;
+                height: calc(58% - 70px);
+                background: url(showimg/topl.png),url(showimg/topr.png),url(showimg/bottoml.png),url(showimg/bottomr.png),url(showimg/divbg.png) no-repeat center/100% 100%;
+                background-repeat: no-repeat,no-repeat,no-repeat,no-repeat;
+                background-position: top left,top right,bottom left,bottom right;
+                margin-left: 0.8%;
+                margin-top: 10px;
+            }
+
+        .title {
+            float: left;
+            width: 97%;
+            height: 33px;
+            background: url(showimg/t-bg.png) no-repeat center/100% 100%;
+            margin-left: 0.6%;
+            margin-top: 0.6%;
+            color: white;
+            padding-left: 1%;
+            font-size: 14px;
+            line-height: 33px;
+        }
+
+        .vertical {
+            float: left;
+            width: 32px;
+            height: 100%;
+            background: url(showimg/v-bg.png) no-repeat center/100% 100%;
+            color: white;
+            line-height: 150%;
+            font-size: 18px;
+            text-align: center;
+        }
+
+        .scenediv {
+            float: left;
+            margin-left: 0.2%;
+            border: 1px solid #0a6d5b;
+            text-align: center;
+            font-size: 12px;
+            color: white;
+            background: url(showimg/topl.png),url(showimg/topr.png),url(showimg/bottoml.png),url(showimg/bottomr.png);
+            background-repeat: no-repeat,no-repeat,no-repeat,no-repeat;
+            background-position: top left,top right,bottom left,bottom right;
+        }
+
+            .scenediv:hover {
+                box-shadow: #0a6d5b 0px 0px 20px 5px;
+            }
+
+        .leftpanel > .mappanel {
+            float: left;
+            margin-left: 3px;
+            width: calc(100% - 6px);
+            height: 91%;
+            background-color: transparent;
+            position: relative;
+        }
+
+        .mappaneldom {
+            float: left;
+            width: 100%;
+            height: calc(100% - 40px);
+            display: inline-block;
+        }
+
+        .columdiv1 {
+            width: 78%;
+            height: 82%;
+            background: url(showimg/stbg.png) no-repeat top/100%;
+            float: left;
+            margin-top: 0.5%;
+        }
+
+        .attribute {
+            width: 18%;
+            height: calc(100% - 33px);
+            background-color: transparent;
+            float: left;
+            margin-left: 3%;
+        }
+
+        .attribute1 {
+            width: 90%;
+            height: 24%;
+            background: url(showimg/titelbg.png) no-repeat center/100% 100%;
+            float: left;
+            margin-top: 7%;
+            text-align: center;
+        }
+
+        .buttom {
+            float: left;
+            width: 490px;
+            height: 40px;
+            border-radius: 5px;
+            margin-left: calc(50% - 245px);
+            background: rgba(0,0,0, 0.6);
+        }
+
+            .buttom > div {
+                float: left;
+                width: 70px;
+                height: 40px;
+                color: white;
+                border-radius: 5px;
+                font-size: 16px;
+                line-height: 40px;
+                text-align: center;
+                cursor: pointer;
+            }
+
+                .buttom > div:hover {
+                    background-color: rgba(255,255,255, 0.5);
+                }
+
+        .icon-b {
+            float: left;
+            height: 16px;
+            width: 16px;
+            margin-top: 11px;
+            margin-left: 10px;
+        }
+        /* 底部样式 */
+        footer {
+            background-color: #363636;
+            font-size: 14px;
+            color: #fff;
+            line-height: 33px;
+            position: relative;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
+            height: 33px;
+            text-align: center;
+        }
+    </style>
+    <script type="text/javascript">
+        var tempraturec, tempdityc, temprpressurec, windspeedc, winddirectc, temprainc;//气象控件变量
+        var soilhumidityc1, soilhumidityc2, soilhumidityc3, phvalueControl, soiltemperaturec1, soiltemperaturec2, soiltemperaturec3;//土壤控件变量
+        var effectivec, effectivetotalc;//光照辐射变量
+        var liquidc;//液位变量
+        var Config, t;
+        var indepeid, serialnumber, metename;
+        var linchart, Intervalline, dptime;
+        var deviceSerial, accesstoken;
+        $(window).ready(function () {
+            if (dev.IsNull(Config)) {
+                var config = null;
+                $.ajax({
+                    url: "../config/app.xml",
+                    dataType: 'xml',
+                    type: 'GET',
+                    cache: false,
+                    timeout: 2000,
+                    async: false,
+                    error: function (xml) {
+                        alert("加载系统配置文件出错！");
+                    },
+                    success: function (xml) {
+                        config = $.xml2json(xml);
+                    }
+                });
+                Config = config;
+            }
+            indepeid = getUrlParam("indepeid");
+            serialnumber = getUrlParam("serialnumber");
+            inittempcontrol();//初始化气象控件
+            initsoilcontrol();//初始化土壤控件
+            initeffeccontrol();//初始化光合辐射控件
+            initliquidcontrol();//初始化液位或者光照
+            initvideo();//初始化视频
+            allclick();
+            getcamera(serialnumber);
+            metename = "freeairtemperature";
+            meteordata();
+            $('#infobtn').click(function () {
+                window.open(GetRootPath() + "show/index.html", "_self");
+            });
+            $(".scenediv").click(function (e, s) {
+                metename = $(this).attr("name");
+               $(".scenediv").css("box-shadow", "");
+                meteordata();
+            });
+            resize();
+            setInterval("refpoint()", 10000);
+            $("#enlarge").click(function (e) {
+                $.post("https://open.ys7.com/api/lapp/device/ptz/start",
+                   {
+                       accessToken: accesstoken,
+                       deviceSerial: deviceSerial,
+                       channelNo: 1,
+                       direction: 8,
+                       speed: 1
+                   });
+                setTimeout(function () {
+                    stopvideo(e);
+                }, 600);
+            });
+            $("#narrow").click(function (e) {
+                $.post("https://open.ys7.com/api/lapp/device/ptz/start",
+                   {
+                       accessToken: accesstoken,
+                       deviceSerial: deviceSerial,
+                       channelNo: 1,
+                       direction: 9,
+                       speed: 1
+                   });
+                setTimeout(function () {
+                    stopvideo(e);
+                }, 600);
+            });
+            $("#up").click(function (e) {
+                $.post("https://open.ys7.com/api/lapp/device/ptz/start",
+                   {
+                       accessToken: accesstoken,
+                       deviceSerial: deviceSerial,
+                       channelNo: 1,
+                       direction: 0,
+                       speed: 1
+                   });
+                setTimeout(function () {
+                    stopvideo(e);
+                }, 600);
+            });
+            $("#down").click(function (e) {
+                $.post("https://open.ys7.com/api/lapp/device/ptz/start",
+                   {
+                       accessToken: accesstoken,
+                       deviceSerial: deviceSerial,
+                       channelNo: 1,
+                       direction: 1,
+                       speed: 1
+                   });
+                setTimeout(function () {
+                    stopvideo(e);
+                }, 600);
+            });
+            $("#left").click(function (e) {
+                $.post("https://open.ys7.com/api/lapp/device/ptz/start",
+                   {
+                       accessToken: accesstoken,
+                       deviceSerial: deviceSerial,
+                       channelNo: 1,
+                       direction: 2,
+                       speed: 1
+                   });
+                setTimeout(function () {
+                    stopvideo(e);
+                }, 600);
+            });
+            $("#right").click(function (e) {
+                $.post("https://open.ys7.com/api/lapp/device/ptz/start",
+                   {
+                       accessToken: accesstoken,
+                       deviceSerial: deviceSerial,
+                       channelNo: 1,
+                       direction: 3,
+                       speed: 1
+                   });
+                setTimeout(function () {
+                    stopvideo(e);
+                }, 600);
+            });
+            $("#stop").click(function (e) {
+                stopvideo(e);
+            });
+        });
+        function stopvideo(e) {
+            $.post("https://open.ys7.com/api/lapp/device/ptz/stop",
+                   {
+                       accessToken: accesstoken,
+                       deviceSerial: deviceSerial,
+                       channelNo: 1,
+                   });
+        }
+        $(window).resize(function () {
+            resize();
+        });
+        $(window).unload(function () {
+            $(this).remove();
+        });
+        function allclick() {
+            getmonitordata(indepeid, serialnumber);
+            $(".scenediv").css("box-shadow", "");
+        }
+        function resize() {
+            if ($('.content').height() <= 870) {
+                $('#flow').css("overflow-y", "auto");
+            }
+            else {
+                var soil1 = $("div[name='soiltemperature1']");
+                soiltemperaturec1.Resize(100, soil1.height() - 90);
+                var soil2 = $("div[name='soiltemperature2']");
+                soiltemperaturec2.Resize(100, soil2.height() - 45);
+                var soil3 = $("div[name='soiltemperature3']");
+                soiltemperaturec3.Resize(100, soil3.height() - 45);
+                var monito = $("div[name='freeairtemperature']");
+                tempraturec.Resize(100, monito.height() - 45);
+                var rain = $("div[name='rain']");
+                temprainc.Reisize(70, rain.height() - 45);
+                var liquid = $("div[name='liquid']");
+                liquidc.Reisize(70, liquid.height() - 80);
+            }
+            if ($('.content').width() <= 1300) {
+                $('#flow').css("overflow-x", "auto");
+            }
+            $('footer').css("width", $('.content').width());
+        }
+        function getmonitordata(indepeid, seriesnum) {
+            if (dev.IsNull(indepeid) && dev.IsNull(seriesnum)) return;
+            $.ajax({
+                url: dev.MapLoad.GetUrlByRelID("Service") + "/meteorYtjData/queryLastTimeAmsDate",
+                type: "POST",
+                dataType: 'json',
+                data: {
+                    indepeId: indepeid,
+                    meteorSerNum: seriesnum
+                },
+                success: function (result) {
+                    if (result.statusCode != 200 || result.data.length == 0) return;
+                    setconrolValue(result.data[0]);
+                }
+            });
+        }//获取站点最新数据
+        function monitortdata(indepeid, seriesnum) {
+            if (dev.IsNull(indepeid) && dev.IsNull(seriesnum)) return;
+            $.ajax({
+                url: dev.MapLoad.GetUrlByRelID("Service") + "/meteorYtjData/queryWhereAndAvg",
+                type: "POST",
+                dataType: 'json',
+                data: {
+                    indepdId: indepeid,
+                    meteorSerNum: serialnumber,
+                    where: "\"UPLOADDATE\" ='" + dptime + "'"
+                },
+                success: function (result) {
+                    if (!dev.IsNull(result.error) || result.data.length == 0) return;
+                    setconrolValue(result.data[0]);
+                }
+            });
+        }//获取站点指定时间数据
+        function setconrolValue(data) {
+            //时间
+            var time = dev.GetDateString(data.uploaddate, false)
+            $("#monitortime").text("监测时间：" + time);
+            //气候
+            tempraturec.SetValue(parseFloat(data.freeairtemperature));//温度
+            tempdityc.series[0].data[0].y = parseFloat(data.freeairhumidity);//湿度
+            tempdityc.render();
+            temprpressurec.series[0].data[0].y = parseFloat(data.freeairpressure);//大气压
+            temprpressurec.render();
+            windspeedc.series[0].data[0].y = parseFloat(data.windspeed);//风速
+            windspeedc.render();
+            winddirectc.SetAngleValue(parseFloat(data.winddirection));//风向
+            temprainc.SetValue(parseFloat(data.rain));//雨量
+            //土壤
+            soilhumidityc1.series[0].data[0].y = parseFloat(data.soilhumidity1);//土壤湿度1
+            soilhumidityc1.render();
+            soilhumidityc2.series[0].data[0].y = parseFloat(data.soilhumidity2);//土壤湿度2
+            soilhumidityc2.render();
+            soilhumidityc3.series[0].data[0].y = parseFloat(data.soilhumidity3);//土壤湿度3
+            soilhumidityc3.render();
+            soiltemperaturec1.SetValue(parseFloat(data.soiltemperature1));//温度1
+            soiltemperaturec2.SetValue(parseFloat(data.soiltemperature2));//温度2
+            soiltemperaturec3.SetValue(parseFloat(data.soiltemperature3));//温度3
+            phvalueControl.series[0].data[0].y = parseFloat(data.phvalue);//PH值
+            phvalueControl.render();
+            //光合
+            effectivec.series[0].data[0].y = parseFloat(data.effectiveradiation);//有效光照辐射
+            effectivec.render();
+            effectivetotalc.series[0].data[0].y = parseFloat(data.totalradiation);//总辐射
+            effectivetotalc.render();
+            //液位
+            liquidc.SetValue(parseFloat(data.liquid));//液位
+        }
+        function inittempcontrol() {
+            //温度
+            tempraturec = new UCThermometer(dev, { CSS: { "left": "25%", "top": "calc(8% - 18px)" }, Height: 115, MinValue: -20, MaxValue: 60, ValueInterval: 5 });
+            $("div[name='freeairtemperature']").append(tempraturec.Target);
+            tempraturec.Layout();
+            tempraturec.SetValue(0);
+            //tempraturec.tempoutbody.css("height", "75%");
+            //tempraturec.tempscale.css({ "height": "75%" });
+            //湿度
+            $("div[name='freeairhumidity']").highcharts({
+                chart: { type: 'gauge', backgroundColor: 'rgba(4,155,199,0)' },
+                credits: { enabled: false },
+                title: { text: "湿度(%)", style: { "font-size": "12px", "color": "#FFFFFF" }, y: 8 },
+                pane: { startAngle: -150, endAngle: 150, size: "120%" },
+                yAxis: {
+                    min: 0, max: 100, minorTickWidth: 1, minorTickLength: 5, minorTickPosition: 'inside',
+                    minorTickColor: '#ababab', tickPixelInterval: 100, tickWidth: 2, tickPosition: 'inside',
+                    tickLength: 15, tickColor: '#515151', tickWidth: 1,
+                    labels: { step: 1, rotation: 'auto' },
+                    plotBands: [
+                        { from: 0, to: 33, color: '#0b86ee' },
+                        { from: 33, to: 66, color: '#ff7f7f' },
+                        { from: 66, to: 100, color: '#fe9024' }
+                    ]
+                },
+                series: [{ name: '大气湿度', data: [0], }]
+            },
+            function (c) { tempdityc = c; });
+            //大气压
+            $("div[name='freeairpressure']").highcharts({
+                chart: { type: 'gauge', backgroundColor: 'rgba(4,155,199,0)' },
+                credits: { enabled: false },
+                title: { text: "大气压(kPa)", style: { "font-size": "12px", "color": "#FFFFFF" }, y: 8 },
+                pane: { startAngle: -150, endAngle: 150, size: "120%" },
+                yAxis: {
+                    min: 0, max: 1100, minorTickWidth: 1, minorTickLength: 5, minorTickPosition: 'inside',
+                    minorTickColor: '#ababab', tickPixelInterval: 100, tickWidth: 2, tickPosition: 'inside',
+                    tickLength: 15, tickColor: '#515151', tickWidth: 1,
+                    labels: { step: 1, rotation: 'auto' },
+                    plotBands: [
+                        { from: 0, to: 375, color: '#0b86ee' },
+                        { from: 375, to: 750, color: '#ff7f7f' },
+                        { from: 750, to: 1100, color: '#fe9024' }
+                    ]
+                },
+                series: [{ name: '大气压', data: [0], }]
+            },
+           function (c) { temprpressurec = c; });
+            //风速
+            $("div[name='windspeed']").highcharts({
+                title: { text: "风速(m/s)", style: { "font-size": "12px", "color": "#FFFFFF" }, y: 8 },
+                chart: { type: 'solidgauge', backgroundColor: 'rgba(4,155,199,0)' },
+                credits: { enabled: false },
+                yAxis: {
+                    min: 0, max: 100, title: null, stops: [[0.1, '#55BF3B'], [0.5, '#DDDF0D'], [0.9, '#DF5353']],
+                    minorTickInterval: null, tickPixelInterval: 200, tickWidth: 0, labels: { y: 25 }
+                },
+                series: [{ name: '风速', data: [0] }],
+                pane: {
+                    center: ['50%', '85%'],
+                    size: '150%',
+                    startAngle: -90,
+                    endAngle: 90,
+                    background: {
+                        backgroundColor: (Highcharts.theme && Highcharts.theme.background2) || '#EEE',
+                        innerRadius: '60%',
+                        outerRadius: '100%',
+                        shape: 'arc'
+                    }
+                }
+            }, function (c) { windspeedc = c; });
+            //风向
+            winddirectc = new UCWindMeter(dev, {
+                Width: 135, Height: 135, CSS: { "left": "calc(10% - 10px)", "top": "calc(2% - 5px)" },
+                annotations_fill_style: "#ababab",
+                guidewire_fill_style: "#e14cf3",
+                guidewire_stroke_style: "#e14cf3",
+                tick_long_stroke_style: "#7e7e7e",
+                FillStyle: "#ffffff",
+                BorderStyle: "#d5dee8"
+            });
+            $("div[name='winddirection']").append(winddirectc.Target);
+            winddirectc.Layout();
+            winddirectc.Target.css({ "height": "100%", "width": "calc(65% + 50px)" });
+            winddirectc.canvas.css({ "height": "85%", "width": "85%" });
+            //雨量
+            temprainc = new UCBottle(dev, { CSS: { "left": "28%", "top": "calc(-4% - 5px)" }, Height: 120, MaxValue: 25, MinValue: 0, Step: 1 });
+            $("div[name='rain']").append(temprainc.Target);
+            temprainc.Layout();
+            temprainc.outerBody.css("height", "85%");
+        }//初始化气象控件
+        function initsoilcontrol() {
+            //温度1
+            //soiltemperature1
+            soiltemperaturec1 = new UCThermometer(dev, { CSS: { "left": "30%", "top": "8%" }, Height: 200, MinValue: -20, MaxValue: 60, ValueInterval: 5 });
+            $("div[name='soiltemperature1']").append(soiltemperaturec1.Target);
+            soiltemperaturec1.Layout();
+            soiltemperaturec1.SetValue(0);
+            soiltemperaturec1.tempoutbody.css("height", "90%");
+            soiltemperaturec1.tempscale.css("height", "90%");
+            //温度2
+            soiltemperaturec2 = new UCThermometer(dev, { CSS: { "left": "20%", "top": "calc(8% - 18px)" }, Height: 120, MinValue: -20, MaxValue: 60, ValueInterval: 5 });
+            $("div[name='soiltemperature2']").append(soiltemperaturec2.Target);
+            soiltemperaturec2.Layout();
+            soiltemperaturec2.SetValue(0);
+            soiltemperaturec2.tempoutbody.css("height", "75%");
+            soiltemperaturec2.tempscale.css("height", "75%");
+            //温度3
+            soiltemperaturec3 = new UCThermometer(dev, { CSS: { "left": "20%", "top": "calc(8% - 18px)" }, Height: 120, MinValue: -20, MaxValue: 60, ValueInterval: 5 });
+            $("div[name='soiltemperature3']").append(soiltemperaturec3.Target);
+            soiltemperaturec3.Layout();
+            soiltemperaturec3.SetValue(0);
+            soiltemperaturec3.tempoutbody.css("height", "75%");
+            soiltemperaturec3.tempscale.css("height", "70%");
+            //湿度1
+            $("div[name='soilhumidity1']").highcharts({
+                chart: { type: 'gauge', backgroundColor: 'rgba(4,155,199,0)', },
+                credits: { enabled: false },
+                title: { text: "土壤10cm湿度(%)", style: { "font-size": "12px", "color": "#FFFFFF" }, y: 8 },
+                pane: { startAngle: -150, endAngle: 150, size: "120%" },
+                yAxis: {
+                    min: 0, max: 100, minorTickWidth: 1, minorTickLength: 5, minorTickPosition: 'inside',
+                    minorTickColor: '#ababab', tickPixelInterval: 100, tickWidth: 2, tickPosition: 'inside',
+                    tickLength: 15, tickColor: '#515151', tickWidth: 1,
+                    labels: { step: 1, rotation: 'auto' },
+                    plotBands: [
+                        { from: 0, to: 33, color: '#0b86ee' },
+                        { from: 33, to: 66, color: '#ff7f7f' },
+                        { from: 66, to: 100, color: '#fe9024' }
+                    ]
+                },
+                series: [{ name: '土壤10cm湿度', data: [0], }]
+            }, function (c) { soilhumidityc1 = c; });
+            //湿度2
+            $("div[name='soilhumidity2']").highcharts({
+                chart: { type: 'gauge', backgroundColor: 'rgba(4,155,199,0)', },
+                credits: { enabled: false },
+                title: { text: "土壤20cm湿度(%)", style: { "font-size": "12px", "color": "#FFFFFF" }, y: 8 },
+                pane: { startAngle: -150, endAngle: 150, size: "120%" },
+                yAxis: {
+                    min: 0, max: 100, minorTickWidth: 1, minorTickLength: 5, minorTickPosition: 'inside',
+                    minorTickColor: '#ababab', tickPixelInterval: 100, tickWidth: 2, tickPosition: 'inside',
+                    tickLength: 15, tickColor: '#515151', tickWidth: 1,
+                    labels: { step: 1, rotation: 'auto' },
+                    plotBands: [
+                        { from: 0, to: 33, color: '#0b86ee' },
+                        { from: 33, to: 66, color: '#ff7f7f' },
+                        { from: 66, to: 100, color: '#fe9024' }
+                    ]
+                },
+                series: [{ name: '土壤20cm湿度', data: [0], }]
+            }, function (c) { soilhumidityc2 = c; });
+            //湿度3
+            $("div[name='soilhumidity3']").highcharts({
+                chart: { type: 'gauge', backgroundColor: 'rgba(4,155,199,0)' },
+                credits: { enabled: false },
+                title: { text: "土壤30cm湿度(%)", style: { "font-size": "12px", "color": "#FFFFFF" }, y: 8 },
+                pane: { startAngle: -150, endAngle: 150, size: "120%" },
+                yAxis: {
+                    min: 0, max: 100, minorTickWidth: 1, minorTickLength: 5, minorTickPosition: 'inside',
+                    minorTickColor: '#ababab', tickPixelInterval: 100, tickWidth: 2, tickPosition: 'inside',
+                    tickLength: 15, tickColor: '#515151', tickWidth: 1,
+                    labels: { step: 1, rotation: 'auto' },
+                    plotBands: [
+                        { from: 0, to: 33, color: '#0b86ee' },
+                        { from: 33, to: 66, color: '#ff7f7f' },
+                        { from: 66, to: 100, color: '#fe9024' }
+                    ]
+                },
+                series: [{ name: '土壤30cm湿度', data: [0], }]
+            }, function (c) { soilhumidityc3 = c; });
+            //PH值
+            $("div[name='phvalue']").highcharts({
+                chart: { type: 'solidgauge', backgroundColor: 'rgba(4,155,199,0)' },
+                title: { text: "PH值", style: { "font-size": "12px", "color": "#FFFFFF" }, y: 8 },
+                yAxis: {
+                    min: 2, max: 12,
+                    stops: [[2, '#FF7F50'], [7, '#48D1CC'], [12, '#000080']],
+                    minorTickInterval: 7, tickPixelInterval: 25, tickWidth: 0, labels: { y: -5 }
+                },
+                credits: { enabled: false },
+                series: [{ name: 'PH', data: [0] }],
+                pane: {
+                    center: ['50%', '85%'], size: '140%',
+                    startAngle: -90, endAngle: 90,
+                    background: {
+                        backgroundColor: '#EEE', shape: 'arc', innerRadius: '60%',
+                        outerRadius: '100%',
+                    }
+                }
+            }, function (c) {
+                phvalueControl = c;
+            });
+
+        }//初始化土壤控件
+        function initeffeccontrol() {
+            //光合有效辐射
+            $("div[name='effectiveradiation']").highcharts({
+                chart: { type: 'gauge', backgroundColor: 'rgba(4,155,199,0)', },
+                credits: { enabled: false },
+                title: { text: "光合有效辐射(w/㎡)", style: { "font-size": "12px", "color": "#FFFFFF" }, y: 8 },
+                pane: { startAngle: -150, endAngle: 150, size: "107%" },
+                yAxis: {
+                    min: 0, max: 2000, minorTickWidth: 1, minorTickLength: 5, minorTickPosition: 'inside',
+                    minorTickColor: '#ababab', tickPixelInterval: 100, tickWidth: 2, tickPosition: 'inside',
+                    tickLength: 15, tickColor: '#515151', tickWidth: 1,
+                    labels: { step: 1, rotation: 'auto' },
+                    plotBands: [
+                        { from: 0, to: 666, color: '#0b86ee' },
+                        { from: 666, to: 1333, color: '#ff7f7f' },
+                        { from: 1333, to: 2000, color: '#fe9024' }
+                    ]
+                },
+                series: [{ name: '光合有效辐射', data: [0], }]
+            },
+           function (c) { effectivec = c; });
+            //总辐射
+            $("div[name='totalradiation']").highcharts({
+                chart: { type: 'gauge', backgroundColor: 'rgba(4,155,199,0)', },
+                credits: { enabled: false },
+                title: { text: "总辐射(w/㎡)", style: { "font-size": "12px", "color": "#FFFFFF" }, y: 8 },
+                pane: { startAngle: -150, endAngle: 150, size: "107%" },
+                yAxis: {
+                    min: 0, max: 2000, minorTickWidth: 1, minorTickLength: 5, minorTickPosition: 'inside',
+                    minorTickColor: '#ababab', tickPixelInterval: 100, tickWidth: 2, tickPosition: 'inside',
+                    tickLength: 15, tickColor: '#515151', tickWidth: 1,
+                    labels: { step: 1, rotation: 'auto' },
+                    plotBands: [
+                        { from: 0, to: 666, color: '#0b86ee' },
+                        { from: 666, to: 1333, color: '#ff7f7f' },
+                        { from: 1333, to: 2000, color: '#fe9024' }
+                    ]
+                },
+                series: [{ name: '光合总辐射', data: [0], }]
+            },
+          function (c) { effectivetotalc = c; });
+        }//初始化光合辐射控件
+        function initliquidcontrol() {
+            liquidc = new UCBottle(dev, { CSS: { "left": "35%", "top": "calc(-4% - 10px)" }, Height: 250, MaxValue: 1200, MinValue: 0, Step: 50 });
+            $("div[name='liquid']").append(liquidc.Target);
+            liquidc.Layout();
+            liquidc.outerBody.css("height", "90%");
+        }//初始化液位或者光照
+        //初始化视频
+        function getcamera(seriesnum) {
+            if (dev.IsNull(seriesnum)) return;
+            $.ajax({
+                url: dev.MapLoad.GetUrlByRelID("Service") + "/camera/getbyfilter",
+                type: "POST",
+                contentType: 'application/json',
+                dataType: 'json',
+                data: "\"AMSSERNUM\"='" + seriesnum + "' AND \"BRANDTYPE\"='球机'",
+                success: function (result) {
+                    $("#videodiv").empty();
+                    if (result.statusCode != 200 || result.data.length == 0) return;
+                    initvideo(result.data[0].videoaddress);
+                    deviceSerial = result.data[0].serialnumber;
+                    accesstoken = result.data[0].accessToken;
+                }
+
+            });
+        }
+        function initvideo(address) {
+            if (dev.IsNull(address)) return;
+            var rtmp = address;
+            var http = address;
+            var videoDiv = $('<video id="myPlayer" style="width:100%;height:100%;" poster="" controls playsinline webkit-playsinline autoplay><source src="' + rtmp + '"type="" /><source src="' + http + '" type="application/x-mpegURL" /></video>');
+            $("#videodiv").append(videoDiv);
+            player = new EZUIPlayer('myPlayer');
+        }
+        function getUrlParam(name) {
+            var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)"); //构造一个含有目标参数的正则表达式对象
+            var r = window.location.search.substr(1).match(reg);  //匹配目标参数
+            if (r != null) return unescape(r[2]); return null; //返回参数值
+        }
+        //添加点
+        function refpoint() {
+            $.ajax({
+                url: dev.MapLoad.GetUrlByRelID("Service") + "/meteorYtjData/queryWhereAndAvg",
+                type: "POST",
+                dataType: 'json',
+                data: {
+                    indepdId: indepeid,
+                    meteorSerNum: serialnumber,
+                    dataType: metename,
+                    where: "\"UPLOADDATE\" >'" + dptime + "'"
+                },
+                success: function (result) {
+                    var avgdata = result.avg;
+                    if (!dev.IsNull(avgdata) && avgdata.length > 0) {
+                        for (var i = 0; i < avgdata.length; i++) {
+                            var time;
+                            switch (i) {
+                                case 0:
+                                    time = "监测当天平均" + t;
+                                    break;
+                                case 1:
+                                    time = "监测本周平均" + t;
+                                    break;
+                                case 2:
+                                    time = "监测本月平均" + t;
+                                    break;
+                                default:
+
+                            }
+                            var value = avgdata[i] == null ? "" : parseFloat(avgdata[i].toFixed(2));
+                            $("#attr" + (i + 4), $(".leftpanel2")).html("<span style='font-size:18px;line-height: calc(250% - 10px);color:#7B68EE'>" + value + "</span></br><span style='font-size:12px;color:#FFFFFF'>" + time + "</span>");
+                        }
+                        linchart.tooltip.refresh(linchart.series[0].data[linchart.series[0].data.length - 1]);
+                    }
+                    if (!dev.IsNull(result.data) && result.data.length > 0) {
+                        var griddata = Enumerable.From(result.data).OrderBy('s=>s[1]').ToArray();
+                        var currseries = [];
+                        for (var j = 0; j < 1; j++) {
+                            var f = griddata[j][1];
+                            var DateString = dev.GetDateString(f);
+                            var value = griddata[j][0] == null ? "" : parseFloat(griddata[j][0]).toFixed(2);
+                            if (linchart.series[0].data.length > 7) {
+                                linchart.series[0].addPoint([DateString, parseFloat(value), DateString], true, true);
+                            }
+                            else
+                                linchart.series[0].addPoint([DateString, parseFloat(value), DateString], true, false);
+                        }
+                        linchart.tooltip.refresh(linchart.series[0].data[linchart.series[0].data.length - 1]);
+                        dptime = linchart.series[0].data[linchart.series[0].data.length - 1].category;
+                        monitortdata(indepeid, serialnumber);
+                    }
+                }
+            });
+        }
+        function meteordata() {
+            if (!dev.IsNull(metename)) {
+                $("div[name=" + metename + "]").css("box-shadow", "#0a6d5b 0px 0px 20px 5px");
+                t = $("div[name=" + metename + "]").text();
+                if (!dev.IsNull($("div[name=" + metename + "]").prop('title')))
+                    t = $("div[name=" + metename + "]").prop('title');
+                $("#ttrend").text(t);
+                $.ajax({
+                    url: dev.MapLoad.GetUrlByRelID("Service") + "/meteorYtjData/queryDataByTypeAndAvg",
+                    type: "POST",
+                    dataType: 'json',
+                    data: {
+                        indepdId: indepeid,
+                        meteorSerNum: serialnumber,
+                        dataType: metename
+                    },
+                    success: function (result) {
+                        var avgdata = result.avg;
+                        if (!dev.IsNull(avgdata) && avgdata.length > 0) {
+                            for (var i = 0; i < avgdata.length; i++) {
+                                var time;
+                                switch (i) {
+                                    case 0:
+                                        time = "监测当天平均" + t;
+                                        break;
+                                    case 1:
+                                        time = "监测本周平均" + t;
+                                        break;
+                                    case 2:
+                                        time = "监测本月平均" + t;
+                                        break;
+                                    default:
+
+                                }
+                                var value = avgdata[i] == null ? "" : parseFloat(avgdata[i].toFixed(2));
+                                $("#attr" + (i + 4), $(".leftpanel2")).html("<span style='font-size:18px;line-height: calc(250% - 10px);color:#7B68EE'>" + value + "</span></br><span style='font-size:12px;color:#FFFFFF'>" + time + "</span>");
+                            }
+
+                        }
+                        if (!dev.IsNull(result.data) && result.data.length > 0) {
+                            meteorchart(result.data);
+                        }
+                        monitortdata(indepeid, serialnumber);
+                    }
+                });
+            }
+        }
+        function meteorchart(sdata) {
+            var currseries = [{ data: [] }];
+            var meteordate = [];
+            var griddata = Enumerable.From(sdata).OrderBy('s=>s[0]').ToArray();
+            for (var j = 0; j < griddata.length; j++) {
+                var DateString = dev.GetDateString(griddata[j][0]);
+                meteordate.push(DateString);
+                var value = griddata[j][1] == null ? "" : parseFloat(griddata[j][1].toFixed(2));
+                currseries[0].data[j] = { y: value };
+            }
+            dptime = meteordate[meteordate.length - 1];
+            hchart = {
+                chart: {
+                    borderWidth: 0,
+                    backgroundColor: 'rgba(4,155,199,0)',
+                    type: 'spline',
+                    style: {
+                        color: "#FFFFFF"
+                    },
+                    //events: {
+                    //    load: function () {
+                    //        var series = this.series[0];
+                    //        setInterval(function () {
+                    //            series.addPoint([5, 10], true, true);
+                    //        }, 6000);
+                    //    }
+                    //}
+                },
+                colors: ['#6A5ACD'],
+                title: {
+                    text: ''
+                },
+                xAxis: [{
+                    type: 'category',
+                    labels: {
+                        style: {
+                            color: '#FFFFFF',
+                            fontSize: '10px'
+                        }
+                    },
+                    lineColor: '#000000',
+                    //tickPixelInterval: 50,
+                    categories: meteordate
+                }],
+                yAxis: [{
+                    min: 0,
+                    title: {
+                        text: "",
+                        style: {
+                            color: "#FFFFFF",
+                        }
+                    },
+                    labels: {
+                        style: {
+                            color: '#FFFFFF'
+                        },
+                        formatter: function () {
+                            return this.value + t.substr(t.lastIndexOf("("));
+                        }
+                    },
+                    gridLineWidth: 0,
+                    gridLineColor: '#000000',
+                    lineColor: '#000000',
+                    lineWidth: 0.8,
+                    tickAmount: 6,
+                    //min: -10
+                }],
+                legend: { enabled: false },
+                tooltip: {
+                    borderColor: '#FFFFFF',
+                    backgroundColor: 'rgba(135,206,250,0.8)',
+                    borderRadius: 20,
+                    borderWidth: 0,
+                    style: { fontSize: 12 },
+                    headerFormat: "",
+                    pointFormat: '{point.y:.1f}' + t.substr(t.lastIndexOf("("))
+                },
+                plotOptions: {
+                    //areaspline: {
+                    //    fillOpacity: 0.2,
+                    //},
+                    series: {
+                        cursor: 'pointer',
+                        point: {
+                            events: {
+                                click: function () {
+                                    dptime = this.category;
+                                    for (var i = 0; i < linchart.series[0].data.length;) {
+                                        if (linchart.series[0].data[i].category > this.category) {
+                                            linchart.series[0].data[i].remove();
+                                        }
+                                        else
+                                            i++
+                                    }
+                                    //if (!dev.IsNull(Intervalline)) { clearInterval(Intervalline); Intervalline = null; }
+                                    linchart.tooltip.refresh(linchart.series[0].data[linchart.series[0].data.length - 1]);
+                                    monitortdata(indepeid, serialnumber);
+                                }
+                            }
+                        }
+                    }
+                },
+                series: currseries,
+                credits: { enabled: false }
+            };
+            linchart = Highcharts.chart('colum3', hchart);
+            var i = 0;
+            //if (!dev.IsNull(Intervalline)) { clearInterval(Intervalline); Intervalline = null; }
+            //Intervalline = setInterval(function () {
+            //    if (i === linchart.series[0].data.length) {
+            //        i = 0;
+            //    }
+            //    linchart.tooltip.refresh(linchart.series[0].data[i]);
+            //    i += 1;
+            //}, 2000);
+        }
+    </script>
+</head>
+<body id="flow" style="margin: 0">
+    <div class="content" style="min-height: 870px; min-width: 1300px;">
+        <div id="infobtn" style="position: relative; float: none; width: 134px; height: 50px; margin-top: 0; top: 6%; cursor: pointer; background: url(showimg/backhome.png) no-repeat center/100% 100%;"></div>
+        <div id="monitortime" style="position: relative; float: none; width: 220px; height: 50px; margin-top: 0; top: 4%; left: calc(98% - 220px); color: white; font-size: 14px; background: url()">监测时间：2018-06-19</div>
+        <div class="mappanel">
+            <div id="videodiv" class="mappaneldom"></div>
+            <div class="buttom">
+                <div id="enlarge">
+                    <div class="icon-b" style="background-image: url(../image/videoopt/enlarge.png)"></div>
+                    放大
+                </div>
+                <div id="narrow">
+                    <div class="icon-b" style="background-image: url(../image/videoopt/narrow.png)"></div>
+                    缩小
+                </div>
+                <div id="up">
+                    <div class="icon-b" style="background-image: url(../image/videoopt/up.png)"></div>
+                    向上
+                </div>
+                <div id="down">
+                    <div class="icon-b" style="background-image: url(../image/videoopt/down.png)"></div>
+                    向下
+                </div>
+                <div id="right">
+                    <div class="icon-b" style="background-image: url(../image/videoopt/right.png)"></div>
+                    向右
+                </div>
+                <div id="left">
+                    <div class="icon-b" style="background-image: url(../image/videoopt/left.png)"></div>
+                    向左
+                </div>
+                <div id="stop">
+                    <div class="icon-b" style="background-image: url(../image/videoopt/stop.png)"></div>
+                    停止
+                </div>
+            </div>
+        </div>
+        <div class="rightpane1" style="width: 45%; height: calc(38% - 50px); background: url()">
+            <div class="vertical">土壤监测</div>
+            <div id="soiltemperature1" name='soiltemperature1' class="scenediv" style="width: 36%; height: 100%; line-height: 250%; font-size: 18px">土壤10cm温度(℃)</div>
+            <div id="soiltemperature2" name="soiltemperature2" class="scenediv" style="width: calc(19.5% - 10px); height: 49%; line-height: 250%;">土壤20cm温度(℃)</div>
+            <div id="soilhumidity1" name="soilhumidity1" class="scenediv" style="width: calc(19.5% - 10px); height: 49%;" title="土壤10cm湿度(%)"></div>
+            <div id="soiltemperature3" name="soiltemperature3" class="scenediv" style="width: calc(19.5% - 10px); height: 49%; line-height: 250%;">土壤30cm温度(℃)</div>
+            <div id="soilhumidity2" name="soilhumidity2" class="scenediv" style="width: calc(19.5% - 10px); margin-top: 0.3%; height: 49%;" title="土壤20cm湿度(%)"></div>
+            <div id="soilhumidity3" name="soilhumidity3" class="scenediv" style="width: calc(19.5% - 10px); margin-top: 0.3%; height: 49%;" title="土壤30cm湿度(%)">土壤30cm湿度(%)</div>
+            <div id="phvalue" name="phvalue" class="scenediv" style="width: calc(19.5% - 10px); margin-top: 0.3%; height: 49%;" title="PH值">PH值</div>
+        </div>
+        <div class="rightpane2" style="width: 12%; height: calc(38% - 50px); background: url(); margin-left: 0.5%">
+            <div class="vertical">光合辐射监测</div>
+            <div id="totalradiation" name="totalradiation" class="scenediv" title="总辐射(w/㎡)" style="width: calc(94% - 33px); margin-left: 1%; height: 49%;"></div>
+            <div id="effectiveradiation" name="effectiveradiation" class="scenediv" title="光合有效辐射(w/㎡)" style="width: calc(94% - 33px); height: 49%; margin-left: 1%; margin-top: 1%;"></div>
+        </div>
+        <div class="rightpane3" style="width: 57.5%; height: calc(21% - 48px); margin-top: 18px; background: url()">
+            <div class="vertical">气象监测</div>
+            <div id="freeairtemperature" name="freeairtemperature" class="scenediv" style="width: calc(16.2% - 8px); height: 100%; line-height: 250%;">温度(℃)</div>
+            <div id="rain" name="rain" class="scenediv" style="width: calc(16.2% - 8px); height: 100%; line-height: 250%;">雨量(mm)</div>
+            <div id="winddirection" name="winddirection" class="scenediv" style="width: calc(16.2% - 8px); height: 100%; line-height: 200%;">风向(°)</div>
+            <div id="freeairhumidity" name="freeairhumidity" class="scenediv" title="湿度(%)" style="width: calc(16.2% - 8px); height: 100%;"></div>
+            <div id="freeairpressure" name="freeairpressure" class="scenediv" title="大气压(kPa)" style="width: calc(16.2% - 8px); height: 100%;"></div>
+            <div id="windspeed" name="windspeed" class="scenediv" title="风速(m/s)" style="width: calc(16.2% - 8px); height: 100%;"></div>
+        </div>
+        <div class="leftpanel2" style="width: 78%; height: calc(36% - 40px); margin-top: 18px">
+            <div id="ttrend" class="title">大气温度</div>
+            <div class="attribute">
+                <div id="attr4" class="attribute1"></div>
+                <div id="attr5" class="attribute1"></div>
+                <div id="attr6" class="attribute1"></div>
+            </div>
+            <div id="colum3" class="columdiv1"></div>
+        </div>
+        <div class="rightpane4" style="width: 19.5%; height: calc(36% - 40px); margin-top: 18px; background: url()">
+            <div class="vertical">液位监测</div>
+            <div name="liquid" class="scenediv" style="width: calc(96% - 33px); margin-left: 1%; height: calc(100% - 4px); line-height: 250%; font-size: 18px">液位(mm)</div>
+        </div>
+    </div>
+    <footer>
+        Copyright&nbsp;©&nbsp;2017-2020&nbsp;&nbsp;北京禾壮慧农科技发展有限公司&nbsp;&nbsp;版权所有
+    </footer>
+</body>
+</html>

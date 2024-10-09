@@ -1,0 +1,798 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>专题对比分析</title>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+    <link rel="stylesheet" href="../../theme/default/easyui.css" />
+    <link rel="stylesheet" type="text/css" href="../../theme/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/app.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/icon.css" />
+    <link type="text/css" href="../../css/dev.css" rel="stylesheet" />
+    <script type="text/javascript" src="../../js/jquery.min.js"></script>
+    <script type="text/javascript" src="../../js/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="../../js/easyui-lang-zh_CN.js"></script>
+    <script type="text/javascript" src="../../js/linq.min.js"></script>
+    <script type="text/javascript" src="../../js/data.util.js"></script>
+    <script type="text/javascript" src="../../js/jquery.dev.control.js"></script>
+    <script type="text/javascript" src="../../js/dev.ui.js"></script>
+    <script type="text/javascript" src="../../js/guid.js"></script>
+    <style type="text/css">
+        .Button {
+            background-color: #16dbbb;
+            height: 27px;
+            width: 60px;
+            border: 1px solid #16dbbb;
+            margin-top: 4px;
+            display: inline-block;
+            text-align: center;
+            /*position: relative;*/
+        }
+
+            .Button:hover {
+                background-color: #5227de;
+                border: 1px solid #5227de;
+                cursor: pointer;
+            }
+
+            .Button:active {
+                background-color: #210097;
+                border: 1px solid #210097;
+                cursor: pointer;
+            }
+
+        .Title {
+            width: 85px;
+            text-align: right;
+            line-height: 20px;
+            height: 26px;
+            display: inline-block;
+            float: left;
+            margin-top: 4px;
+        }
+
+            .Title .Icon {
+                width: 16px;
+                height: 16px;
+                display: inline-block;
+                margin-top: 3px;
+            }
+
+            .Title .Text {
+                display: inline-block;
+                float: right;
+                padding-right: 5px;
+                width: 50px;
+            }
+    </style>
+    <script type="text/javascript">
+        var Dev = window.top.window.dev;
+        var parent;
+        var comboTree1;
+        var treedata;
+        var pageIndex = 1, pageSize = 20;
+        var dataGrid;
+        var selectedclayer;//选择的对比图层
+        var taskWin;
+        var analysisData;
+        var selectedRow;
+        var orgids;
+        function WidgetCommunication(s) {//部件通讯
+            parent = s.parent;
+            Dev.App.LeftPanel.SetIconCls("icon-layercompare");
+            $(window).resize(function () {
+                resize();
+            });
+            initComboTree1();
+            initcombotree();
+            $(".Button").click(function () {
+                $("#errorMsg").html("");
+                var tag = $(this).attr("tag");
+                if (tag === "analysis") {
+                    if (Dev.IsNull($("#treecomboDiv").combotree('getValue'))) {
+                        return $("#errorMsg").html("请选择行政区划!");
+                    }
+                    var selectitem1 = comboTree1.tree.SelectedItem;
+                    if (Dev.IsNull(selectitem1)) {
+                        return $("#errorMsg").html("请选择对比专题!");
+                    }
+                    selectedclayer = comboTree1.tree.GetData(selectitem1[0]);
+                    var extent = selectedclayer.Envelop;
+                    extent = extent.split(",");
+                    for (var i = 0, len = extent.length; i < len; i++) {
+                        extent[i] = parseFloat(extent[i]);
+                    }
+                    var mapproj = Dev.App.Map.getView().getProjection();
+                    if (mapproj.getCode() != Dev.App.Config.SystemMap.DataEPSG) extent = Dev.proj.transformExtent(extent, Dev.App.Config.SystemMap.DataEPSG, mapproj.getCode());
+                    Dev.App.Map.getView().centerOn([((extent[0] + extent[2]) / 2), ((extent[1] + extent[3]) / 2)],
+                        Dev.App.Map.getSize(), [Dev.App.Map.getSize()[0] / 2, Dev.App.Map.getSize()[1] / 2]);
+                    initDataGrid();
+                    QueryData();
+                    $("#legendDiv").css("display", "block");
+                }
+                if (tag === "cancel") {
+                    clear();
+                    Dev.MapUtils.ClearFeature("tempGraphicLayer");
+                    if (!Dev.IsNull(comboTree1)) {
+                        comboTree1.text.Clear();
+                        comboTree1.Clear();
+                        comboTree1.tree.SelectedItem = null;
+                    }
+                    $("#treecomboDiv").combotree('reset');
+                    $("#legendDiv").css("display", "none");
+                    $("#gridDiv").empty();
+                    dataGrid = null;
+                }
+            });
+
+            /**
+             * 单击地图的矢量，查看信息
+             */
+            var selectInteraction = new Dev.interaction.Select();
+            Dev.App.Map.addInteraction(selectInteraction);
+            selectInteraction.on('select', function (e) {
+                if (Dev.IsNull(dataGrid)) return;
+                var selectFeature = e.selected[0];
+                if (Dev.IsNull(selectFeature)) {
+                    return;
+                }
+                var selectId = selectFeature.H.id;
+                var gridData = dataGrid.DataGrid.datagrid("getData");
+                var data = gridData.rows;
+                for (var i = 0, len = data.length; i < len; i++) {
+                    if (data[i].id == selectId) {
+                        var row = data[i];
+                        dataGrid.DataGrid.datagrid('selectRow', i);
+                        Dev.GetMassifDetailinfo(row, row.massifid);
+                        highlight(row);
+                        break;
+                    }
+                }
+            });
+            parent.one("onClosing", function () {
+                clear();
+                Dev.MapUtils.ClearFeature("tempGraphicLayer");
+                if (!Dev.IsNull(comboTree1)) {
+                    comboTree1.Clear();
+                    comboTree1 = null;
+                }
+                if (!Dev.IsNull(dataGrid)) {
+                    dataGrid.Target.unbind("onSelectPage");
+                    dataGrid.Target.unbind("onClickRow");
+                }
+                if (!Dev.IsNull(selectInteraction)) {
+                    selectInteraction = null;
+                }
+                var cl = Dev.MapUtils.GetLayer("analysisWMS", Dev.App.Map);
+                if (!Dev.IsNull(cl)) Dev.MapUtils.RemoveLayer("analysisWMS");
+                Dev.ClearMapTip();
+                Dev.App.MapPanel.MapDOM.hide();
+                Dev.App.LeftPanel.SetVisible(false);
+                if (!Dev.IsNull(taskWin)) {
+                    taskWin.unbind("onResize");
+                    taskWin.Close();
+                    taskWin.Destroy();
+                    taskWin = null;
+                }
+            });
+        }
+
+        //初始化下拉树
+        function initcombotree() {
+            comboTree1 = new Dev.Combotree({
+                PopupHeight: 200,
+                TipInfo: "",
+                MultiSelect: false,
+                StateField: "State",
+                ValueField: "Value",
+                TextField: "Text",
+                ChildrenField: "Child",
+                Height: 28,
+                Border: "1px",
+                Padding: "0px 5px",
+                Width: 263
+            });
+            $("#treecomboDiv1").append(comboTree1.Target);
+            comboTree1.SetData(treedata);
+            comboTree1.Layout();
+        }
+
+        //初始化列表
+        function initDataGrid() {
+            if (!Dev.IsNull(dataGrid)) return;
+            var columns = [];
+            columns.push({
+                field: "massifid",
+                width: 120,
+                align: 'center',
+                title: "地块",
+                sortable: false,
+                formatter: formatQuery
+            });
+            columns.push({ field: "type", width: 60, align: 'center', title: "作物类型", sortable: false });
+            columns.push({ field: "reallyType", width: 60, align: 'center', title: "实际作物", sortable: false });
+            columns.push({
+                field: "_op", width: 70, align: 'center', title: "审核状态", sortable: false, formatter: formatOperate
+            });
+            dataGrid = new UCDataGrid(Dev, {
+                PageIndex: pageIndex,
+                PageSize: pageSize,
+                RowNumbers: false,
+                ID: "rotationanalysis",
+                pagequery: false
+            });
+            $("#gridDiv").append(dataGrid.Target);
+            dataGrid.Layout(columns);
+            dataGrid.Target.bind("onSelectPage", function (s, e) {
+                clear();
+                pageIndex = e.index;
+                QueryData();
+            });
+            dataGrid.Target.bind("onClickRow", function (s, e) {
+                var row = e.Row;
+                if (Dev.IsNull(row)) return;
+                highlight(row);
+            });
+            resize();
+        }
+
+        function formatQuery(value, row, index) {
+            return "<a style='text-decoration: underline;color: blue' href='javascript:void(0)' onclick='queryMassif(\"" + index + "\")'>" + value + "</a>";
+        }
+
+        function queryMassif(index) {
+            dataGrid.DataGrid.datagrid("selectRow", index);
+            selectedRow = dataGrid.DataGrid.datagrid("getSelected");
+            Dev.GetMassifDetailinfo(selectedRow, selectedRow.massifid);
+        }
+
+        function formatOperate(value, row, index) {
+            if (row.state == "0") {
+                return "<span>待核查</span>";
+            }
+            else if (row.state == "1") {
+                return "<span>已核查</span>";
+            }
+            else if (row.state == "2") return "<span>已审批</span>";
+            else if (row.state == "3") return "<span>审批不通过</span>";
+            else {
+                return "<a style='color: blue;text-decoration: underline' href='javascript:sendtask(\"" + index + "\")'>未发送</a>";
+            }
+        }
+
+        //任务发送
+        function sendtask(index) {
+            dataGrid.DataGrid.datagrid("selectRow", index);
+            selectedRow = dataGrid.DataGrid.datagrid("getSelected");
+            if (Dev.IsNull(taskWin)) {
+                taskWin = new Dev.Window({
+                    ID: "taskWin",
+                    IconCls: "icon-featureupdate",
+                    Title: "任务发送",
+                    Maximizable: false,
+                    Minimizable: false,
+                    HAlign: 'center',
+                    VAlign: 'center',
+                    Resizable: false,
+                    Draggable: true,
+                    Content: taskcontent(),
+                    Height: 330,
+                    Width: 455
+                });
+                $("#cropdatacontrol", taskWin.Target).prop('$this').SetValue(selectedclayer.Year + "-" + selectedclayer.Month);
+                $("#croptypecontrol", taskWin.Target).prop('$this').SetValue(selectedRow.type);
+                $("#completetime", taskWin.Target).datebox({ width: 140, height: 26, editable: false });
+                $('.taskButton', taskWin.Target).click(function () {
+                    $("#errorMsg", taskWin.Target).html("");
+                    var tag = $(this).attr("tag");
+                    if (tag == "save") {
+                        var orgselect = $('.dev-combotree', taskWin.Target).prop("$this").GetSelectedItem();
+                        if (Dev.IsNull(orgselect) || orgselect.length == 0) {
+                            $("#errorMsg", taskWin.Target).html("请选择组织机构!");
+                            return;
+                        }
+                        var inspecterid = $('.dev-combobox[id="usercombo"]', taskWin.Target).prop("$this").GetValue();
+                        if (Dev.IsNull(inspecterid) || inspecterid.length == 0) {
+                            $("#errorMsg", taskWin.Target).html("请选择核查人员!");
+                            return;
+                        }
+                        var ctime = $('#completetime', taskWin.Target).datebox("getValue");
+                        if (Dev.IsNull(ctime)) { $("#errorMsg", taskWin.Target).html("请选择完成期限!"); return; }
+                        if (new Date(ctime.replace(/-/g, "/")).getTime() < new Date().getTime()) { $("#errorMsg", taskWin.Target).html("完成期限不能小于当前时间!"); return; };
+                        var text = $('#taskcontent', taskWin.Target).prop("$this").GetValue();
+                        if (Dev.IsNull(text) || text.length == 0) {
+                            $("#errorMsg", taskWin.Target).html("请输入任务内容!");
+                            return;
+                        }
+                        var textremark = $('#remarkcontent', taskWin.Target).prop("$this").GetValue();
+                        var model = {};
+                        model.orgId = orgselect[0].$this.id;
+                        model.content = text;
+                        model.receiveder = inspecterid;
+
+                        model.completeterm = ctime;
+                        model.province = selectedRow.province;
+                        model.city = selectedRow.city;
+                        model.county = selectedRow.county;
+                        model.town = selectedRow.town;
+                        model.village = selectedRow.village;
+                        model.orgid = selectedRow.orgId;
+                        model.rotationfallowid = selectedRow.rotationfallId;
+                        model.massifid = selectedRow.massifid;
+                        model.regionsid = selectedRow.regionsid;
+                        model.cropdate = selectedRow.cropDate;
+                        model.plancrop = selectedRow.type;
+                        model.plancropdate = selectedclayer.Year + "-" + selectedclayer.Month;
+                        model.remark = textremark;
+                        var typecombo = $('.dev-combobox[id="typecombo"]', taskWin.Target).prop("$this").GetText();
+                        model.category = typecombo;
+                        $.ajax({
+                            type: "POST",
+                            url: Dev.GetSystemUrlByRelID("Service") + 'inspect/addin',
+                            contentType: 'application/json',
+                            dataType: 'json',
+                            data: JSON.stringify(model),
+                            success: function (result) {
+                                if (Dev.IsNull(result) || Dev.IsNull(result.statusCode != 200)) {
+                                    return;
+                                }
+                                pageIndex = 1;
+                                QueryData();
+                                winClear();
+                                taskWin.Close();
+                            }
+                        });
+                    }
+                    if (tag == "cancel") {
+                        winClear();
+                        taskWin.Close();
+                    }
+                });
+                var usercontrol = $('.dev-combobox[id="usercombo"]', taskWin.Target).prop("$this");
+                var treecontrol = $('.dev-combotree', taskWin.Target).prop("$this");
+                treecontrol.bind("onSelectChanged", function (s, e) {
+                    if (Dev.IsNull(e)) return;
+                    var currdata = e.$this;
+                    orgids = "'" + currdata.id + "'";
+                    selectogid(currdata);
+                    //查询对应的用户
+                    var usercon = "\"ORGID\" IN(" + orgids + ")";
+                    $.ajax({
+                        url: Dev.GetSystemUrlByRelID("Service") + "user/getbyfilter",
+                        type: "POST",
+                        contentType: 'application/json',
+                        dataType: 'json',
+                        data: usercon,
+                        success: function (result) {
+                            if (result.statusCode != 200 || Dev.IsNull(result.data)) return;
+                            usercontrol.text.Clear();
+                            usercontrol.SetData(result.data);
+                        }
+                    });
+                });
+                //查询数据
+                var orgid = Dev.cookie.user.orgid;
+                $.ajax({
+                    url: Dev.GetSystemUrlByRelID("Service") + "organize/gettreebyid/" + orgid + "?" + new Date().getTime(),
+                    type: "GET",
+                    contentType: 'application/json',
+                    dataType: 'json',
+                    async: false,
+                    success: function (result) {
+                        var treedata = Dev.ConvertTreeData(result.data, orgid);
+                        treecontrol.SetData(treedata);
+                        treecontrol.SetSelectedItem(treecontrol.tree.GetRoots()[0], true);
+                    }
+                });
+            } else {
+                winClear();
+                taskWin.Open();
+            }
+        }
+
+        //查询组织机构id
+        function selectogid(currdata) {
+            if (!Dev.IsNull(currdata.child) && currdata.child.length > 0) {
+                for (var i = 0; i < currdata.child.length; i++) {
+                    orgids += ",'" + currdata.child[i].id + "'";
+                    if (!Dev.IsNull(currdata.child[i].child) && currdata.child[i].child.length > 0)
+                        listogid(currdata.child[i].child)
+                }
+            }
+        }
+        //查询下级组织机构id
+        function listogid(listdata) {
+            for (var i = 0; i < listdata.length; i++) {
+                orgids += ",'" + listdata[i].id + "'";
+                if (!Dev.IsNull(listdata[i].child) && listdata[i].child.length > 0)
+                    listogid(listdata[i].child)
+            }
+        }
+
+        function winClear() {
+            if (Dev.IsNull(taskWin)) return;
+            $('.dev-combotree', taskWin.Target).prop("$this").text.Clear();
+            var comboxs = $('.dev-combobox', taskWin.Target);
+            for (var i = 0; i < comboxs.length; i++) {
+                var currcontrol = $(comboxs[i]).prop("$this");
+                currcontrol.text.Clear();
+            }
+            $('.dev-textbox', taskWin.Target).prop("$this").Clear();
+            $("#completetime", taskWin.Target).datebox("setValue", "");
+        }
+
+        function taskcontent() {
+            var taskcontent = $('<div style="height:150px;width:453px;margin-top:5px;"></div>');
+            //组织机构
+            var row = $('<div style="height:35px;width:453px;border-bottom:1px solid #ddd"><div style="width:75px;height:100%;display:inline-block;float:left;line-height:35px;text-align:right;padding-right:5px;">组织机构</div></div>').appendTo(taskcontent);
+            var orgdiv = $('<div style="width:140px;height:35px;display:inline-block;float:left;"></div>').appendTo(row);
+            var treecombo = new Dev.Combotree({
+                TipInfo: "请选择",
+                MultiSelect: false,
+                Height: 26, Border: "1px", Width: 140, CSS: { "margin-top": "5px" },
+                ValueField: "id", TextField: "name", ChildrenField: "child",
+                PopupHeight: 150
+            });
+            orgdiv.append(treecombo.Target);
+            var usertitle = $('<div style="width:75px;height:35px;display:inline-block;float:left;line-height:35px;text-align:right;padding-right:5px;">核查人员</div>').appendTo(row);
+            var userdiv = $('<div style="width:140px;height:35px;display;inline-block;float:left;"></div>').appendTo(row);
+            var usercombo = new Dev.Combobox({
+                TipInfo: "请选择",
+                "Required": true,
+                ID: "usercombo",
+                Width: 140,
+                Height: 26,
+                CSS: { "margin-top": "5px" },
+                TextField: "name",
+                ValueField: "id"
+            });
+            userdiv.append(usercombo.Target);
+            usercombo.Layout();
+
+            var rowcropdata = $('<div style="height:35px;width:453px;border-bottom:1px solid #ddd"><div style="width:75px;height:100%;display:inline-block;float:left;line-height:35px;text-align:right;padding-right:5px;">种植日期</div></div>').appendTo(taskcontent);
+            var cropdatatext = $('<div style="width:140px;height:35px;display:inline-block;float:left;"></div>').appendTo(rowcropdata);
+            var cropdatacontrol = new Dev.TextBox({
+                ID: "cropdatacontrol",
+                Readonly: true,
+                Height: 26,
+                Width: 140,
+                CSS: { "margin-top": "5px" }
+            });
+            cropdatacontrol.textBox.css('background-color', 'rgba(221, 221, 221, 0.6)');
+            cropdatatext.append(cropdatacontrol.Target);
+            
+            var typetitle = $('<div style="width:75px;height:35px;display:inline-block;float:left;line-height:35px;text-align:right;padding-right:5px;">计划作物</div>').appendTo(rowcropdata);
+            var croptypetext = $('<div style="width:140px;height:35px;display;inline-block;float:left;"></div>').appendTo(rowcropdata);
+            var croptypecontrol = new Dev.TextBox({
+                ID: "croptypecontrol",
+                Readonly: true,
+                Height: 26,
+                Width: 140,
+                CSS: { "margin-top": "5px"}
+            });
+            croptypecontrol.textBox.css('background-color', 'rgba(221, 221, 221, 0.6)');
+            croptypetext.append(croptypecontrol.Target);
+            var row2 = $('<div style="height:35px;width:453px;border-bottom:1px solid #ddd"><div style="width: 75px; height: 100%; display: inline-block; float: left; line-height: 35px; text-align: right; padding-right: 5px;">任务类型</div></div>').appendTo(taskcontent);
+            var datecontent = $('<div style="width:373px;height:100%;display:inline-block;"></div>').appendTo(row2);
+            var typeDiv = $('<div style="width:140px;height:26px;margin-top:5px;display:inline-block;float:left;"></div>').appendTo(datecontent);
+            var typecombo = new Dev.Combobox({
+                "Required": true,
+                TipInfo: "请选择",
+                ID: "typecombo",
+                Width: 140,
+                Height: 26,
+                Data: Dev.GetDicData(["TaskType"]),
+                TextField: "data",
+                ValueField: "id"
+            });
+            typeDiv.append(typecombo.Target);
+            typecombo.Layout();
+
+            $('<div style="width:75px;height:26px;margin-top:6px;display:inline-block;line-height:26px;text-align:right;padding-right:5px;">任务完成期限</div>').appendTo(datecontent);
+            var dateDiv = $('<div style="width:140px;height:26px;margin-top:5px;display:inline-block;"></div>').appendTo(datecontent);
+            var datecontrol = $('<input id="completetime" data-options="editable:false"/><div style="position: absolute; height: 10px; width: 10px; top: 50px; right: 28px; color: red; line-height: 10px;">*</div>').appendTo(dateDiv);
+
+            var row1 = $('<div style="height:75px;width:453px;border-bottom:1px solid #ddd"><div style="width: 75px; height: 100%; display: inline-block; float: left; line-height: 75px; text-align: right; padding-right: 5px;">任务内容</div></div>').appendTo(taskcontent);
+            var contenttext = $('<div style="width:373px;height:100%;display:inline-block"></div>').appendTo(row1);
+            var textcontrol = new Dev.TextBox({
+                MaxLength: 120,
+                TipInfo: "120位以内",
+                "Required": true,
+                ID: "taskcontent",
+                Type: "multi-text",
+                Height: 66,
+                Width: 360,
+                CSS: { "margin-top": "5px" }
+            });
+            contenttext.append(textcontrol.Target);
+            var row3 = $('<div style="height:75px;width:453px;border-bottom:1px solid #ddd"><div style="width: 75px; height: 100%; display: inline-block; float: left; line-height: 75px; text-align: right; padding-right: 5px;">备注</div></div>').appendTo(taskcontent);
+            var remarktext = $('<div style="width:373px;height:100%;display:inline-block"></div>').appendTo(row3);
+            var remarkcontrol = new Dev.TextBox({
+                MaxLength: 120,
+                TipInfo: "120位以内",
+                "Required": true,
+                ID: "remarkcontent",
+                Type: "multi-text",
+                Height: 66,
+                Width: 360,
+                CSS: { "margin-top": "5px" }
+            });
+            remarktext.append(remarkcontrol.Target);
+            var row4 = $('<div style="height:35px;width:453px;"></div>').appendTo(taskcontent);
+            var errorMsg = $('<div id="errorMsg" style="width:256px;heigth:28px;line-height:28px;color:red;text-align:left;display:inline-block;float:left;margin-top:7px;margin-left:20px;"></div>').appendTo(row3);
+            var searchBtn = $('<div class="taskButton" style="margin-left:10px" tag="save"><span style="line-height:26px;color:#fcfcfc;">保&nbsp;&nbsp;存</span></div>').appendTo(row3);
+            var cancelBtn = $('<div class="taskButton" style="margin-left:10px;" tag="cancel"><span style="line-height:26px;color:#fcfcfc;">取&nbsp;&nbsp;消</span></div>').appendTo(row3);
+            return taskcontent;
+        }
+
+        //查询绑定数据
+        function QueryData() {
+            $.ajax({
+                url: Dev.GetSystemUrlByRelID("Service") + 'rule/analyze',
+                type: "POST",
+                contentType: 'application/json',
+                dataType: 'json',
+                data: JSON.stringify({
+                    tableName: selectedclayer.CompareInfo.DBTableName,
+                    massifId: selectedclayer.CompareInfo.PrimaryKey,
+                    year: selectedclayer.Year,
+                    month: selectedclayer.Month,
+                    whetherSingle: selectedclayer.CropSingle,
+                    type: selectedclayer.CompareInfo.CompareField,
+                    pageIndex: pageIndex,
+                    pageSize: pageSize
+                }),
+                success: function (result) {
+                    var resultData;
+                    if (result.statusCode != 200 || Dev.IsNull(result.data)) resultData = [];
+                    else resultData = result.data.dataSource;
+                    analysisData = { data: resultData, pageInfo: result.data.pageInfo };
+                    dataGrid.Load(resultData, result.data.pageInfo);
+                    highpage(resultData);
+                }
+
+            });
+        }
+
+        var style = {
+            state0: new Dev.style.Style({
+                fill: new Dev.style.Fill({
+                    color: "rgba(255,0,0,0.3)"
+                })
+            }),
+            state1: new Dev.style.Style({
+                fill: new Dev.style.Fill({
+                    color: "rgba(251,218,12,0.3)"
+                })
+            }),
+            state2: new Dev.style.Style({
+                fill: new Dev.style.Fill({
+                    color: "rgba(0,255,0,0.3)"
+                })
+            }),
+            state3: new Dev.style.Style({
+                fill: new Dev.style.Fill({
+                    color: "rgba(0,255,0,0.3)"
+                }),
+                stroke: new Dev.style.Stroke({
+                    color: "rgba(255,0,0,0.3)",
+                    width: 1
+                })
+            })
+        };
+
+        function resize() {
+            var h = $(window).height();
+            var gridh = h - (35 * 2) - 64;
+            $("#gridDiv").height(gridh);
+            if (!Dev.IsNull(dataGrid)) dataGrid.Resize($(window).width(), gridh);
+        }
+
+        /**
+         * 初始化ComboTree
+         */
+        function initComboTree1() {
+            $("#treecomboDiv").combotree({
+                method: "post",
+                url: Dev.GetSystemUrlByRelID("Service") + 'dictionary/asyncdata/county',
+                panelWidth: '263',
+                onClick: function (node) {
+                    loadAnalysis(node.code);
+                },
+                onBeforeExpand: function (node, param) {
+                    $(this).tree('options').url = Dev.GetSystemUrlByRelID("Service") + 'dictionary/asyncdata/county?id=' + node.id;
+                },
+                loadFilter: function (data) {
+                    data = data.data;
+                    for (var i = 0; i < data.length; i++) {
+                        if ('data' in data[i]) {
+                            data[i].text = data[i].data;
+                        }
+                        if (data[i].remark === "县") {
+                            data[i].state = "close";
+                        }
+                    }
+                    return data;
+                }
+            });
+        }
+
+        /**
+         * 转换格式,并且展示到地图上
+         */
+        function highpage(datas) {
+            clear();
+            Dev.MapUtils.ClearFeature("tempGraphicLayer");
+            if (datas.length == 0) {
+                return;
+            }
+            var features0 = [];
+            var features1 = [];
+            var features2 = [];
+            var features3 = [];
+            var features = [];
+            var convertInfos = convertData(datas);
+            for (var i = 0; i < convertInfos.length; i++) {
+                if (!Dev.IsNull(convertInfos[i].geom)) {
+                    var feature = new Dev.Feature({ id: convertInfos[i].id, geometry: convertInfos[i].geom });
+                    if (convertInfos[i].state == "1") {
+                        features1.push(feature);
+                        feature.setStyle(style.state1);
+                    }
+                    else if (convertInfos[i].state == "2") {
+                        features2.push(feature);
+                        feature.setStyle(style.state2);
+                    }
+                    else if (convertInfos[i].state == "3") {
+                        features3.push(feature);
+                        feature.setStyle(style.state3);
+                    }
+                    else {
+                        features0.push(feature);
+                        feature.setStyle(style.state0);
+                    }
+                    features.push(feature);
+                }
+            }
+            Dev.MapUtils.AddFeatures(features0, "tempGraphicLayer");
+            Dev.MapUtils.AddFeatures(features1, "tempGraphicLayer");
+            Dev.MapUtils.AddFeatures(features2, "tempGraphicLayer");
+            Dev.MapUtils.AddFeatures(features3, "tempGraphicLayer");
+            var extend = Dev.getExtentByFeatures(features);
+            Dev.App.Map.getView().fit(extend, Dev.App.Map.getSize());
+        }
+
+        /**
+         * 高亮显示选中行
+         */
+        var polygonkey;
+
+        function highlight(row) {
+            clear();
+            if (Dev.IsNull(row.geom)) return;
+            var feature = new Dev.Feature({ id: "trackhightlight", geometry: row.geom });
+            polygonkey = Dev.MapUtils.LineSymbolStyle(feature, Dev.App.Map,null,false);
+            Dev.MapUtils.AddFeature(feature, "tempGraphicLayer",null,false);
+            //范围显示
+            var extent = feature.getGeometry().getExtent();
+            Dev.App.Map.getView().centerOn([((extent[0] + extent[2]) / 2), ((extent[1] + extent[3]) / 2)],
+                Dev.App.Map.getSize(), [Dev.App.Map.getSize()[0] / 2, Dev.App.Map.getSize()[1] / 2]);
+        }
+
+        /**
+         * 清空地图
+         */
+        function clear() {
+            if (!Dev.IsNull(polygonkey)) {
+                Dev.App.Map.unByKey(polygonkey);
+                polygonkey = null;
+            }
+            var lastfeature = Dev.MapUtils.GetFeatureByID("trackhightlight", "tempGraphicLayer");
+            if (!Dev.IsNull(lastfeature)) Dev.MapUtils.RemoveFeature(lastfeature, "tempGraphicLayer");
+        }
+
+        function convertData(data) {
+            for (var i = 0; i < data.length; i++) {
+                if (Dev.IsNull(data[i].geom)) continue;
+                var type = data[i].geom.substring(0, data[i].geom.indexOf('('));
+                var geomstr = data[i].geom.replace(type, '');
+                if (type == "MULTIPOLYGON") data[i].geom = new Dev.geom.MultiPolygon(getGeoByGeomStr(geomstr, type));
+            }
+            return data;
+        }
+
+        function getGeoByGeomStr(str, type) {
+            var geom = [];
+            var geosStr = str.substr(str.indexOf('(') + 1, str.lastIndexOf(')') - 1);
+            if (type == "MULTIPOLYGON") {
+                var polygonStrs = geosStr.split(')),');
+                for (var i = 0; i < polygonStrs.length - 1; i++) polygonStrs[i] = polygonStrs + "))";
+                for (var i = 0; i < polygonStrs.length; i++) {
+                    var currPolygonStr = polygonStrs[i];
+                    geom.push(getGeoByGeomStr(currPolygonStr, "POLYGON"));
+                }
+            }
+            if (type == "POLYGON") {
+                var ringStrs = geosStr.split('),');
+                for (var i = 0; i < ringStrs.length - 1; i++) ringStrs[i] = ringStrs[i] + ")";
+                for (var i = 0; i < ringStrs.length; i++) {
+                    var currRingStr = ringStrs[i];
+                    geom.push(getGeoByGeomStr(currRingStr, "LineString"));
+                }
+            }
+            if (type == "LineString") {
+                var pointStrs = geosStr.split(',');
+                for (var i = 0; i < pointStrs.length; i++) {
+                    var currPointStr = pointStrs[i];
+                    geom.push([parseFloat(currPointStr.split(' ')[0]), parseFloat(currPointStr.split(' ')[1])]);
+                }
+            }
+            return geom;
+        }
+
+        /**
+         * 加载分析图层数据
+         * @param code
+         */
+        function loadAnalysis(code) {
+            comboTree1.text.Clear();
+            comboTree1.tree.SelectedItem = null;
+            treedata = Dev.getLayersByCode(code, "analysis");
+            comboTree1.SetData(treedata);
+        }
+    </script>
+</head>
+<body style="width: 100%; height: 100%; background-color: #fff">
+    <div style="height: 100%; width: 100%; position: relative;">
+        <div style="width: 358px; height: 35px; position: absolute; top: 5px;">
+            <div class="Title">
+                <div class="Icon icon-xzqinfo"></div>
+                <span class="Text">行政区</span>
+            </div>
+            <div id="treecomboDiv" style="height: 28px; width: 263px; margin-top: 4px; display: inline-block"></div>
+            <div style="position: absolute; height: 10px; width: 10px; top: 8px; right: 28px; color: red; line-height: 10px;">
+                *
+            </div>
+        </div>
+        <div style="width: 358px; height: 35px; position: absolute; top: 40px;">
+            <div class="Title">
+                <div class="Icon icon-layercompare1"></div>
+                <span class="Text">对比专题</span>
+            </div>
+            <div id="treecomboDiv1" style="height: 28px; width: 263px; display: inline-block;"></div>
+            <div style="position: absolute; height: 10px; width: 10px; top: 8px; right: 28px; color: red; line-height: 10px;">
+                *
+            </div>
+        </div>
+        <div style="width: 358px; height: 35px; position: absolute; top: 75px;">
+            <div id="errorMsg"
+                style="height: 35px; width: 200px; line-height: 35px; display: inline-block; color: red; padding-left: 10px;">
+            </div>
+            <div class="Button noselect" style="float: right; margin-right: 10px;" tag="cancel">
+                <span
+                    style="color: #fcfcfc; line-height: 29px;">重&nbsp;&nbsp;置</span>
+            </div>
+            <div class="Button noselect" style="float: right; margin-right: 10px;" tag="analysis">
+                <span
+                    style="color: #fcfcfc; line-height: 29px;">分&nbsp;&nbsp;析</span>
+            </div>
+        </div>
+        <div id="legendDiv" style="height: 20px; width: 358px; position: absolute; top: 115px; display: none;">
+            <div style="height: 20px; width: 60px; text-align: center; color: #0099cc; display: inline-block; line-height: 20px; float: left;">
+                地块图例:
+            </div>
+            <div style="height: 20px; width: 96px; background-color: #ff0000; display: inline-block; color: #999; line-height: 20px; text-align: center; font-weight: bold; float: left;">
+                未核实
+            </div>
+            <div style="height: 20px; width: 96px; background-color: #FBDA0C; display: inline-block; color: #999; line-height: 20px; text-align: center; font-weight: bold; float: left;">
+                核实中
+            </div>
+            <div style="height: 20px; width: 96px; background-color: #00ff00; display: inline-block; color: #999; line-height: 20px; text-align: center; font-weight: bold; float: left;">
+                已核实
+            </div>
+        </div>
+        <div id="gridDiv" style="width: 358px; position: absolute; top: 135px;"></div>
+    </div>
+</body>
+</html>

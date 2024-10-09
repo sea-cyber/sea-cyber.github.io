@@ -1,0 +1,81 @@
+﻿.icon-unit {
+    background: url('../image/authorization/qy_ico.gif') no-repeat center center;
+}
+
+.icon-department {
+    background: url('../image/authorization/bm_ico.gif') no-repeat center center;
+}
+
+.header {
+    background: #E0ECFF;
+    overflow: hidden;
+    padding-left: 5px;
+    height: 26px;
+    line-height: 26px;
+    color: #0e2d5f;
+    font-size: 12px;
+    font-weight: bold;
+    border-bottom: 1px solid #DDDDDD;
+}
+
+.toolPanel {
+    overflow: hidden;
+    padding: 5px 0px;
+    width: 100%;
+    height: 26px;
+    border-bottom: solid 1px #DDDDDD;
+}
+
+.fieldDiv {
+    height: 32px;
+    min-width: 260px;
+}
+
+.field1 {
+    float: right;
+    margin-right: 20px;
+    margin-top: 5px;
+}
+
+.field2 {
+    float: left;
+    margin-left: 20px;
+    margin-top: 5px;
+}
+
+.fitem {
+    width: 100%;
+    height: 30px;
+    line-height: 30px;
+    float: left;
+    min-width: 370px;
+}
+
+.lblname {
+    width: 30%;
+    text-align: right;
+    float: left;
+    padding-right: 5px;
+    min-width: 100px;
+    position: absolute;
+}
+
+.txtvalue {
+    width: 60%;
+    left: 30%;
+    position: absolute;
+    min-width: 100px;
+    padding-left: 15px;
+    padding-right: 5px;
+}
+
+.userinfo-title {
+    width: 92px;
+    text-align: right;
+    position: absolute;
+}
+
+.userinfo-value {
+    position: absolute;
+    width: 160px;
+}

@@ -1,0 +1,1884 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>农机作业</title>
+    <link rel="stylesheet" href="../../theme/default/easyui.css" />
+    <link rel="stylesheet" type="text/css" href="../../theme/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/app.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/icon.css" />
+    <link type="text/css" href="../../css/dev.css" rel="stylesheet" />
+    <script type="text/javascript" src="../../js/jquery.min.js"></script>
+    <script type="text/javascript" src="../../js/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="../../js/easyui-lang-zh_CN.js"></script>
+    <script type="text/javascript" src="../../js/linq.min.js"></script>
+    <script type="text/javascript" src="../../js/data.util.js"></script>
+    <script type="text/javascript" src="../../js/jquery.dev.control.js"></script>
+    <script type="text/javascript" src="../../js/dev.ui.js"></script>
+    <script type="text/javascript" src="../../js/jquery.dev.js"></script>
+    <script type="text/javascript" src="../../js/guid.js"></script>
+    <style type="text/css">
+        .content {
+            height: 100%;
+            width: 100%;
+            position: relative;
+        }
+
+        .Title {
+            width: 75px;
+            text-align: right;
+            line-height: 40px;
+            height: 40px;
+            display: inline-block;
+            float: left;
+        }
+
+            .Title .Icon {
+                width: 16px;
+                height: 16px;
+                display: inline-block;
+                float: left;
+                margin-left: 2px;
+                margin-top: 11px;
+            }
+
+            .Title .Text {
+                display: inline-block;
+                text-align: left;
+                margin-left: 0px;
+                width: 51px;
+            }
+
+        .content .SearchDiv {
+            width: 200px;
+            height: 38px;
+            display: inline-block;
+            margin-left: 0px;
+            margin-right: 0px;
+            float: left;
+        }
+
+        .content .Button {
+            width: 70px;
+            height: 26px;
+            float: left;
+            margin-top: 5px;
+            background-color: #16dbbb;
+            /*border-radius: 5px;*/
+            text-align: center;
+            border: 1px solid #16dbbb;
+            display: inline-block;
+        }
+
+            .content .Button:hover {
+                background-color: #5227de;
+                border: 1px solid #5227de;
+                cursor: pointer;
+            }
+
+            .content .Button:active {
+                background-color: #210097;
+                border: 1px solid #210097;
+                cursor: pointer;
+            }
+
+        .content .ButtonDisable {
+            background-color: #808080;
+            color: #000;
+            border: 1px solid #808080;
+        }
+
+            .content .ButtonDisable:hover {
+                background-color: #808080;
+                color: #000;
+                border: 1px solid #808080;
+            }
+
+        .datagrid-row {
+            height: 28px;
+        }
+
+        .pagination-info {
+            float: right;
+            margin: 0 6px 0 0;
+            padding: 0;
+            margin-right: 17px;
+            height: 30px;
+            line-height: 30px;
+            font-size: 12px;
+        }
+
+        .datagrid .datagrid-pager {
+            display: block;
+            margin: 0;
+            border-width: 1px 0 0 0;
+            border-style: solid;
+        }
+    </style>
+    <script type="text/javascript">
+        var Dev = window.top.window.dev;
+        var dataGrid, pageIndex = 1, pageSize = 5;
+        var treeControl, parent;
+        var selectorgid, winorgid, orgids;
+        var orgFilter, updateid, editWin;
+        var fishnetserver, blockservers;
+        var mapclick;
+        var isclick = false, drawflag;
+        var waitbox, dialog, flashDialog;
+        var startpoint; var endpoint; var placefeature;
+        var obstaclecontrol;
+        var selectfishnetf;
+        var comboTree;
+        var bindtaskType;
+        var framestyle = new Dev.style.Style({
+            fill: new Dev.style.Fill({ color: 'rgba(171, 205, 101,0.3)' }),
+            stroke: new Dev.style.Stroke({ color: 'rgba(171, 205, 101,1)', width: 1 })
+        });
+        var updateid, updateorgid;
+        var routeControl;
+        //定义地块中的障碍点
+        var traveploygons = [];//地块障碍点
+        var newtrack;
+        var tempwfs;
+        function WidgetCommunication(s) { // 部件通讯
+            parent = s.parent;
+            //  Dev.App.BottomPanel.SetHeight(262);
+            Dev.App.BottomPanel.Header.css({ "background": "#14cdad", "color": "#fcfcfc", "font-weight": "bold" });
+            Dev.App.BottomPanel.SetIconCls("data-folder");
+            init();
+            $(window).resize(function () { resize(); });
+        }
+        function bindDic() {
+            bindtaskType = Dev.GetDicData(["TaskSpec"]);
+            if (!Dev.IsNull(bindtaskType)) {
+                var tasktype = $("#tasktype").prop("$this");
+                var bb = bindtaskType.concat();
+                bb.unshift({ "data": "不限", "id": 0000000000, "parentid": bb[0].parentid });
+                tasktype.SetData(bb);
+            }
+        }
+        function init() {
+            initGrid();
+            inittree();
+            bindDic();
+            $(".Button").click(function () {
+                var tag = $(this).attr("tag");
+                if (tag == "add") { updateid = ""; add(); }
+                if (tag == "search") { pageIndex = 1; queryData(); }
+                if (tag == "clear") { searchClear(); queryData(); }
+            });
+            parent.one("onClosing", function () {
+                Dev.App.BottomPanel.SetHeight(262);
+                if (!Dev.IsNull(treeControl)) {
+                    treeControl.unbind("onSelectChanged");
+                    treeControl.Clear();
+                    treeControl = null;
+                }
+                if (!Dev.IsNull(dataGrid)) {
+                    dataGrid.Target.unbind("onSelectPage");
+                    dataGrid.Target.unbind("onClickRow");
+                    dataGrid.Target.unbind("onPageSizeChange");
+                    dataGrid = null;
+                }
+                if (!Dev.IsNull(editWin)) {
+                    editWin.Target.bind("onClosing");
+                    editWin.Close();
+                    editWin.Destroy();
+                    editWin = null;
+                }
+
+                if (!Dev.IsNull(detailWin)) {
+                    detailWin.unbind("onClosing");
+                    detailWin.Close();
+                    detailWin.Destroy();
+                    detailWin = null;
+                }
+
+                clearanalysisf();
+                if (!Dev.IsNull(waitbox)) { waitbox.Close(); waitbox = null; }
+                Dev.MapUtils.ClearFeature("tempGraphicLayer", Dev.App.Map);
+                if (!Dev.IsNull(mapclick)) { Dev.App.Map.unByKey(mapclick); mapclick = null; }
+            });
+            dialog = new Dev.Messager({ AutoShow: false, Type: "question" });
+            flashDialog = new Dev.Messager({ Height: 95, Width: 200, AutoShow: false, Type: "question", Timeout: 1500, ButtonVisible: false, AutoVisible: true, Effect: "normal" });
+            waitbox = new Dev.UCWaitBox(Dev.App.FillPanel.Target);
+            var serverinfos = Dev.getLayerbyValue(["fishnetlayer1"]);
+            fishnetserver = Enumerable.From(serverinfos).Where('s=>s.Value=="fishnetlayer1"').FirstOrDefault();
+            var globallayers = Dev.getLayerByType("global");
+            blockservers = Enumerable.From(globallayers).Where('s=>s.LayerType=="block"').ToArray();
+            mapclick = Dev.App.Map.on("singleclick", function (evt) { singlemapclick(evt); });
+            resize();
+        }//初始化
+        function inittree() {//初始化左侧树
+            treeControl = $('.dev-tree').prop("$this");
+            treeControl.bind("onSelectChanged", function (s, e) {
+                searchClear();
+                var treenode = e;
+                orgids = [];
+                var isleaf = treeControl.IsLeaf(treenode);
+                orgFilter = " \"ORGID\" IN ('" + e.id + "',";
+                selectorgid = e.id;
+                orgids.push(e.id);
+                if (!isleaf) {
+                    var allchilds = treeControl.GetAllChildren(treenode);
+                    for (var i = 0; i < allchilds.length; i++) {
+                        orgFilter += "'" + allchilds[i].id + "',";
+                        orgids.push(allchilds[i].id);
+                    }
+                }
+                orgFilter = orgFilter.substr(0, orgFilter.length - 1);
+                orgFilter += ")";
+                //   clearanalysisf();
+                if (!Dev.IsNull(editWin)) editWin.Close();
+                Dev.MapUtils.ClearFeature("tempGraphicLayer", Dev.App.Map);
+                if (!Dev.IsNull(dataGrid)) queryData();
+            });
+            var orgid = Dev.cookie.user.orgid;
+            $.ajax({
+                url: Dev.GetSystemUrlByRelID("Service") + "organize/gettreebyid/" + orgid + "?" + new Date().getTime(),
+                type: "GET",
+                contentType: 'application/json',
+                dataType: 'json',
+                async: false,
+                success: function (result) {
+                    var treedata = Dev.ConvertTreeData(result.data, orgid);
+                    treeControl.LoadData(treedata);
+                    if (treedata.length > 0) treeControl.SetSelectNode(treeControl.GetRoots()[0]);
+                }
+            });
+        }//初始化左侧树
+
+        var pagerows = [];
+        function initGrid() {
+            if (Dev.IsNull(dataGrid)) {
+                $("#gridDiv").empty();
+                var columns = [
+                  { field: "name", width: 80, align: 'center', title: '任务名称', sortable: false },
+                  { field: "type", width: 60, align: 'center', title: '任务类型', sortable: false },
+                  { field: "no", width: 80, align: 'center', title: '车牌号', sortable: false },
+                  { field: "farmname", width: 80, align: 'center', title: '农具名称', sortable: false },
+                  { field: "state", width: 80, align: 'center', title: '任务状态', sortable: false },
+                  { field: "starttime", width: 80, align: 'center', title: '计划开始时间', sortable: false, formatter: function (value, row, index) { return Dev.GetDateString(value); } },
+                  { field: "endtime", width: 80, align: 'center', title: '计划结束时间', sortable: false, formatter: function (value, row, index) { return Dev.GetDateString(value); } },
+                  {
+                      field: "_oprate", width: 50, align: 'center', title: '操作', sortable: false, formatter: function (value, row, index) {
+                          var str = '';
+                          if (row.state == "待接收") str += '<a href="javascript:void(0)"  title="修改" style="color:blue;" onclick="update(\'' + row.id + '\',\'' + index + '\')"><img src="../../image/agri/update.png"/></a>&nbsp;';
+                          else str += '<a href="javascript:void(0)"  title="不可修改" style="color:blue;"><img src="../../image/agri/unupdate.png"/></a>&nbsp;';
+                          str += '<a href="javascript:void(0)" style="color:blue;margin-left:6px;" onclick="detailInfo(\'' + row.id + '\')" title="详细信息"><img src="../../image/agri/cartype.png"/></a>&nbsp;';
+                          if (row.state == "待接收" || row.state == "已完成") str += '<a href="javascript:void(0)" title="删除" style="color:blue;margin-left:6px;" onclick="deleteinfo(\'' + row.id + '\')"><img src="../../image/agri/delete.png"/></a>';
+                          else str += '<a href="javascript:void(0)" title="不可删除" style="color:blue;margin-left:6px;"><img src="../../image/agri/undelete.png"/></a>';
+                          return str;
+                      }
+                  }
+                ];
+                dataGrid = new UCDataGrid(Dev, {
+                    PageIndex: pageIndex, PageSize: pageSize, RowNumbers: false, ID: "trackGrid", pagequery: false, IsSizeSelect: true
+                });
+                $("#gridDiv").append(dataGrid.Target);
+                dataGrid.Layout(columns);
+                dataGrid.Target.bind("onSelectPage", function (s, e) {
+                    pageIndex = e.index;
+                    Dev.MapUtils.ClearFeature("tempGraphicLayer", Dev.App.Map);
+                    queryData();
+                });
+                dataGrid.Target.bind("onClickRow", function (s, e) {
+                    Dev.MapUtils.ClearFeature("tempGraphicLayer", Dev.App.Map);
+                    var c_row = e.Row;
+                    var row = getrowbyid(c_row.id);
+                    if (Dev.IsNull(row)) return;
+                    var line = new Dev.Feature(new Dev.geom.LineString(convertpoints(row.route)));
+                    Dev.MapUtils.AddFeature(line, "tempGraphicLayer", Dev.App.Map);
+                    //居中放大
+                    Dev.App.Map.getView().setZoom(16);
+                    var extent = line.getGeometry().getExtent();
+                    Dev.App.Map.getView().centerOn([((extent[0] + extent[2]) / 2), ((extent[1] + extent[3]) / 2)], Dev.App.Map.getSize(), [Dev.App.Map.getSize()[0] / 2, Dev.App.Map.getSize()[1] / 2]);
+                    var obstacles = convertobpoints(row.obstacle);
+                    if (!Dev.IsNull(obstacles) && obstacles.length > 0) {
+                        var obspoints = [];
+                        for (var i = 0; i < obstacles.length; i++) {
+                            var obsf = new Dev.Feature(new Dev.geom.Point(obstacles[i]));
+                            obsf.setStyle(new Dev.style.Style({ image: new Dev.style.Icon({ src: Dev.App.Root + "image/agri/mapobstacle.png" }) }));
+                            obspoints.push(obsf);
+                        }
+                        Dev.MapUtils.AddFeatures(obspoints, "tempGraphicLayer", Dev.App.Map);
+                    }
+                    //电子围栏
+                    if (!Dev.IsNull(row.fishnet)) {
+                        var fishnetf = new Dev.Feature(new Dev.geom.Polygon([convertpoints(row.fishnet)]));
+                        fishnetf.setStyle(framestyle);
+                        Dev.MapUtils.AddFeature(fishnetf, "tempGraphicLayer", Dev.App.Map);
+                    }
+                });
+                dataGrid.Target.bind("onPageSizeChange", function (s, e) {
+                    if (Dev.IsNull(e)) return;
+                    pageIndex = 1;
+                    pageSize = e;
+                    Dev.MapUtils.ClearFeature("tempGraphicLayer", Dev.App.Map);
+                    queryData();
+                });
+            }
+        }//初始化农机作业列表
+        var detailWin;
+        function detailInfo(id) {
+            if (Dev.IsNull(detailWin)) {
+                detailWin = new Dev.Window({
+                    ID: "detailwin",
+                    IconCls: 'icon-detailinfo',
+                    Title: "作业详情",
+                    Parent: Dev.App.FillPanel.Target,
+                    Maximizable: false,
+                    Modal: true,
+                    Draggable: true,
+                    HAlign: 'center',
+                    VAlign: 'center',
+                    Resizable: false,
+                    Url: Dev.App.Root + "html/detailinfo/agrimachinework.html",
+                    Height: 430,
+                    Width: 500,
+                    Parameters: { id: id }
+                });
+                detailWin.bind("onClosing", function () {
+                });
+            } else {
+                detailWin.SetUrl(Dev.App.Root + "html/detailinfo/agrimachinework.html");
+                detailWin.Parameters = { id: id };
+                detailWin.Open();
+            }
+        } //初始化详细信息页面
+
+        //获取某条记录
+        function getrowbyid(id) {
+            if (Dev.IsNull(id)) return;
+            var data = Enumerable.From(pagerows).Where('s=>s.id=="' + id + '"').FirstOrDefault();
+            if (Dev.IsNull(data)) {
+                $.ajax({
+                    url: Dev.GetSystemUrlByRelID("Service") + "task/getbyfilter",
+                    type: "POST",
+                    contentType: 'application/json',
+                    dataType: 'json',
+                    data: "\"ID\"='" + id + "'",
+                    async: false,
+                    success: function (result) {
+                        if (result.statusCode == 200 && !Dev.IsNull(result.data) && result.data.length > 0) data = result.data[0];
+                    },
+                    error: function (e) { dialog.Alert(msg.netout, "error"); loadError(); }
+                });
+                pagerows.push(data);
+            }
+            return data;
+        }
+
+        //查询列表
+        function queryData() {
+            pagerows = [];
+            var con = getcondition();
+            con += " ORDER BY \"CREATEDATE\" DESC";
+            $.ajax({
+                url: Dev.GetSystemUrlByRelID("Service") + "task/getByFilterSql/" + pageIndex + "/" + pageSize,
+                type: "POST",
+                contentType: 'application/json',
+                dataType: 'json',
+                data: con,
+                success: function (result) {
+                    if (result.statusCode != 200 || Dev.IsNull(result.data)) { loadError(); return; }
+                    dataGrid.Load(result.data.dataSource, result.data.pageInfo);
+                    resize();
+                },
+                error: function (e) { dialog.Alert(msg.netout, "error"); loadError(); }
+            });
+        }
+        //新增
+        function add() {
+            startpoint = null, endpoint = null; placefeature = null;
+            initWin(true);
+
+        }
+        //修改
+        function update(id, index) {
+            if (Dev.IsNull(id)) return;
+            updateid = id;
+            var row = getrowbyid(id);
+            updateorgid = row.orgid;
+            initWin(row);
+        }
+        //删除
+        function deleteinfo(id) {
+            if (Dev.IsNull(id)) return null;
+            dialog.Confirm('确定删除所选记录吗？', function (r) {
+                if (!r) return;
+                $.ajax({
+                    type: "GET",
+                    //contentType: "application/json",
+                    url: Dev.GetSystemUrlByRelID("Service") + "task/deleteTaskById/" + id,
+                    success: function (re) {
+                        if (!re.statusCode == 200) { flashDialog.Alert("删除失败!", "info"); return; };
+                        flashDialog.Alert("删除成功!", "info")
+                        pageIndex = 1;
+                        Dev.MapUtils.ClearFeature("tempGraphicLayer", Dev.App.Map);
+                        queryData();
+                    },
+                    error: function (msg) {
+                        flashDialog.Alert("删除失败!", "info")
+                    }
+                });
+            });
+        }
+        function singlemapclick(evt) {
+            if (!isclick) return;
+            isclick = false;
+            if (drawflag == "trackstart" || drawflag == "trackend") addstarorendpoint(evt);
+            if (drawflag == "selectplace") selectblock(evt);
+            // if (drawflag == "addobstacle") addobstacle(evt);
+            if (drawflag == "removeobstacle") removeobstacle(evt);
+        }//地图点击事件
+        function addstarorendpoint(evt) {
+            if (Dev.IsNull(placefeature)) { alert("请先选择作业地块！"); return; }
+            //查询选中的按钮
+            var pixel = Dev.App.Map.getPixelFromCoordinate(evt.coordinate);
+            var ppfeature;
+            Dev.App.Map.forEachFeatureAtPixel(pixel, function (feature) {
+                if (!Dev.IsNull(feature.getId())) {
+                    if (feature.getId().toString().indexOf("ppoint") >= 0) ppfeature = feature;
+                }
+            });
+            if (Dev.IsNull(ppfeature)) { alert((drawflag == "" ? "起点" : "终点") + "请选择地块边界上的点！"); return; }
+            var sepointf = ppfeature.clone();
+            var iconsrc = Dev.App.Root + "image/agri/startpoint.png";
+            if (drawflag == "trackstart") {
+                startpoint = ppfeature.getGeometry().getCoordinates();
+                Dev.MapUtils.RemoveFeatureLikeID("trackstartpoint", "tempGraphicLayer", Dev.App.Map);
+                sepointf.setId("trackstartpoint");
+            }
+            if (drawflag == "trackend") {
+                iconsrc = Dev.App.Root + "image/agri/endpoint.png";
+                endpoint = ppfeature.getGeometry().getCoordinates();
+                Dev.MapUtils.RemoveFeatureLikeID("trackendpoint", "tempGraphicLayer", Dev.App.Map);
+                sepointf.setId("trackendpoint");
+            }
+            sepointf.setStyle(new Dev.style.Style({ image: new Dev.style.Icon({ src: iconsrc }) }));
+            //添加起始点
+            Dev.MapUtils.AddFeature(sepointf, "tempGraphicLayer", Dev.App.Map);
+            // ppfeature.setStyle(new Dev.style.Style({ image: new Dev.style.Icon({ src: iconsrc }) }));
+            if (!Dev.IsNull(startpoint) && !Dev.IsNull(endpoint)) {//开始分析路线
+                $("#createline", editWin.Target).css({ "background-color": "#0099cc", "border": "1px solid #95b8e7" });
+            }
+        }//选择起始点或截止点
+        function getlinepoint(parmdata) {
+            var points = [];
+            var url = Dev.GetSystemUrlByBasicID("MachineTrackUrl");
+            var rpoints = $.ajax({
+                url: url + "hzy/executeSoFileNew1",
+                type: "POST",
+                data: parmdata,
+                async: false,
+                success: function (result) {
+                    points = result.data;
+                }
+            });
+            return points;
+        }
+        function selectblock(evt) {
+            $(".dev-textbox[name='route']", editWin.Target).prop("$this").Clear();
+            obstaclecontrol.Clear();
+            Dev.MapUtils.ClearFeature("tempGraphicLayer", Dev.App.Map);
+            startpoint = null; endpoint = null; selectplace = null;
+            var curr_county = Dev.getcountybyfeatrue(new Dev.Feature(new Dev.geom.Point(evt.coordinate)));
+            if (Dev.IsNull(curr_county)) return;
+            var xzq_code = curr_county.getProperties().ADCODE;
+            if (Dev.IsNull(xzq_code)) return;
+            var currlayer = Enumerable.From(blockservers).Where('s=>s.CountyCode=="' + xzq_code + '"').FirstOrDefault();
+            if (Dev.IsNull(currlayer)) return;
+            var result = Dev.PointerQuery({
+                GeometryName: currlayer.GeomField,
+                PX: 2,
+                Point: evt.coordinate,
+                Map: Dev.App.Map,
+                Url: Dev.GetSystemUrlByRelID(currlayer.WFSUrl),
+                TypeName: currlayer.TypeName
+            });
+            if (Dev.IsNull(result) || result.length == 0) {
+                flashDialog.Alert("选中的位置暂无地块！", "warning");
+                return;
+            }
+            placefeature = result[0];
+            var prope = placefeature.getProperties();
+            prope.id = prope.gid;
+            placefeature.setProperties(prope);
+            Dev.MapUtils.AddFeature(placefeature, "tempGraphicLayer");
+            var geostr = getgeomstr(placefeature);
+            $(".dev-textbox[name='region']", editWin.Target).prop("$this").SetValue(geostr);
+            iconset(true);
+            getfishnetbyplace(evt);
+            traveploygons = [];
+            gettraveploygons(currlayer);
+            if (!Dev.IsNull(bendpointcontrol)) {
+                var selectvalue = bendpointcontrol.GetValue();
+                changepointstate(selectvalue);
+                if (selectvalue != "自定义") {
+                    $("#createline", editWin.Target).css({ "background-color": "#0099cc", "border": "1px solid #95b8e7" });
+                }
+            }
+        }//选择地块
+        var drawcontrol;
+        function addobstacle(evt) {
+            //绘制多边形
+            Dev.MapUtils.ClearFeature("tempDrawLayer", Dev.App.Map);
+            if (Dev.IsNull(drawcontrol)) {
+                drawcontrol = new Dev.Draw({ Map: Dev.App.Map, Layer: Dev.MapUtils.GetLayer("tempDrawLayer", Dev.App.Map) });
+                drawcontrol.Target.bind("onDrawCompleted", function (s, e) {
+                    traveploygons.push(e);
+                    newtrack = e;
+                    e.setId(("obstacle" + new Date().getTime()));
+                    var geomstr = e.getGeometry().getCoordinates();
+                    geomstr = geomstr.join(",").replace(/,/g, " ");
+                    obstaclecontrol.SetValue(geomstr);
+                    drawcontrol.Stop();
+                    drawcontrol.Destroy();
+                });
+            }
+            drawcontrol.Start("Polygon");
+        }//添加障碍点
+        function removeobstacle(evt) {
+            var pixel = Dev.App.Map.getPixelFromCoordinate(evt.coordinate);
+            Dev.App.Map.forEachFeatureAtPixel(pixel, function (feature) {
+                var fid = feature.getId().toString();
+                if (!Dev.IsNull(fid) && fid.indexOf("obstacle") >= 0) {
+                    Dev.MapUtils.RemoveFeature(feature, "tempDrawLayer", Dev.App.Map);
+                    obstaclecontrol.SetValue("");
+                    newtrack = null;
+                }
+            });
+        } //删除障碍点
+        //初始化或打开窗体
+        var derectcontrol, bendpointcontrol;
+        function initWin(row) {
+            showmodal(true);
+            var isadd = Dev.IsNull(updateid);
+            if (Dev.IsNull(editWin)) {
+                editWin = new Dev.Window({
+                    ID: "taskWin", IconCls: isadd ? 'data-folder' : 'machine-trackedit', Title: isadd ? "任务新增" : "任务修改",
+                    Parent: Dev.App.FillPanel.Target,
+                    Maximizable: false,
+                    Modal: false,
+                    Draggable: true,
+                    HAlign: 'center',
+                    VAlign: 'center',
+                    Resizable: false,
+                    Content: $("#EditDiv"),
+                    Height: 542,
+                    Width: 512
+                });
+                comboTree = new Dev.Combotree({
+                    Required: true, PopupHeight: 'auto', TipInfo: "请选择",
+                    MultiSelect: false, StateField: "State", ValueField: "id",
+                    TextField: "name", ChildrenField: "child", Height: 24, Border: "1px", Width: 175
+                });
+                $("#treecomboDiv", editWin.Target).append(comboTree.Target);
+                comboTree.Layout();
+                var selectnode = treeControl.GetSelectNode();
+                comboTree.SetData(selectnode[0].$this);
+                $("#tasktypeWin", editWin.Target).prop("$this").SetData(bindtaskType);
+                $("#taskBeginTime", editWin.Target).datetimebox({ width: 175, height: 26 });//初始化时间控件
+                $("#taskEndTime", editWin.Target).datetimebox({ width: 175, height: 26 });
+                $(".Icon", editWin.Target).click(function () {
+                    var tag = $(this).attr("tag");
+                    if ($(this).hasClass("Iconunable")) return null;
+                    drawflag = tag;
+                    isclick = true;
+                    if (drawflag == "addobstacle") addobstacle();
+                });
+                $(".Icon1", editWin.Target).click(function () {
+                    var tag = $(this).attr("tag");
+                    if ($(this).hasClass("Iconunable")) return null;
+                    drawflag = tag;
+                    isclick = true;
+                });
+                obstaclecontrol = $('.dev-textbox[name="obstacle"]', editWin.Target).prop("$this");
+                //路线方向
+                derectcontrol = $('.dev-combobox[name="derection"]', editWin.Target).prop("$this");
+                derectcontrol.SetData([{ id: "shuttle", Text: "梭行作业" }, { id: "skip", Text: "跳行作业" }]);
+                derectcontrol.SetSelectedIndex(0);
+                //路线起始点
+                bendpointcontrol = $('.dev-combobox[name="startendpoint"]', editWin.Target).prop("$this");
+                bendpointcontrol.bind("onSelectChanged", function (s, e) {
+                    if (Dev.IsNull(placefeature)) return;
+                    changepointstate(e);
+                });
+                bendpointcontrol.SetSelectedIndex(0);
+
+                initmachine();
+                initframe();
+                initReceiveder();
+                $(".Button", editWin.Target).click(function () {
+                    var tag = $(this).attr("tag");
+                    if (tag == "save") save();
+                    if (tag == "cancel") editWin.Close();
+                });
+                var fishnetcontrol = $(".dev-combobox[name='fishnet']", editWin.Target).prop("$this");
+                fishnetcontrol.Target.bind("onSelectChanged", function (s, e) {
+                    if (!Dev.IsNull(selectfishnetf)) Dev.MapUtils.RemoveFeature(selectfishnetf.feature, "tempGraphicLayer", Dev.App.Map);
+                    if (!Dev.IsNull(e)) { e.feature.setStyle(framestyle); Dev.MapUtils.AddFeature(e.feature, "tempGraphicLayer", Dev.App.Map); }
+                    selectfishnetf = e;
+                });
+                editWin.Target.bind("onClosing", function () {
+                    clearWin();
+                    showmodal(false);
+                    searchResetMac();
+                    searchResetFarm();
+                    searchResetRec();
+                });
+                $("#createline", editWin.Target).click(function () {
+                    //获取地块
+                    waitbox.Show();
+                    var parmdata = {};
+                    if (Dev.IsNull(placefeature)) { alert("请先选择作业地块！"); return; }
+                    //判断是否有起始点
+                    var ishaspoint = bendpointcontrol.GetValue();
+
+                    if (ishaspoint == "自定义" && (Dev.IsNull(startpoint) || Dev.IsNull(endpoint))) { alert("请先选择起点和终点！"); waitbox.Close(); return; }
+                    var derect = derectcontrol.GetValue();//作业方式
+                    //农具
+                    var selectitem = framecontrol.combogrid("grid").datagrid("getSelected");
+                    var toolsize = Dev.IsNull(selectitem.farmsize) ? 6 : parseFloat(selectitem.farmsize);
+                    //农机
+                    var selectmachine = machinecontrol.combogrid("grid").datagrid("getSelected");
+                    var machineno = (Dev.IsNull(selectmachine) || Dev.IsNull(selectmachine.mintrunradius)) ? 8 : parseFloat(selectmachine.mintrunradius);
+                    //地块
+                    parmdata.boundPoint = "";
+                    for (var i = 0; i < placefeature.getGeometry().getCoordinates()[0][0].length; i++) {
+                        var currpoint = placefeature.getGeometry().getCoordinates()[0][0][i];
+                        parmdata.boundPoint += currpoint[1] + "," + currpoint[0] + ",";
+                    }
+                    parmdata.boundPoint = parmdata.boundPoint.substr(0, parmdata.boundPoint.length - 1);
+                    if (ishaspoint == "默认") {
+                        parmdata.Ax = 0;
+                        parmdata.Ay = 0;
+                        parmdata.Bx = 0;
+                        parmdata.By = 0;
+                        parmdata.direction = 0;
+                    }
+                    else {
+                        parmdata.Ax = startpoint[1];
+                        parmdata.Ay = startpoint[0];
+                        parmdata.Bx = endpoint[1];
+                        parmdata.By = endpoint[0];
+                        parmdata.direction = 1;
+                    }
+                    parmdata.w = toolsize;
+                    parmdata.r = machineno;
+                    //方向
+                    parmdata.type = derect;
+                    //障碍点
+                    parmdata.obstaclePoint = "";
+                    if (!Dev.IsNull(newtrack)) {
+                        for (var i = 0; i < newtrack.getGeometry().getCoordinates()[0].length; i++) {
+                            var currpoint = newtrack.getGeometry().getCoordinates()[0][i];
+                            parmdata.obstaclePoint += currpoint[1] + "," + currpoint[0] + ",";
+                        }
+                        parmdata.obstaclePoint = parmdata.obstaclePoint.substr(0, parmdata.obstaclePoint.length - 1);
+                    }
+                    var rpoint = getlinepoint(parmdata);
+                    var linepoint = [];
+                    for (var i = 0; i < rpoint.length; i++) linepoint.push([rpoint[i][1], rpoint[i][0]]);
+                    var linef = Dev.MapUtils.GetFeatureByID("trackerline");
+                    if (!Dev.IsNull(linef)) Dev.MapUtils.RemoveFeature(linef, "tempGraphicLayer", Dev.App.Map);
+                    var linefeature = new Dev.Feature(new Dev.geom.LineString(linepoint));
+                    linefeature.setId("trackerline");
+                    Dev.MapUtils.AddFeature(linefeature, "tempGraphicLayer", Dev.App.Map);
+                    var linestr = linepoint.join(',').replace(/,/g, ' ');
+                    $(".dev-textbox[name='route']", editWin.Target).prop("$this").SetValue(linestr)
+                    waitbox.Close();
+                });
+            }
+            else {
+                editWin.SetIconCls(isadd ? 'data-folder' : 'machine-trackedit');
+                editWin.SetTitle(isadd ? "任务新增" : "任务修改");
+                editWin.Open();
+                var selectnode = treeControl.GetSelectNode();
+                comboTree.SetData(selectnode[0].$this);
+            }
+            var temporgid = selectorgid;
+            if (!isadd) {
+                temporgid = row.orgid;
+                updatefarmid = row.framid;
+                machineindex = 1, farmeindex = 1, receivederIndex = 1;
+                getupdatepagedata("farme", updatefarmid);
+                getpagedata("machine");
+                getpagedata("user");
+            }
+            else {
+                if (temporgid != winorgid) {
+                    machineindex = 1, farmeindex = 1, receivederIndex = 1;
+                    getpagedata("machine");
+                    getpagedata("farme");
+                    getpagedata("user");
+                    winorgid = temporgid;
+                }
+            }
+            if (!isadd) loadData(row);
+        }
+        //加载选中起始点的状态
+        function changepointstate(state) {
+            if (Dev.IsNull(placefeature)) return;
+            Dev.MapUtils.RemoveFeatureLikeID("ppoint", "tempGraphicLayer", Dev.App.Map);
+            if (state == "自定义") {
+                $(".Icon1[tag='trackstart']", editWin.Target).removeClass("task-trackstart1").removeClass("Iconunable").addClass("task-trackstart");
+                $(".Icon1[tag='trackend']", editWin.Target).removeClass("task-trackend1").removeClass("Iconunable").addClass("task-trackend");
+                //显示地块点
+                var geompoints = placefeature.getGeometry().getCoordinates();
+                var pointfeatures = [];
+                var plist = geompoints[0][0];
+                for (var i = 0; i < plist.length - 1; i++) {
+                    var currfeature = new Dev.Feature(new Dev.geom.Point(geompoints[0][0][i]));
+                    currfeature.setId("ppoint" + i);
+                    pointfeatures.push(currfeature);
+                }
+                Dev.MapUtils.AddFeatures(pointfeatures, "tempGraphicLayer", null, Dev.App.Map);
+            }
+            else {
+                $(".Icon1[tag='trackstart']", editWin.Target).removeClass("task-trackstart").addClass("Iconunable").addClass("task-trackstart1");
+                $(".Icon1[tag='trackend']", editWin.Target).removeClass("task-trackend").addClass("Iconunable").addClass("task-trackend1");
+            }
+        }
+
+        //编辑保存
+        function save() {
+            $("#errormsg", editWin.Target).html("");
+            var isadd = Dev.IsNull(updateid);
+            var textcontrol = $('.dev-textbox', editWin.Target);
+            var model = { id: Guid.NewGuid().ToString("N"), orgid: selectorgid };
+            if (!Dev.IsNull(textcontrol) && textcontrol.length > 0) {
+                for (var i = 0; i < textcontrol.length; i++) {
+                    var tag = $(textcontrol[i]).attr("name");
+                    var currcontrol = $(textcontrol[i]).prop("$this");
+                    var value = currcontrol.GetValue();
+                    model[tag] = $.trim(value);
+                }
+            }
+            var combocontrol = $('.dev-combobox', editWin.Target);
+            if (!Dev.IsNull(combocontrol) && combocontrol.length > 0) {
+                for (var i = 0; i < combocontrol.length; i++) {
+                    var tag = $(combocontrol[i]).attr("name");
+                    var currcontrol = $(combocontrol[i]).prop("$this");
+                    var value = currcontrol.GetValue();
+                    if (tag == "framid") {
+                        model.farmname = currcontrol.GetText();
+                        model.framid = value;
+                        continue;
+                    }
+                    if (tag == "no" || tag == "type") { model[tag] = currcontrol.GetText(); continue; }
+                    model[tag] = value;
+                }
+            }
+            var userid = $("#receiveder", editWin.Target).combogrid("getValue");
+            var startime = $("#taskBeginTime", editWin.Target).datetimebox("getValue");
+            if (!dev.IsNull(startime)) model.starttime = new Date(startime.replace(/-/g, "/")).getTime();
+            var endtime = $("#taskEndTime", editWin.Target).datetimebox("getValue");
+            if (!dev.IsNull(endtime)) model.endtime = new Date(endtime.replace(/-/g, "/")).getTime();
+            model.no = machinecontrol.combogrid("getText");
+            model.farmname = framecontrol.combogrid("getText");
+            model.framid = framecontrol.combogrid("getValue");
+            model.userid = userid;
+            model.createdate = new Date(Dev.GetNowDateString().replace(/-/g, "/")).getTime();
+            model.state = "待接收";
+            if (isadd && !Dev.IsNull(placefeature)) model.area = parseFloat(formatArea(placefeature.getGeometry().getPolygons()[0]).toFixed(7));
+            var placedata = Dev.getplacedata(placefeature);
+            if (!Dev.IsNull(placedata)) {
+                if (!Dev.IsNull(placedata.country)) model.country = placedata.country;
+                if (!Dev.IsNull(placedata.province)) model.province = placedata.province;
+                if (!Dev.IsNull(placedata.city)) model.city = placedata.city;
+                if (!Dev.IsNull(placedata.county)) model.county = placedata.county;
+                if (!Dev.IsNull(placedata.town)) model.town = placedata.town;
+            }
+            var isok = verify(model);
+            if (!isok) return;
+            var url = Dev.GetSystemUrlByRelID("Service") + "task/addTask";
+            if (!isadd) {
+                url = Dev.GetSystemUrlByRelID("Service") + "task/updateTask";
+                model.id = updateid;
+                //model.orgid = updateorgid;
+            }
+            model.orgid = comboTree.GetValue();     //根据Select选项获取orgid
+            model.devicetype = "农机";
+            $.ajax({
+                url: url,
+                type: "POST",
+                contentType: 'application/json',
+                dataType: 'json',
+                data: JSON.stringify(model),
+                success: function (result) {
+                    editWin.Close();
+                    pageIndex = 1;
+                    queryData();
+                    updateid = undefined;
+                    updateorgid = undefined;
+                    flashDialog.Alert((isadd ? "新增成功!" : "修改成功!"), "info");
+                }
+            });
+        }
+        //初始化农机
+        var machinecontrol, machineindex = 1, machinesize = 5;
+        function initmachine() {
+            if (Dev.IsNull(editWin)) return;
+            machinecontrol = $("#machineno", editWin.Target);
+            machinecontrol.combogrid({
+                idField: 'id', textField: 'no',
+                columns: [[
+                        { field: 'no', title: '车牌号', width: 80, align: 'center' },
+                        { field: 'vendor', title: '厂商', align: 'center', width: 80 },
+                        {
+                            field: 'spec', title: '型号', align: 'center', width: 80, formatter: function (value, row, index) {
+                                return row.spec;
+                            }
+                        },
+                        { field: 'type', title: '类型', align: 'center', width: 80 },
+                        { field: 'use', title: '用途', align: 'center', width: 80 }
+                ]],
+                width: 175, height: 26, panelWidth: 405, panelHeight: 221, pagination: true, toolbar: $("#toolbarMac"),
+            });
+
+            var machinepage = machinecontrol.combogrid("grid").datagrid("getPager");
+            var parampage = { showPageList: false, showRefresh: false, pageNumber: machineindex, pageSize: machinesize, onSelectPage: function (index, size) { machineindex = index; getpagedata("machine"); } };
+            machinepage.pagination(parampage);
+            searchTbBrandControl = $('#macbrandSearch', machinecontrol.combogrid("panel")).prop("$this");
+            var bindBrand = Dev.GetDicData(["MacBrand"]);
+            if (!Dev.IsNull(bindBrand) && bindBrand.length > 0) {
+                var bb = bindBrand.concat();
+                bb.unshift({ "data": "不限", "id": 0000000000, "parentid": bb[0].parentid });
+                searchTbBrandControl.SetData(bb);
+                searchTbBrandControl.Layout();
+            }
+            searchTbTypeControl = $('#mactypeSearch', machinecontrol.combogrid("panel")).prop("$this");
+            var bindType = Dev.GetDicData(["MacType"]);     //   绑定字典数据
+            if (!Dev.IsNull(bindType) && bindType.length > 0) {
+                var bt = bindType.concat();         //不改变 字典数据
+                bt.unshift({ "data": "不限", "id": 9999999999, "parentid": bt[0].parentid }); //插入数组首部
+                searchTbTypeControl.SetData(bt);
+                searchTbTypeControl.Layout();
+            }
+            searchTbnoControl = $('#macnumSearch', machinecontrol.combogrid("panel")).prop("$this");
+            $("#macsearch", machinecontrol.combogrid("panel")).click(function () {
+                searchTbMac();
+            });
+            $("#macreset", machinecontrol.combogrid("panel")).click(function () {
+                searchResetMac();
+            });
+        }
+        //初始化农具
+        var framecontrol, updatefarmid, farmeindex = 1, farmesize = 5;
+        function initframe() {
+            if (Dev.IsNull(editWin)) return;
+            var isadd = Dev.IsNull(updateid);
+            framecontrol = $("#framnum", editWin.Target);
+            framecontrol.combogrid({
+                idField: 'id', textField: 'farmname',
+                columns: [[
+                        { field: 'farmname', title: '名称', width: 80, align: 'center' },
+                        { field: 'farmspec', title: '型号', align: 'center', width: 80 },
+                        { field: 'vendor', title: '厂商', align: 'center', width: 80 },
+                        { field: 'farmsize', title: '长度(m)', align: 'center', width: 80 },
+                        { field: 'farmwidth', title: '宽度(m)', align: 'center', width: 80 }
+                ]],
+                width: 175, height: 26, panelWidth: 402, panelHeight: 221, pagination: true, toolbar: $("#toolbarFarm"),
+                onChange: function (newvalue, oldvalue) {
+                    if (Dev.IsNull(newvalue) || newvalue.length == 0) $(".Icon[tag='selectplace']", editWin.Target).addClass("Iconunable").addClass("task-selectpalce1").removeClass("task-selectpalce");
+                    else $(".Icon[tag='selectplace']", editWin.Target).removeClass("Iconunable").removeClass("task-selectpalce1").addClass("task-selectpalce");
+                    if (!Dev.IsNull(newvalue) && !Dev.IsNull(oldvalue) && newvalue != oldvalue) {
+                        $(".dev-textbox[name='route']", editWin.Target).prop("$this").Clear();
+                        $(".dev-textbox[name='region']", editWin.Target).prop("$this").Clear();
+                        var oldline = Dev.MapUtils.GetFeatureByID("workline", "tempGraphicLayer", Dev.App.Map);
+                        if (!Dev.IsNull(oldline)) Dev.MapUtils.RemoveFeature(oldline, "tempGraphicLayer", Dev.App.Map);
+                        clearanalysisf();
+
+                    }   //切换农具的时候，清除作业路线
+                }
+            });
+            var framepage = framecontrol.combogrid("grid").datagrid("getPager");
+            var parampage;
+            //新增 与 修改时候调用的 翻页模式不同
+            if (isadd) parampage = { showPageList: false, showRefresh: false, pageNumber: farmeindex, pageSize: farmesize, onSelectPage: function (index, size) { farmeindex = index; getpagedata("farme"); } };
+            else parampage = { showPageList: false, showRefresh: false, pageNumber: farmeindex, pageSize: farmesize, onSelectPage: function (index, size) { farmeindex = index; getupdatepagedata("farme", updatefarmid); } };
+            framepage.pagination(parampage);
+            searchTbFnameControl = $('#fnameSearch', framecontrol.combogrid("panel")).prop("$this");
+            searchTbFminControl = $('#fminlength', framecontrol.combogrid("panel")).prop("$this");
+            searchTbFmaxControl = $('#fmaxlength', framecontrol.combogrid("panel")).prop("$this");
+            $("#farmsearch", framecontrol.combogrid("panel")).click(function () {
+                searchTbFarm();
+            });
+            $("#farmreset", framecontrol.combogrid("panel")).click(function () {
+                searchResetFarm();
+            });
+        }
+        //初始化接收人
+        var receivedercontrol, receivederIndex = 1, receivederSize = 5;
+        function initReceiveder() {
+            if (Dev.IsNull(editWin)) return;
+            receivederControl = $("#receiveder", editWin.Target);
+            receivederControl.combogrid({
+                idField: 'id', textField: 'truename',
+                columns: [[
+                    { field: 'id', title: '主键', align: 'center', width: 60, hidden: true },
+                    { field: 'no', title: '编号', align: 'center', width: 50 },
+                    { field: 'truename', title: '真实姓名', align: 'center', width: 70 },
+                    { field: 'name', title: '登录名', align: 'center', width: 60 },
+                    { field: 'cano', title: 'CA证书', align: 'center', width: 50 },
+                    { field: 'type', title: '人员类别', align: 'center', width: 58 }
+                ]],
+                width: 175, height: 25, panelWidth: 290, panelHeight: 221, pagination: true, toolbar: $("#toobarRec"),
+            });
+            var page = receivederControl.combogrid("grid").datagrid("getPager");
+            var parampage = {
+                showPageList: false, showRefresh: false, pageNumber: receivederIndex, pageSize: receivederSize, onSelectPage: function (index, size) { receivederIndex = index; getpagedata("user"); }
+            };
+            page.pagination(parampage);
+            searchTbRnoControl = $('#PnoSearch', receivederControl.combogrid("panel")).prop("$this");
+            searchTbRnameControl = $('#PnameSearch', receivederControl.combogrid("panel")).prop("$this");
+            searchTbRtypeControl = $('#PTypeSearch', receivederControl.combogrid("panel")).prop("$this");
+            $("#recsearch", receivederControl.combogrid("panel")).click(function () {
+                searchTbRec();
+            });
+            $("#recreset", receivederControl.combogrid("panel")).click(function () {
+                searchResetRec();
+            });
+        }
+        //获取农机、农具、用户数据
+        function getpagedata(type) {
+            if (Dev.IsNull(type)) return null;
+            var url = Dev.GetSystemUrlByRelID("Service");
+            var con = orgFilter.concat();
+            if (type == "farme") {
+                url += "farm/getbyfilter/" + farmeindex + "/" + farmesize;
+                if (!Dev.IsNull(searchTbFilterFarm)) con += "AND " + searchTbFilterFarm;
+                con += " ORDER BY \"CREATEDATE\" DESC";
+            }
+            if (type == "machine") {
+                url += "device/getbyfilter/" + machineindex + "/" + machinesize;
+                con += "AND  \"DEVICETYPE\" = '" + Dev.DeviceType[type] + "'";
+                if (!Dev.IsNull(searchTbFilterMac)) con += "AND " + searchTbFilterMac;
+                con += " ORDER BY \"CREATEDATE\" DESC";
+            }
+            if (type == "user") {
+                url += "user/getbyfilter/" + receivederIndex + "/" + receivederSize;
+                if (!Dev.IsNull(searchTbFilterRec)) con += "AND " + searchTbFilterRec;
+            }
+            $.ajax({
+                url: url,
+                type: "POST",
+                contentType: 'application/json',
+                dataType: 'json',
+                async: false,
+                data: con,
+                success: function (result) {
+                    if (type == "farme" && !Dev.IsNull(framecontrol)) {//绑定数据
+                        framecontrol.combogrid("grid").datagrid("loadData", result.data.dataSource);
+                        var page = framecontrol.combogrid("grid").datagrid("getPager");
+                        page.pagination('refresh', { total: result.data.pageInfo.totalCount, pageNumber: result.data.pageInfo.pageIndex });
+                    }
+                    if (type == "machine" && !Dev.IsNull(machinecontrol)) { //绑定数据
+                        machinecontrol.combogrid("grid").datagrid("loadData", result.data.dataSource);
+                        var page = machinecontrol.combogrid("grid").datagrid("getPager");
+                        page.pagination('refresh', { total: result.data.pageInfo.totalCount, pageNumber: result.data.pageInfo.pageIndex });
+                    }
+                    if (type == "user" && !Dev.IsNull(receivederControl)) {//绑定数据
+                        receivederControl.combogrid("grid").datagrid("loadData", result.data.dataSource);
+                        var page = receivederControl.combogrid("grid").datagrid("getPager");
+                        page.pagination('refresh', { total: result.data.pageInfo.totalCount, pageNumber: result.data.pageInfo.pageIndex });
+                    }
+                }
+            });
+        }
+        function getupdatepagedata(type, id) {
+            //针对农机新增，将选中修改的行 农机信息查到列表第一行
+            if (Dev.IsNull(type)) return null;
+            var url = Dev.GetSystemUrlByRelID("Service");
+            if (type == "farme") {
+                url += "farm/sortbyfilterpage/" + farmeindex + "/" + farmesize;
+                $.ajax({
+                    url: url,
+                    type: "POST",
+                    contentType: 'application/json',
+                    dataType: 'json',
+                    async: false,
+                    data: id,
+                    success: function (result) {
+                        if (type == "farme" && !Dev.IsNull(framecontrol)) {//绑定数据
+                            framecontrol.combogrid("grid").datagrid("loadData", result.data.dataSource);
+                            var page = framecontrol.combogrid("grid").datagrid("getPager");
+                            page.pagination('refresh', { total: result.data.pageInfo.totalCount, pageNumber: result.data.pageInfo.pageIndex });
+                        }
+                    }
+                });
+            }
+        }
+        //加载数据
+        function loadData(row) {
+            if (Dev.IsNull(row)) return;
+            var textcontrol = $('.dev-textbox', editWin.Target);
+            var combocontrol = $('.dev-combobox', editWin.Target);
+            var selectnode = treeControl.GetSelectNode();
+            comboTree.SetData(selectnode[0].$this);
+            if (!Dev.IsNull(row.orgid)) comboTree.SetValueEx(row.orgid);
+            for (var i = 0; i < textcontrol.length; i++) {
+                var tag = $(textcontrol[i]).attr("name");
+                var currcontrol = $(textcontrol[i]).prop("$this");
+                currcontrol.SetValue(row[tag]);
+            }
+            for (var i = 0; i < combocontrol.length; i++) {
+                var tag = $(combocontrol[i]).attr("name");
+                var currcontrol = $(combocontrol[i]).prop("$this");
+                if (tag == "type") { currcontrol.SetText(row[tag]); continue; }
+                if (tag == "no") { currcontrol.SetText(row[tag]); continue; }
+                if (tag == "framid") { currcontrol.SetValue(row[tag].id); continue; }
+                currcontrol.SetValue(row[tag]);
+            }
+            $("#taskBeginTime", editWin.Target).datetimebox("setValue", Dev.GetDateString(row.starttime));
+            $("#taskEndTime", editWin.Target).datetimebox("setValue", Dev.GetDateString(row.endtime));
+            machinecontrol.combogrid("setValue", row.no);
+            //判断该农具是否存在，如果存在则加载，不存在，则不加载
+            var framepagerows = framecontrol.combogrid("grid").datagrid("getData").rows;
+            var frame_selectrow = Enumerable.From(framepagerows).Where('s=>s.id=="' + row.framid + '"').FirstOrDefault();
+            if (!Dev.IsNull(frame_selectrow)) framecontrol.combogrid("setValue", row.framid);
+            receivederControl.combogrid("setValue", row.userid);
+        }
+        //验证
+        function verify(model) {
+            var errormsg = $("#errormsg", editWin.Target);
+            errormsg.html("");
+            if (Dev.IsNull(model.name)) { errormsg.html("任务名称不能为空！"); return false }
+            if (model.name.length > 25) { errormsg.html("任务名称长度不能超过25个字符！"); return false; }
+            if (Dev.IsNull(model.category)) { errormsg.html("任务类别不能为空！"); return false; }
+            if (Dev.IsNull(model.type)) { errormsg.html("任务类型不能为空！"); return false; }
+            if (Dev.IsNull(model.no)) { errormsg.html("车牌号不能为空！"); return false; }
+            var isexist = false;
+            $.ajax({
+                type: "GET",
+                async: false,
+                contentType: "application/json",
+                url: Dev.GetSystemUrlByRelID("Service") + "device/getbyfilter/\"NO\"=\'" + model.no + "\'",
+                success: function (result) {        //查询成功存在后台返回空数据
+                    if (result.statusCode == 200 && result.data.length !== 0) isexist = true;
+                }
+            });
+            if (!isexist) { errormsg.html("所输入的车牌号不存在！"); return false; }
+            if (Dev.IsNull(model.userid)) { errormsg.html("任务接收人不能为空！"); return false; }
+            if (Dev.IsNull(model.content)) { errormsg.html("任务内容不能为空！"); return false; }
+            if (model.content.length > 120) { errormsg.html("任务内容长度不能超过120个字符！"); return false; }
+            if (Dev.IsNull(model.framid)) { errormsg.html("农具名称不能为空！"); return false; }
+            if (model.framid == model.farmname) { errormsg.html("农具不存在，请重新选择！"); return; }
+            if (Dev.IsNull(model.region)) { errormsg.html("作业地块不能为空！"); return false; }
+            if (Dev.IsNull(model.route)) { errormsg.html("作业路线不能为空！"); return false; }
+            if (Dev.IsNull(model.starttime)) { errormsg.html("开始时间不能为空！"); return false; }
+            var now = new Date();
+            now.setHours(0);
+            now.setMinutes(0);
+            now.setSeconds(0);
+            now.setMilliseconds(0);
+            now = now.getTime();    //限制开始时间 不能早于当天，利用时间戳比较大小，比较对象 当天的00:00:00
+            //if (updateid == "" && model.starttime < now) { errormsg.html("开始时间不得早于当前时间！"); return false; }
+            if (model.starttime < now) { errormsg.html("开始时间不能小于当前时间！"); return false; }
+            if (Dev.IsNull(model.endtime)) { errormsg.html("结束时间不能为空！"); return false; }
+            if (model.endtime < model.starttime) { errormsg.html("开始时间不能大于结束时间！"); return false; }
+            return true;
+        }
+
+        //作业路线分析
+        function analysis(toolswidth) {
+            if (Dev.IsNull(startpoint) || Dev.IsNull(endpoint)) return;
+            var distance = getplacemaxlength(placefeature);
+            var unitDis = toolswidth / 2;
+            var tempdis = distance - unitDis;
+            var takeaway = tempdis % toolswidth;
+            var count = (takeaway == 0 ? (tempdis / toolswidth) : ((tempdis - takeaway) / toolswidth + 1));
+            count += 1;
+            var convertstart = Dev.proj.transform(startpoint, Dev.App.Map.getView().getProjection(), "EPSG:3857");
+            var convertend = Dev.proj.transform(endpoint, Dev.App.Map.getView().getProjection(), "EPSG:3857");
+            var seg = { x1: convertstart[0], y1: convertstart[1], x2: convertend[0], y2: convertend[1] };
+            var wgs84Sphere = new Dev.Sphere(6378137);
+            var linelength = wgs84Sphere.haversineDistance(startpoint, endpoint);
+            linelength = (Math.round(linelength * 100) / 100);
+            var diff_x = convertend[0] - convertstart[0];
+            var diff_y = convertend[1] - convertstart[1];
+            var angle = 360 * Math.atan(diff_y / diff_x) / (2 * Math.PI);
+            var unitdx = unitDis * (seg.x2 - seg.x1) / linelength;
+            var unitdy = unitDis * (seg.y2 - seg.y1) / linelength;
+            var pointr = [];
+            var pointl = [];
+            for (var i = 0; i < count; i++) {
+                var pointx = seg.x1 + (2 * i * unitdx) + unitdx;
+                var pointy = seg.y1 + (2 * i * unitdy) + unitdy;
+                pointr.push([pointx, pointy]);
+                var pointx1 = seg.x1 - (2 * i * unitdx) - unitdx;
+                var pointy1 = seg.y1 - (2 * i * unitdy) - unitdy;
+                pointl.push([pointx1, pointy1]);
+            }
+            var temppoints = [];
+            for (var i = pointl.length - 1; i >= 0; i--) temppoints.push(pointl[i]);
+            for (var i = 0; i < pointr.length; i++) temppoints.push(pointr[i]);
+            var new_temppoints = [];
+            for (var i = 0; i < temppoints.length; i++) {
+                var currx = temppoints[i][0] + (Math.cos((90 + angle) * Math.PI / 180) * distance);
+                var curry = temppoints[i][1] + (Math.sin((90 + angle) * Math.PI / 180) * distance);
+                var currx1 = temppoints[i][0] + (Math.cos((90 - angle) * Math.PI / 180) * distance);
+                var curry1 = temppoints[i][1] - (Math.sin((90 - angle) * Math.PI / 180) * distance);
+                if (i % 2 == 0) {
+                    new_temppoints.push(Dev.proj.transform([currx, curry], "EPSG:3857", Dev.App.Map.getView().getProjection()));
+                    new_temppoints.push(Dev.proj.transform([currx1, curry1], "EPSG:3857", Dev.App.Map.getView().getProjection()));
+                }
+                else {
+                    new_temppoints.push(Dev.proj.transform([currx1, curry1], "EPSG:3857", Dev.App.Map.getView().getProjection()));
+                    new_temppoints.push(Dev.proj.transform([currx, curry], "EPSG:3857", Dev.App.Map.getView().getProjection()));
+                }
+            }
+            var linestring = new Dev.Feature(new Dev.geom.LineString(new_temppoints));
+            var inters = new Dev.WPS_Intersection({
+                Url: Dev.GetSystemUrlByRelID("GeoServiceOWS"),
+                Async: true,
+                Outputformat: "application/wkt"
+            });
+            inters.Target.bind("onIntersectCompleted", function (s, e) {
+                waitbox.Close();
+                if (!e.success) return;
+                var line_points = [];
+                for (var i = 0; i < e.data.length; i++) {
+                    var f_points = e.data[i].getGeometry().getCoordinates();
+                    line_points.push(f_points[0]);
+                    line_points.push(f_points[1]);
+                }
+                analysisComplete(line_points);
+            });
+            inters.Intersect({ Features: [linestring, placefeature] });
+        }
+        function analysisComplete(line_points) {
+            var linestr = line_points.join(' ');
+            linestr = linestr.replace(/,/g, ' ');
+            var oldline = Dev.MapUtils.GetFeatureByID("workline", "tempGraphicLayer", Dev.App.Map);
+            if (!Dev.IsNull(oldline)) Dev.MapUtils.RemoveFeature(oldline, "tempGraphicLayer", Dev.App.Map);
+            var linegeom = new Dev.Feature({ id: "workline", geometry: new Dev.geom.LineString(line_points) });
+            if (traveploygons.length > 0) {
+                gettraveline(linegeom);
+            }
+            else {
+                Dev.MapUtils.AddFeature(linegeom, "tempGraphicLayer", Dev.App.Map);
+                $(".dev-textbox[name='route']", editWin.Target).prop("$this").SetValue(linestr);
+                clearanalysisf();
+            }
+        }//作业路线分析完成事件
+        //避让障碍点路线分析
+        function gettraveline(line) {
+            if (Dev.IsNull(line) || Dev.IsNull(traveploygons) || traveploygons.length == 0) return;
+            //获取含有交点的线
+            var templine = line.clone();
+            var rings = [];
+            for (var i = 0; i < traveploygons.length; i++) {
+                rings.push(traveploygons[i].getGeometry().getCoordinates());
+            }
+            var allpolygon = new Dev.Feature(new Dev.geom.MultiPolygon(rings));
+            var differencegeom = new Dev.WPS_Difference({
+                Url: Dev.GetSystemUrlByRelID("GeoServiceOWS"),
+                Features: [templine, allpolygon],
+                Async: false
+            });
+            differencegeom.Target.one("onDifferenceCompleted", function (s, e) {
+                var linediffgeoms = e.data.geoms;
+                var needgeomspoints = [];
+                for (var i = 0; i < linediffgeoms.length; i++) {
+                    if (e.data.geomtypes[i].toLowerCase() == "polygon") continue;
+                    for (var j = 0; j < linediffgeoms[i].length; j++) needgeomspoints.push(linediffgeoms[i][j]);
+                }
+                var newpoints = needgeomspoints;
+                for (var i = 0; i < traveploygons.length; i++) {
+                    var traveline = gettravline(line, traveploygons[i]);
+                    if (Dev.IsNull(traveline)) continue;
+                    var firstpoint = traveline.getGeometry().getFirstCoordinate();
+                    var lastpoint = traveline.getGeometry().getLastCoordinate();
+                    var fpoints = [], lpoints = [], ishead = true, isfoot = false;
+                    for (var j = 0; j < newpoints.length; j++) {
+                        if (firstpoint[0] == newpoints[j][0] && firstpoint[1] == newpoints[j][1]) ishead = false;
+                        if (lastpoint[0] == newpoints[j][0] && lastpoint[1] == newpoints[j][1]) isfoot = true;
+                        if (ishead) fpoints.push(newpoints[j]);
+                        if (isfoot) lpoints.push(newpoints[j]);
+                    }
+                    newpoints = [];
+                    if (!Dev.IsNull(fpoints) && fpoints.length > 0) {
+                        for (var j = 0; j < fpoints.length; j++) newpoints.push(fpoints[j]);
+                    }
+                    var travepoints = traveline.getGeometry().getCoordinates();
+                    for (var j = 0; j < travepoints.length; j++) newpoints.push(travepoints[j]);
+                    if (!Dev.IsNull(lpoints) && lpoints.length > 0) {
+                        for (var j = 0; j < lpoints.length; j++) newpoints.push(lpoints[j]);
+                    }
+                }
+                var linestr = newpoints.join(' ');
+                linestr = linestr.replace(/,/g, ' ');
+                var oldline = Dev.MapUtils.GetFeatureByID("workline", "tempGraphicLayer", Dev.App.Map);
+                if (!Dev.IsNull(oldline)) Dev.MapUtils.RemoveFeature(oldline, "tempGraphicLayer", Dev.App.Map);
+                var linegeom = new Dev.Feature({ id: "workline", geometry: new Dev.geom.LineString(newpoints) });
+                Dev.MapUtils.AddFeature(linegeom, "tempGraphicLayer", Dev.App.Map);
+                $(".dev-textbox[name='route']", editWin.Target).prop("$this").SetValue(linestr);
+                clearanalysisf();
+            });
+            differencegeom.Difference();
+        }
+        function gettravline(line, polygon) {
+            var templine = line.clone();
+            var firsttravpoints = [];
+            var interpoints = getinterpoints(polygon, line);
+            if (Dev.IsNull(interpoints) || interpoints.length == 0) return;
+            var differencegeom = new Dev.WPS_Difference({
+                Url: Dev.GetSystemUrlByRelID("GeoServiceOWS"),
+                Features: [templine, polygon],
+                Async: false
+            });
+            differencegeom.Target.one("onDifferenceCompleted", function (s, e) {
+                var geoms = e.data.geoms;
+                if (!Dev.IsNull(geoms) && geoms.length > 0) {
+                    geoms[geoms.length - 1] = getnewpolygon(geoms[geoms.length - 1], interpoints);
+                    var linepoints = getline(geoms, interpoints);
+                    templine = new Dev.Feature(new Dev.geom.LineString(linepoints));
+                }
+            });
+            differencegeom.Difference();
+            return templine;
+        }
+        //获取相交点
+        function getinterpoints(polygon, line) {
+            if (Dev.IsNull(polygon) || Dev.IsNull(line)) return;
+            var points = [];
+            var wpsintersc = new Dev.WPS_Intersection({
+                Features: [polygon, line],
+                Url: Dev.GetSystemUrlByRelID("GeoServiceOWS"),
+                Outputformat: "application/wkt",
+                Async: false
+            });
+            wpsintersc.Target.bind("onIntersectCompleted", function (s, e) {
+                if (Dev.IsNull(e.data) || e.data.length == 0) return points;
+                for (var i = 0; i < e.data.length; i++) {
+                    var currpoint = e.data[i].getGeometry().getCoordinates();
+                    points.push(currpoint[0]);
+                    points.push(currpoint[currpoint.length - 1]);
+                }
+            });
+            wpsintersc.Intersect();
+            return points;
+        }
+        //判断多边形为顺顺时针还是逆时针
+        function IsClockwiseBygeompoints(polygongeom) {
+            if (Dev.IsNull(polygongeom)) return false;
+            var polygonpoints = polygongeom;
+            var index = 0, beforeindex = -1, nextindex = 1;
+            for (var i = 0; i < polygonpoints.length; i++) {
+                if (polygonpoints[i][0] < polygonpoints[index][0]) continue;
+                index = i;
+            }
+            beforeindex = index - 1;
+            nextindex = index + 1;
+            if (index == 0) {
+                beforeindex = polygonpoints.length - 1;
+                nextindex = index + 1;
+                if (polygonpoints[beforeindex][0] == polygonpoints[index][0]) beforeindex = beforeindex - 1;
+            }
+            if (index == polygonpoints.length - 1) {
+                beforeindex = index - 1;
+                nextindex = 0;
+                if (polygonpoints[nextindex][0] == polygonpoints[index][0]) nextindex += 1;
+            }
+
+            maxXpoint = polygonpoints[index];
+            beforeXpoint = polygonpoints[beforeindex];
+            nextXpoint = polygonpoints[nextindex];
+            var temppoint = [(maxXpoint[0] - beforeXpoint[0]), (maxXpoint[1] - beforeXpoint[1])];
+            var temppoint1 = [(nextXpoint[0] - maxXpoint[0]), (nextXpoint[1] - maxXpoint[1])];
+            var isclockwise = (temppoint[0] * temppoint1[1] - temppoint1[0] * temppoint[1]) < 0;
+            return isclockwise;
+        }
+        //得到以焦点开始的多边形
+        function getnewpolygon(polygongeom, points) {
+            if (Dev.IsNull(polygongeom) || Dev.IsNull(points) || points.length == 0) return;
+            var polygonclockwise = IsClockwiseBygeompoints(polygongeom[0]);
+            var pclockwish;
+            if (points.length < 3) pclockwis = polygonclockwise;
+            else pclockwish = IsClockwiseBygeompoints([points[0], points[1], points[2]]);
+            var polypoints = [];
+            if (polygonclockwise != pclockwish) {
+                for (var i = polygongeom[0].length - 2; i >= 0; i--) polypoints.push(polygongeom[0][i]);
+            }
+            else {
+                for (var i = 0; i < polygongeom[0].length - 1; i++) polypoints.push(polygongeom[0][i]);
+            }
+            //获取第一个焦点
+            var temppoints = [];
+            var temppoints1 = [];
+            var isbegin = false;
+            var beginp = points[0];
+            for (var i = 0; i < polypoints.length; i++) {
+                if (beginp[0] == polypoints[i][0] && beginp[1] == polypoints[i][1]) isbegin = true;
+                if (isbegin) temppoints1.push(polypoints[i]);
+                else temppoints.push(polypoints[i]);
+            }
+            if (!Dev.IsNull(temppoints) && temppoints.length > 0) {
+                for (var i = 0; i < temppoints.length; i++) temppoints1.push(temppoints[i]);
+            }
+            return temppoints1;
+        }
+
+        function getline(geoms, points) {
+            if (Dev.IsNull(geoms) || geoms.length == 0 || Dev.IsNull(points) || points.length == 0) return;
+            var isok = false;
+            var linepoins = [], beginpoint = []; var endpoint = [];
+            var polygonpoints = geoms[geoms.length - 1];
+            arrpolygonpoint = [];
+            for (var i = 0; i < points.length; i++) {
+                if (i == 0) {
+                    // for (var j = 0; j < geoms[0].length; j++) linepoins.push(geoms[0][j]);
+                }
+                else if (i == 1) {
+                    beginpoint = points[i - 1];
+                    endpoint = points[i];
+                    for (var j = 0; j < polygonpoints.length; j++) {
+                        if (beginpoint[0] == polygonpoints[j][0] && beginpoint[1] == polygonpoints[j][1]) isok = true;
+                        if (isok) linepoins.push(polygonpoints[j]);
+                        if (endpoint[0] == polygonpoints[j][0] && endpoint[1] == polygonpoints[j][1]) { isok = false; break; }
+                    }
+                }
+                else {
+                    if (i % 4 == 0) {
+                        var templine = geoms[i / 2];
+                        for (var j = 0; j < templine.length; j++) linepoins.push(templine[j]);
+                        beginpoint = points[i];
+                        endpoint = points[i + 1];
+                        for (j = polygonpoints.length - 1; j >= 0; j--) {
+                            if (beginpoint[0] == polygonpoints[j][0] && beginpoint[1] == polygonpoints[j][1]) isok = true;
+                            if (isok) linepoins.push(polygonpoints[j]);
+                            if (endpoint[0] == polygonpoints[j][0] && endpoint[1] == polygonpoints[j][1]) { isok = false; break; }
+                        }
+                    }
+                    else if (i % 2 == 0) {
+                        var templine = geoms[i / 2];
+                        for (var j = 0; j < templine.length; j++) linepoins.push(templine[j]);
+                        beginpoint = points[i];
+                        endpoint = points[i + 1];
+                        for (var j = 0; j < polygonpoints.length; j++) {
+                            if (beginpoint[0] == polygonpoints[j][0] && beginpoint[1] == polygonpoints[j][1]) isok = true;
+                            if (isok) linepoins.push(polygonpoints[j]);
+                            if (endpoint[0] == polygonpoints[j][0] && endpoint[1] == polygonpoints[j][1]) { isok = false; break; }
+                        }
+                    }
+                }
+            }
+            // for (var i = 0; i < geoms[geoms.length - 2].length; i++) linepoins.push(geoms[geoms.length - 2][i])
+            return linepoins
+        }
+
+        //获取地块中的障碍点
+        function gettraveploygons(layercon) {
+            if (Dev.IsNull(layercon) || Dev.IsNull(placefeature)) return;
+            var missblockid = placefeature.getProperties().MASSIFID;
+            var con = "\"CLASSNAME\"='障碍物'";
+            var selectitem = framecontrol.combogrid("grid").datagrid("getSelected");
+            var toolsize = Dev.IsNull(selectitem.farmsize) ? 6 : parseFloat(selectitem.farmsize);
+            $.ajax({
+                url: Dev.GetSystemUrlByRelID("Service") + "massif/findGeomByMassifId",
+                type: "POST",
+                data: {
+                    massifId: missblockid,
+                    where: con,
+                    bufferdistance: 0 / 111000
+                },
+                success: function (result) {
+                    if (Dev.IsNull(result) || Dev.IsNull(result.data) || result.data.length == 0) return;
+                    for (var i = 0; i < result.data.length; i++) {
+                        var currstr = result.data[i];
+                        var geom = Dev.ConvertGeomByWKT(currstr.geom);
+                        traveploygons.push(new Dev.Feature(geom));
+                    }
+                    //如果障碍点大于1，则不现实自定义障碍点
+                    if (traveploygons.length > 0) {
+                        $(".Icon[tag='addobstacle']", Dev.App.FillPanel.Target).removeClass("task-addobstacle").addClass("Iconunable").addClass("task-addobstacle1");
+                        $(".Icon[tag='removeobstacle']", Dev.App.FillPanel.Target).removeClass("task-removeobstacle").addClass("Iconunable").addClass("task-removeobstacle1");
+                    }
+                    var geomstr = traveploygons[0].getGeometry().getCoordinates().join(',').replace(/,/g, ' ');
+                    obstaclecontrol.SetValue(geomstr);
+                    newtrack = traveploygons[0];
+                }
+            });
+        }
+
+        //辅助函数
+        function clearanalysisf() {
+            var startf = Dev.MapUtils.GetFeatureByID("startpoint", "tempGraphicLayer", Dev.App.Map);
+            var endf = Dev.MapUtils.GetFeatureByID("endpoint", "tempGraphicLayer", Dev.App.Map);
+            if (!Dev.IsNull(startf)) Dev.MapUtils.RemoveFeature(startf, "tempGraphicLayer", Dev.App.Map);
+            if (!Dev.IsNull(endf)) Dev.MapUtils.RemoveFeature(endf, "tempGraphicLayer", Dev.App.Map);
+            if (!Dev.IsNull(placefeature)) {
+                var pf = Dev.MapUtils.GetFeatureByID(placefeature.getId(), "tempGraphicLayer", Dev.App.Map);
+                if (!Dev.IsNull(pf)) Dev.MapUtils.RemoveFeature(pf, "tempGraphicLayer", Dev.App.Map);
+            }
+            endpoint = null, startpoint = null;
+        }//清空路线分析
+        function getgeomstr(feature) {
+            var geomstr = "";
+            if (Dev.IsNull(feature)) return geomstr;
+            var geom = feature.getGeometry();
+            if (Dev.IsNull(geom)) return geomstr;
+            var coors = geom.getCoordinates();
+            geomstr = coors.join(' ').replace(/,/g, " ");
+            return geomstr;
+        }//获取feature对应的点集合串
+        function getplacemaxlength(feature) {
+            var extent = feature.getGeometry().getExtent();
+            var rectpoint1 = Dev.proj.transform([extent[0], extent[1]], Dev.App.Map.getView().getProjection(), "EPSG:3857");
+            var rectpoint2 = Dev.proj.transform([extent[2], extent[3]], Dev.App.Map.getView().getProjection(), "EPSG:3857");
+            var distancex = rectpoint2[0] - rectpoint1[0];
+            var distancey = rectpoint2[1] - rectpoint1[1];
+            var distanct = Math.sqrt(Math.pow(distancex, 2) + Math.pow(distancey, 2));
+            return distanct;
+        }//获取地块最长长度
+        function getfishnetbyplace(evt) {
+            var fishresult = Dev.PointerQuery({
+                GeometryName: fishnetserver.GeomField,
+                PX: 2,
+                Point: evt.coordinate,
+                Map: Dev.App.Map,
+                Async: true,
+                Url: Dev.GetSystemUrlByRelID(fishnetserver.WFSUrl),
+                TypeName: fishnetserver.TypeName
+            });
+            var fishdata = [];
+            if (!Dev.IsNull(selectfishnetf)) {
+                selectfishnetf = null;
+                $(".dev-combobox[name='fishnet']", editWin.Target).prop("$this").Clear();
+            }
+            if (!Dev.IsNull(fishresult) && fishresult.length > 0) {
+                for (var i = 0; i < fishresult.length; i++) fishdata.push({ name: fishresult[i].getProperties().NAME, geomstr: getgeomstr(fishresult[i]), feature: fishresult[i] });
+            }
+            $(".dev-combobox[name='fishnet']", editWin.Target).prop("$this").SetData(fishdata);
+        }//根据地块获取电子围栏集合
+        function convertobpoints(pointstr) {
+            var points = [];
+            if (Dev.IsNull(pointstr)) return points;
+            var str = pointstr.split(';');
+            for (var i = 0; i < str.length; i++) {
+                if (Dev.IsNull(str[i])) continue;
+                var currpoint = str[i].replace("Point ", "").split(' ');
+                if (currpoint.length > 0) points.push([parseFloat(currpoint[0]), parseFloat(currpoint[1])]);
+            }
+            return points;
+        }//将障碍点字符串转换成为障碍点集合
+        function convertpoints(pointstr) {
+            var points = [];
+            if (Dev.IsNull(pointstr)) return points;
+            var nums = $.trim(pointstr).split(' ');
+            var pointcount = nums.length / 2;
+            for (var i = 0; i < pointcount; i++) points.push([parseFloat(nums[2 * i]), parseFloat(nums[2 * i + 1])]);
+            return points;
+        }//将表中图形串转换成为对应的数据
+        function searchClear() {
+            pageIndex = 1;
+            var tasknamectrl = $("#taskname").prop("$this");
+            var machinecontrol = $("#machineNum").prop("$this");
+            var statecontrol = $("#tasktype").prop("$this");
+            if (!Dev.IsNull(tasknamectrl)) tasknamectrl.Clear();
+            if (!Dev.IsNull(machinecontrol)) machinecontrol.Clear();
+            if (!Dev.IsNull(statecontrol)) statecontrol.SetValue("");
+            $("#tasktime1").datebox("setValue", "");
+            $("#tasktime2").datebox("setValue", "");
+        }//初始化查询控件
+        function resize() {
+            // Dev.App.BottomPanel.SetHeight(262);
+            var height = $(window).outerHeight();
+            var gridheight = height - 40;
+            var gridwidth = $(window).outerWidth() * 0.80 - 2;
+            if (gridwidth < 1305) {
+                gridwidth = 1305;
+                gridheight = parseFloat(gridheight) - 16;
+            }
+            $("#searchDiv").width(gridwidth);
+            $("#gridDiv").height(gridheight).width(gridwidth);
+            if (!Dev.IsNull(dataGrid)) dataGrid.Resize(gridwidth, gridheight);
+            $("#treediv").height(height - 26);
+        }//窗体大小变化
+        function getcondition() {
+            var con = "1=1";
+            var taskname = $("#taskname").prop("$this").GetValue();
+            if (!Dev.IsNull(taskname)) con += " AND ( \"NAME\"  LIKE '%" + $.trim(taskname) + "%'" + " OR " + "UPPER( \"NAME\" )  LIKE " + "UPPER('%" + $.trim(taskname) + "%')" + " OR " + "LOWER( \"NAME\" )  LIKE " + "LOWER('%" + $.trim(taskname) + "%'))";
+            var machinenum = $("#machineNum").prop("$this").GetValue();
+            if (!Dev.IsNull(machinenum)) con += " AND ( \"NO\"  LIKE '%" + $.trim(machinenum) + "%'" + " OR " + "UPPER( \"NO\" )  LIKE " + "UPPER('%" + $.trim(machinenum) + "%')" + " OR " + "LOWER( \"NO\" )  LIKE " + "LOWER('%" + $.trim(machinenum) + "%'))";
+            var tasktype = $("#tasktype").prop("$this").GetText();
+            if (!Dev.IsNull(tasktype) && tasktype != "不限") con += " AND \"TYPE\"='" + tasktype + "'";
+            var time1 = $("#tasktime1").datebox("getValue");
+            var time2 = $("#tasktime2").datebox("getValue");
+            if (!Dev.IsNull(time1) && !Dev.IsNull(time2)) {
+                var t1 = new Date(time1.replace(/-/g, "/"));
+                var t2 = new Date(time2.replace(/-/g, "/"));
+                if (t1.getTime() > t2.getTime()) {
+                    var temp = time1;
+                    time1 = time2;
+                    time2 = temp;
+                }
+            }
+            if (!Dev.IsNull(time1)) con += " AND \"STARTTIME\">='" + time1 + " 00:00:00'";
+            if (!Dev.IsNull(time2)) con += " AND \"STARTTIME\"<='" + time2 + " 23:59:59'";
+            if (!Dev.IsNull(orgFilter) && orgFilter.length > 0) con += " AND " + orgFilter;
+            return con;
+        }//获取查询条件
+        function clearWin() {
+            var textcontrol = $('.dev-textbox', editWin.Target);
+            var combocontrol = $('.dev-combobox', editWin.Target);
+            for (var i = 0; i < textcontrol.length; i++) {
+                var currcontrol = $(textcontrol[i]).prop("$this");
+                currcontrol.Clear();
+                if (!Dev.IsNull(currcontrol.SetLengthTip)) currcontrol.SetLengthTip("");
+            }
+            for (var i = 0; i < combocontrol.length; i++) {
+                var currcontrol = $(combocontrol[i]).prop("$this");
+                var tag = $(combocontrol[i]).attr("name");
+                if (tag == "fishnet") currcontrol.Clear();
+                else currcontrol.SetValue("");
+            }
+            Dev.MapUtils.ClearFeature("tempGraphicLayer", Dev.App.Map);
+            $("#taskBeginTime", editWin.Target).datetimebox("setValue", "");
+            $("#taskBeginTime", editWin.Target).datetimebox("hidePanel");
+            $("#taskEndTime", editWin.Target).datetimebox("setValue", "");
+            $("#taskEndTime", editWin.Target).datetimebox("hidePanel");
+            if (!Dev.IsNull(framecontrol)) {//清空农具
+                framecontrol.combogrid("setValue", "");
+                framecontrol.combogrid("hidePanel");
+            }
+            if (!Dev.IsNull(receivederControl)) {//清空接收人
+                receivederControl.combogrid("setValue", "");
+                receivederControl.combogrid("hidePanel");
+            }
+            if (!Dev.IsNull(machinecontrol)) {//清空农机
+                machinecontrol.combogrid("setValue", "");
+                machinecontrol.combogrid("hidePanel");
+            }
+            iconset(false);
+            if (!Dev.IsNull(selectfishnetf)) Dev.MapUtils.RemoveFeature(selectfishnetf.feature, "tempGraphicLayer", Dev.App.Map);
+            if (!Dev.IsNull(newtrack)) Dev.MapUtils.RemoveFeature(newtrack, "tempDrawLayer", Dev.App.Map);
+            newtrack = null;
+            selectfishnetf = null;
+            placefeature = undefined
+            $("#errormsg", editWin.Target).html("");
+        }//关闭窗体时清空窗体
+        function iconset(isenable) {
+            var icons = $(".Icon", $(".TaskWorkEdit", Dev.App.FillPanel.Target));
+            for (var i = 0; i < icons.length; i++) {
+                var tag = $(icons[i]).attr("tag");
+                if (tag == "selectplace") continue;
+                if (isenable) {
+                    if ($(icons[i]).hasClass("Iconunable")) $(icons[i]).removeClass("Iconunable").removeClass("task-" + tag + "1").addClass("task-" + tag);
+                }
+                else $(icons[i]).addClass("Iconunable").addClass("task-" + tag + "1").removeClass("task-" + tag);
+            }
+        }//编辑窗体中地图操作按钮的可点击状态设置
+        function iscontainPolygon(feature, polygon) {
+            var iscontain = false;
+            if (Dev.IsNull(feature) || Dev.IsNull(polygon)) return iscontain;
+            var inters = new Dev.WPS_Intersection({
+                Url: Dev.GetSystemUrlByRelID("GeoServiceOWS"),
+                Async: false,
+                Outputformat: "application/wkt"
+            });
+            inters.Target.bind("onIntersectCompleted", function (s, e) {
+                if (!Dev.IsNull(e.data) && e.data.length > 0) iscontain = true;
+            })
+            inters.Intersect({ Features: [feature, placefeature] });
+            return iscontain;
+        } //点是否包含在面里
+        function formatArea(polygon) {
+            var wgs84Sphere = new Dev.Sphere(6378137);
+            var sourceProj = Dev.App.Map.getView().getProjection();
+            var geom = (polygon.clone().transform(sourceProj, 'EPSG:4326'));/** @type {ol.geom.Polygon} */
+            var coordinates = geom.getLinearRing(0).getCoordinates();
+            var area = Math.abs(wgs84Sphere.geodesicArea(coordinates));
+            var output = (Math.round(area / 1000000 * 100) / 100) * 1500;
+            return output;
+        };//获取地块面积
+        function showmodal(isshow) {
+            if (Dev.IsNull(isshow)) return;
+            $("#shade").css("display", (isshow ? "block" : "none"));
+        }//显示遮罩
+        //toolbarMac 查询
+        var searchTbFilterMac;        //toolbar查询条件
+        var searchTbBrandControl, searchTbTypeControl, searchTbnoControl;           //车辆品牌，车辆类型，车牌号
+        function searchTbMac() {
+            machineindex = 1;
+            searchTbFilterMac = "1=1";
+            var searchTbBrand = searchTbBrandControl.GetText();
+            if (!Dev.IsNull(searchTbBrand) && searchTbBrand != "不限") searchTbFilterMac += " AND  \"BRAND\" LIKE '%" + searchTbBrand + "%'";
+            var searchTbType = searchTbTypeControl.GetText();
+            if (!Dev.IsNull(searchTbType) && searchTbType != "不限") searchTbFilterMac += " AND  \"TYPE\" LIKE '%" + searchTbType + "%'";
+            var searchTbno = $.trim(searchTbnoControl.GetValue());
+            if (!Dev.IsNull(searchTbno)) searchTbFilterMac += " AND ( \"NO\"  LIKE '%" + searchTbno + "%'" + " OR " + "UPPER( \"NO\" )  LIKE " + "UPPER('%" + searchTbno + "%')" + " OR " + "LOWER( \"NO\" )  LIKE " + "LOWER('%" + searchTbno + "%'))";       //大小写不敏感
+            getpagedata("machine");         //新增时 
+        }
+        function searchResetMac() {
+            if (!Dev.IsNull(searchTbBrandControl)) searchTbBrandControl.SetValue("");
+            if (!Dev.IsNull(searchTbTypeControl)) searchTbTypeControl.SetValue("");
+            if (!Dev.IsNull(searchTbnoControl)) searchTbnoControl.Clear();
+            searchTbMac();
+        }
+        //ToolbarFarm查询
+        var searchTbFilterFarm;
+        var searchTbFnameControl, searchTbFminControl, searchTbFmaxControl;           //农具名称，最小长度，最大长度
+        function searchTbFarm() {
+            farmeindex = 1;
+            searchTbFilterFarm = "1=1";
+            var searchTbFname = searchTbFnameControl.GetValue();
+            if (!Dev.IsNull(searchTbFname)) searchTbFilterFarm += " AND  \"FARMNAME\" LIKE '%" + searchTbFname + "%'";
+            var searchTbFmin = searchTbFminControl.GetValue();
+            if (!Dev.IsNull(searchTbFmin)) searchTbFilterFarm += " AND  \"FARMSIZE\" >= '%" + searchTbFmin + "%'";
+            var searchTbFmax = searchTbFmaxControl.GetValue();
+            if (!Dev.IsNull(searchTbFmax)) searchTbFilterFarm += " AND  \"FARMSIZE\" < '%" + searchTbFmax + "%'";
+            getpagedata("farme");
+        }
+        function searchResetFarm() {
+            if (!Dev.IsNull(searchTbFnameControl)) searchTbFnameControl.Clear();
+            if (!Dev.IsNull(searchTbFminControl)) searchTbFminControl.Clear();
+            if (!Dev.IsNull(searchTbFmaxControl)) searchTbFmaxControl.Clear();
+            searchTbFarm();
+        }
+        //ToolbarRec任务接收人查询
+        var searchTbFilterRec;
+        var searchTbRnoControl, searchTbRnameControl, searchTbRtypeControl;           //接收人编号，姓名，类别
+        function searchTbRec() {
+            receivederIndex = 1;
+            searchTbFilterRec = "1=1";
+            var searchTbRno = $.trim(searchTbRnoControl.GetValue());
+            if (!Dev.IsNull(searchTbRno)) searchTbFilterRec += " AND  \"NO\" LIKE '%" + searchTbRno + "%'";
+            var searchTbRname = $.trim(searchTbRnameControl.GetValue());
+            if (!Dev.IsNull(searchTbRname)) searchTbFilterRec += " AND  \"TRUENAME\" LIKE '%" + searchTbRname + "%'";
+            var searchTbRtype = $.trim(searchTbRtypeControl.GetValue());
+            if (!Dev.IsNull(searchTbRtype)) searchTbFilterRec += " AND  \"TYPE\" = " + searchTbRtype;
+            getpagedata("user");
+        }
+        function searchResetRec() {
+            if (!Dev.IsNull(searchTbRnoControl)) searchTbRnoControl.Clear();
+            if (!Dev.IsNull(searchTbRnameControl)) searchTbRnameControl.Clear();
+            if (!Dev.IsNull(searchTbRtypeControl)) searchTbRtypeControl.Clear();
+            searchTbRec();
+        }
+    </script>
+</head>
+<body style="height: 100%; width: 100%">
+    <div id="shade" style="width: 100%; height: 100%; position: absolute; z-index: 10; display: none; background: rgba(255,255,255,0.3)"></div>
+    <div id="content" class="content">
+        <div style="height: 100%; width: 20%; position: absolute;">
+            <!--<div style="height: 26px; line-height: 26px; width: 100%; background-color: #ddd;"><span style="margin-left: 15px; color: #0099cc; line-height: 26px; letter-spacing: 3px; font-size: 12px;">组织机构</span></div>-->
+            <div id="treediv" style="width: 100%; height: 100%;">
+                <div class="dev-tree" opt='{"ValueField":"id","TextField":"name","ChildrenField":"child","Height":220}'></div>
+            </div>
+        </div>
+        <div style="height: 100%; width: 80%; position: absolute; left: 20%; overflow: auto; overflow-y: hidden">
+            <div id="searchDiv" style="height: 38px; border-left: 1px solid #ddd; position: relative; min-width: 1305px;">
+                <div style="height: 100%; width: 205px; margin-left: 10px; display: inline-block;">
+                    <div class="Title" style="width: 80px">
+                        <div class="Icon machine-carnum" style="margin-left: 7px"></div>
+                        <span class="Text">任务名称</span>
+                    </div>
+                    <div style="width: 120px; height: 40px; line-height: 38px; float: left; margin-left: 5px;">
+                        <div id="taskname" class="dev-textbox" style="z-index: 2; width: 120px; margin-top: 8px;" opt='{"TipInfo":"","IsOverShow":true,"Padding":"0px 5px","TextAlign":"left","BodyCSS": { "background-color": "transparent" }}'></div>
+                    </div>
+                </div>
+                <div style="height: 100%; width: 200px; margin-left: 4px; display: inline-block;">
+                    <div class="Title">
+                        <div class="Icon icon-element"></div>
+                        <span class="Text">任务类型</span>
+                    </div>
+                    <div style="width: 120px; height: 40px; line-height: 38px; float: left; margin-left: 5px;">
+                        <div id="tasktype" class="dev-combobox" style="z-index: 2; width: 120px; margin-top: 8px;" opt='{ "PopupHeight":"auto","TextField":"data","ValueField":"id","TipInfo":"请选择","IsOverShow":true,"Padding":"0px 5px","TextAlign":"left","BodyCSS": { "background-color": "transparent" }}'></div>
+                    </div>
+                </div>
+                <div style="height: 100%; width: 195px; margin-left: 4px; display: inline-block;">
+                    <div class="Title" style="width: 65px">
+                        <div class="Icon machine-carnum" style="margin-left: 2px"></div>
+                        <span class="Text" style="width: 40px">车牌号</span>
+                    </div>
+                    <div style="width: 120px; height: 40px; line-height: 38px; float: left; margin-left: 5px;">
+                        <div id="machineNum" class="dev-textbox" style="z-index: 2; width: 120px; margin-top: 8px;" opt='{"TipInfo":"","IsOverShow":true,"Padding":"0px 5px","TextAlign":"left","BodyCSS": { "background-color": "transparent" }}'></div>
+                    </div>
+                </div>
+                <div style="height: 100%; width: 220px; margin-left: 4px; display: inline-block;">
+                    <div class="Title" style="width: 95px">
+                        <div class="Icon icon-calendar"></div>
+                        <span class="Text" style="width: 75px">任务开始时间</span>
+                    </div>
+                    <div style="width: 120px; height: 40px; line-height: 38px; display: inline-block; float: left; margin-left: 5px;">
+                        <input id="tasktime1" class="easyui-datebox" data-options="width:120,height:24,editable:false" />
+                    </div>
+                </div>
+                <div style="height: 100%; width: 146px; margin-left: 4px; display: inline-block;">
+                    <div style="width: 12px; height: 40px; display: inline-block; line-height: 38px; text-align: center; float: left; margin-left: 2px;">至</div>
+                    <div style="width: 120px; height: 40px; line-height: 38px; display: inline-block; margin-left: 12px; float: left;">
+                        <input id="tasktime2" class="easyui-datebox" data-options="width:120,height:24,editable:false,validType:'equaldDate[\'#tasktime1\']'" />
+                    </div>
+                </div>
+                <div style="width: 240px; height: 100%; float: right; margin-right: 12px; display: inline-block;">
+                    <div class="Button" tag="search" style="margin-left: 10px;">
+                        <div class="machine-query" style="height: 16px; width: 16px; margin-top: 5px; margin-left: 5px; display: inline-block; float: left;"></div>
+                        <span style="line-height: 28px; color: #fcfcfc; width: 40px; text-align: center; margin-left: 3px;">查&nbsp;询</span>
+                    </div>
+                    <div class="Button" tag="clear" style="margin-left: 4px;">
+                        <div class="machine-query" style="height: 16px; width: 16px; margin-top: 5px; margin-left: 5px; display: inline-block; float: left;"></div>
+                        <span style="line-height: 28px; color: #fcfcfc; width: 40px; text-align: center; margin-left: 3px;">重&nbsp;置</span>
+                    </div>
+                    <div class="Button" tag="add" style="margin-left: 4px;">
+                        <div class="machine-add" style="height: 16px; width: 16px; margin-top: 5px; margin-left: 5px; display: inline-block; float: left;"></div>
+                        <span style="line-height: 28px; color: #fcfcfc; width: 40px; text-align: center; margin-left: 3px;">新&nbsp;增</span>
+                    </div>
+                </div>
+            </div>
+            <div id="gridDiv" style="border-left: 1px solid #ddd; border-top: 1px solid #ddd;"></div>
+        </div>
+    </div>
+    <div id="EditDiv" class="TaskWorkEdit">
+        <div class="Row">
+            <div class="Cell">
+                <div class="dev-textbox" name="name" style="z-index: 3; width: 250px; margin-top: 5px;" opt='{"MaxLength":25,"Required":true,"Height":26,"TipInfo":"25位以内","HeaderCSS":{"padding":"0px","width":"75px"},"IsOverShow":true,"Padding":"0px 5px","TextAlign":"left","BodyCSS": { "background-color": "transparent" },"Title":"<div class=\"Title\"><span>任务名称</span></div>"}'></div>
+            </div>
+            <div class="Cell">
+                <div style="display: inline-block; width: 67px; line-height: 35px; float: left; text-align: right; padding-right: 8px;" opt='{"Required":true,"Readonly":true}'><span>选择组织</span></div>
+                <div id="treecomboDiv" style="height: 24px; width: 154px; margin-top: 5px; display: block; float: left;">
+                </div>
+            </div>
+        </div>
+        <div class="Row">
+            <div class="Cell">
+                <div class="dev-combobox" name="category" style="z-index: 3; width: 250px; margin-top: 5px;" opt='{"Required":true,"Height":26,"TipInfo":"请选择","HeaderCSS":{"padding":"0px","width":"75px"},"Data":["计划任务","调度任务"],"IsOverShow":true,"Padding":"0px 5px","TextAlign":"left","BodyCSS": { "background-color": "transparent" },"Title":"<div class=\"Title\"><span>任务类别</span></div>"}'></div>
+            </div>
+            <div class="Cell">
+                <div class="dev-combobox" id="tasktypeWin" name="type" style="z-index: 3; width: 250px; margin-top: 5px;" opt='{ "PopupHeight":"auto","Required":true,"TextField":"data","ValueField":"id","TipInfo":"请选择","HeaderCSS":{"padding":"0px","width":"75px"},"IsOverShow":true,"Padding":"0px 5px","TextAlign":"left","BodyCSS": { "background-color": "transparent" },"Title":"<div class=\"Title\"><span>任务类型</span></div>"}'></div>
+            </div>
+        </div>
+        <div class="Row">
+            <div class="Cell">
+                <div style="display: inline-block; width: 67px; line-height: 35px; float: left; text-align: right; padding-right: 8px;" opt='{"Required":true,"Readonly":true}'><span>车牌号</span></div>
+                <div style="width: 175px; height: 35px; line-height: 33px; display: inline-block; float: left; margin-top: 1px; position: relative;">
+                    <div id="machineno" data-options="editable:false"></div>
+                    <div style="position: absolute; height: 10px; width: 10px; top: 12px; right: 20px; color: red; line-height: 10px;">*</div>
+                </div>
+            </div>
+            <div class="Cell">
+                <div style="width: 67px; height: 100%; line-height: 35px; text-align: right; padding-right: 8px; float: left">
+                    接收人
+                </div>
+                <div style="width: 175px; height: 35px; line-height: 33px; display: inline-block; float: left; margin-top: 1px; position: relative;">
+                    <div id="receiveder" data-options="editable:false"></div>
+                </div>
+                <div style="z-index: 1; position: relative; height: 10px; width: 10px; top: -22px; left: 220px; color: red; line-height: 10px;">*</div>
+            </div>
+        </div>
+        <div class="Row" style="height: 80px; width: 100%; border-bottom: 1px solid #ddd;">
+            <div class="dev-textbox" name="content" style="z-index: 2; width: 500px; height: 75px; margin-top: 6px;" opt='{"MaxLength":120, "Required":true,"TipInfo":"请输入任务内容(最大长度120位)","Type":"multi-text","HeaderCSS":{"padding":"0px","width":"75px"},"IsOverShow":true,"Padding":"5px","Title":"<div class=\"Title\">任务内容</div>"}'></div>
+        </div>
+        <div class="Row">
+            <div class="Cell">
+                <div style="display: inline-block; width: 67px; line-height: 35px; float: left; text-align: right; padding-right: 8px;"><span>农具名称</span></div>
+                <div style="width: 175px; height: 35px; line-height: 33px; display: inline-block; float: left; margin-top: 1px; position: relative;">
+                    <div id="framnum" data-options="editable:false"></div>
+                    <div style="position: absolute; height: 10px; width: 10px; top: 12px; right: 20px; color: red; line-height: 10px;">*</div>
+                </div>
+            </div>
+            <div class="Cell">
+                <div class="dev-combobox" name="fishnet" style="z-index: 3; width: 250px; margin-top: 5px;" opt='{"ValueField":"geomstr","TextField":"name","Height":26,"TipInfo":"请选择","HeaderCSS":{"padding":"0px","width":"75px"},"IsOverShow":true,"Padding":"0px 5px","TextAlign":"left","BodyCSS": { "background-color": "transparent" },"Title":"<div class=\"Title\"><span>电子围栏</span></div>"}'></div>
+            </div>
+        </div>
+        <div class="Row" style="height: 50px; width: 100%; border-bottom: 1px solid #ddd;">
+            <div style="height: 40px; width: 470px; display: inline-block; float: left;">
+                <div class="dev-textbox" name="region" style="z-index: 2; width: 470px; height: 40px; margin-top: 5px;" opt='{"Required":true,"Readonly":true,"Type":"multi-text","HeaderCSS":{"padding":"0px","width":"75px"},"IsOverShow":true,"Padding":"5px","Title":"<div class=\"Title\">作业地块</div>"}'></div>
+            </div>
+            <div class="Icon Iconunable task-selectpalce1" tag="selectplace" style="height: 38px; width: 23px; display: inline-block; margin-top: 5px; margin-left: 5px;"></div>
+        </div>
+
+        <div class="Row">
+            <div class="Cell" style="width: 442px;">
+                <div class="dev-textbox" name="obstacle" style="z-index: 2; width: 442px; margin-top: 5px;" opt='{"Readonly":true,"Height":26,"HeaderCSS":{"padding":"0px","width":"75px"},"IsOverShow":true,"Padding":"0px 5px","Title":"<div class=\"Title\">障碍物</div>","TipInfo":"使用右侧菜单在地图上点击添加/删除障碍物"}'></div>
+            </div>
+            <div class="Icon Iconunable task-addobstacle1" tag="addobstacle" style="height: 24px; width: 22px; display: inline-block; float: left; margin-top: 5px; margin-left: 5px;"></div>
+            <div class="Icon Iconunable task-removeobstacle1" tag="removeobstacle" style="height: 24px; width: 22px; display: inline-block; float: left; margin-top: 5px; margin-left: 5px;"></div>
+        </div>
+        <div class="Row">
+            <div class="Cell">
+                <div class="dev-combobox" name="derection" style="z-index: 3; width: 250px; margin-top: 5px;" opt='{"Required":true,"TextField":"Text","ValueField":"id","Height":26,"TipInfo":"请选择作业方式","HeaderCSS":{"padding":"0px","width":"75px"},"IsOverShow":true,"Padding":"0px 5px","TextAlign":"left","BodyCSS": { "background-color": "transparent" },"Title":"<div class=\"Title\"><span>作业方式</span></div>"}'></div>
+            </div>
+            <div class="Cell">
+                <div class="dev-combobox" name="startendpoint" style="z-index: 3; width: 250px; margin-top: 5px;" opt='{"Required":true,"Data":["默认","自定义"],"Height":26,"TipInfo":"请起始点方式","HeaderCSS":{"padding":"0px","width":"75px"},"IsOverShow":true,"Padding":"0px 5px","TextAlign":"left","BodyCSS": { "background-color": "transparent" },"Title":"<div class=\"Title\"><span>路线起始点</span></div>"}'></div>
+            </div>
+        </div>
+        <div class="Row" style="height: 65px; width: 100%; border-bottom: 1px solid #ddd;">
+            <div style="height: 65px; width: 440px; display: inline-block; float: left;">
+                <div class="dev-textbox" name="route" style="z-index: 2; width: 440px; height: 55px; margin-top: 5px;" opt='{"Required":true,"Readonly":true,"Type":"multi-text","HeaderCSS":{"padding":"0px","width":"75px"},"IsOverShow":"true","Padding":"5px","Title":"<div class=\"Title\">作业路线</div>"}'></div>
+            </div>
+            <div id="trackEdit" style="height: 56px; width: 23px; display: inline-block; float: left; margin-left: 5px; margin-top: 2px;">
+                <div class="Icon1 Iconunable task-trackstart1" tag="trackstart" style="height: 23px; width: 23px; margin-top: 3px;" title="起始点"></div>
+                <div class="Icon1 Iconunable task-trackend1" tag="trackend" style="height: 23px; width: 23px; margin-top: 5px;" title="截止点"></div>
+            </div>
+            <div id="createline" style="height: 56px; width: 23px; display: inline-block; margin-left: 5px; margin-top: 4px; float: left; background-color: #808080; border: 1px solid #808080; color: #fff; text-align: center; cursor: default;">生成路线</div>
+        </div>
+        <div class="Row">
+            <div class="Cell">
+                <div style="display: inline-block; width: 67px; line-height: 35px; float: left; text-align: right; padding-right: 8px;"><span>开始时间</span></div>
+                <div style="width: 175px; height: 35px; line-height: 33px; display: inline-block; float: left; margin-top: 0px;">
+
+                    <input id="taskBeginTime" data-options="editable:false" />
+                </div>
+            </div>
+            <div class="Cell">
+                <div style="display: inline-block; width: 67px; line-height: 35px; float: left; text-align: right; padding-right: 8px;"><span>结束时间</span></div>
+                <div style="width: 175px; height: 35px; line-height: 33px; display: inline-block; float: left; margin-top: 0px;">
+                    <input id="taskEndTime" data-options="editable:false" />
+                </div>
+            </div>
+        </div>
+        <div style="width: 100%; height: 45px;">
+            <div id="errormsg" style="display: inline-block; line-height: 45px; height: 45px; width: 335px; margin-left: 15px; color: red;"></div>
+            <div class="Submit">
+                <div class="Button" tag="save">
+                    <span style="line-height: 26px; color: #fcfcfc;">保&nbsp;&nbsp;存</span>
+                </div>
+                <div class="Button" tag="cancel">
+                    <span style="line-height: 26px; color: #fcfcfc;">取&nbsp;&nbsp;消</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toolbarMac" style="height: 35px; background-color: #fcfcfc">
+        <div style="margin-top: 5px;">
+            <div id="macnumSearch" class="dev-textbox" style="width: 95px; float: left; margin-left: 8px; display: inline-block;" opt='{"TipInfo":"请输入车牌号"}'></div>
+            <div id="mactypeSearch" class="dev-combobox" style="width: 95px; float: left; margin-left: 8px; display: inline-block;" opt='{ "PopupHeight":"auto","TextField":"data","ValueField":"id","TipInfo":"选择车辆类型"}'></div>
+            <div id="macbrandSearch" class="dev-combobox" style="width: 95px; float: left; margin-left: 8px; display: inline-block;" opt='{ "PopupHeight":"auto","TextField":"data","ValueField":"id","TipInfo":"选择车辆品牌"}'></div>
+            <div style="width: 76px; height: 30px; display: inline-block; margin-left: 10px;">
+                <div id="macsearch" style="cursor: pointer; height: 24px; width: 35px; display: inline-block; background-color: #03afd9; float: left; color: #fff; line-height: 24px; text-align: center;">查询</div>
+                <div id="macreset" style="cursor: pointer; height: 24px; width: 35px; display: inline-block; background-color: #03afd9; margin-left: 6px; color: #fff; line-height: 24px; text-align: center;">重置</div>
+            </div>
+        </div>
+    </div>
+    <div id="toolbarFarm" style="height: 35px; background-color: #fcfcfc">
+        <div style="margin-top: 5px;">
+            <div id="fnameSearch" class="dev-textbox" style="width: 90px; float: left; margin-left: 6px; display: inline-block;" opt='{"TipInfo":"请输入农具名"}'></div>
+            <div id="fminlength" class="dev-textbox" style="width: 90px; float: left; margin-left: 6px; display: inline-block;" opt='{"TipInfo":"最小长度(m)"}'></div>
+            <span style="float: left; margin-top: 5px; margin-left: 6px">至</span>
+            <div id="fmaxlength" class="dev-textbox" style="width: 90px; float: left; margin-left: 6px; display: inline-block;" opt='{"TipInfo":"最大长度(m)"}'></div>
+            <div style="width: 76px; height: 30px; display: inline-block; margin-left: 8px;">
+                <div id="farmsearch" style="cursor: pointer; height: 24px; width: 35px; display: inline-block; background-color: #03afd9; float: left; color: #fff; line-height: 24px; text-align: center;">查询</div>
+                <div id="farmreset" style="cursor: pointer; height: 24px; width: 35px; display: inline-block; background-color: #03afd9; margin-left: 6px; color: #fff; line-height: 24px; text-align: center;">重置</div>
+            </div>
+        </div>
+    </div>
+    <div id="toobarRec" style="height: 35px; background-color: #fcfcfc">
+        <div style="margin-top: 5px;">
+            <div id="PnoSearch" class="dev-textbox" style="width: 60px; float: left; margin-left: 6px; display: inline-block;" opt='{"TipInfo":"输入编号"}'></div>
+            <div id="PnameSearch" class="dev-textbox" style="width: 60px; float: left; margin-left: 4px; display: inline-block;" opt='{"TipInfo":"输入姓名"}'></div>
+            <div id="PTypeSearch" class="dev-textbox" style="width: 60px; float: left; margin-left: 4px; display: inline-block;" opt='{"TipInfo":"人员类别"}'></div>
+            <div style="width: 76px; height: 30px; display: inline-block; margin-left: 8px;">
+                <div id="recsearch" style="cursor: pointer; height: 24px; width: 35px; display: inline-block; background-color: #03afd9; float: left; color: #fff; line-height: 24px; text-align: center;">查询</div>
+                <div id="recreset" style="cursor: pointer; height: 24px; width: 35px; display: inline-block; background-color: #03afd9; margin-left: 6px; color: #fff; line-height: 24px; text-align: center;">重置</div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

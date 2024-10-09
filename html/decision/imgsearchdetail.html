@@ -1,0 +1,466 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>图像查询详情</title>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../../theme/default/easyui.css" />
+    <link rel="stylesheet" type="text/css" href="../../theme/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/app.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/dev.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/animate.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/schedule.css" />
+    <link rel="stylesheet" type="text/css" href="../../js/viewer.min.css" />
+    <script type="text/javascript" src="../../js/jquery.min.js"></script>
+    <script type="text/javascript" src="../../js/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="../../js/dev.ui.js"></script>
+    <script type="text/javascript" src="../../js/jquery.dev.control.js"></script>
+    <script type="text/javascript" src="../../js/easyui-lang-zh_CN.js"></script>
+    <script type="text/javascript" src="../../js/linq.min.js"></script>
+    <script type="text/javascript" src="../../js/data.util.js"></script>
+    <script type="text/javascript" src="../../js/schedule.js"></script>
+    <script type="text/javascript" src="../../js/viewer.js"></script>
+    <style>
+        .showbigImgs {   
+            width: calc(100% - 370px);
+            height: 100%;
+            float: left;
+            background-color: #909090;
+        }
+
+        .imgsother {
+            width: 370px;
+            height: 100%;
+            float: right;
+            min-height: 620px;
+        }
+
+        .boxshaw {
+            min-height: 280px;
+        }
+
+        .imginfo {
+            min-height: 250px;
+        }
+
+            .imginfo ul {
+                position: relative;
+                min-height:125px;
+            }
+
+                .imginfo ul li {
+                    float: left;
+                    width: calc(50% - 1px);
+                    height: 124px;
+                    overflow: hidden;
+                    margin-right: 1px;
+                    cursor: pointer;
+                    overflow: hidden;
+                }
+
+
+                    .imginfo ul li img {
+                        width: 100%;
+                        height: 100%;
+                    }
+
+            .imginfo .img_title {
+                position: absolute;
+                height: 25px;
+                line-height: 25px;
+                width: 100%;
+                font-size: 16px;
+                color: #ffffff;
+                background: -webkit-linear-gradient(left, #745BFA, #3F55E1); /* Safari 5.1 - 6.0 */
+                background: -o-linear-gradient(right, #745BFA, #3F55E1); /* Opera 11.1 - 12.0 */
+                background: -moz-linear-gradient(right, #745BFA, #3F55E1); /* Firefox 3.6 - 15 */
+                background: linear-gradient(to right, #745BFA, #3F55E1); /* 标准的语法 */
+                text-indent: 10px;
+            }
+
+            .imginfo ul li .img_a_title {
+                height: 18px;
+                line-height: 18px;
+                font-size: 14px;
+                color: #6B6B6B;
+                background-color: rgba(255,255,255,0.9);
+                position: absolute;
+                width: 50%;
+                margin-top: 108px;
+                 /*font-weight:bold;*/
+               
+            }
+
+        .mapdiv {
+            min-height: 270px;
+            width: 100%;
+        }
+    </style>
+    <script type="text/javascript">
+        var Dev = window.top.window.dev;
+        var parent;
+        var picMap, pointkey, picMapclick;//地图控件
+        var indepeid, serialnumber, searchdate, selectmonitor;
+        var picviewDiv;
+        function WidgetCommunication(s) {//部件通讯
+            parent = s.parent;
+            selectmonitor = s.param.selectmonitor
+            searchdate = Dev.GetNowDateString(true); //初始化查询时间
+            //初始化日期控件
+            var mySchedule = new Schedule({
+                el: '#schedule-box',
+                clickCb: function (y, m, d) {
+                    if (m < 10) m = "0" + m;
+                    if (d < 10) d = "0" + d;
+                    searchdate = y + "-" + m + "-" + d;
+                    showamstationImg();
+                }
+            });
+            var k = "";
+            //初始化地图
+            initimgMap();
+
+            //初始化地图上面的点
+            getamstationByorgid(s.param.con);
+
+            //组织机构树change改变地图
+            Dev.App.EventObject.bind("selectchange", function (s, e) {
+                selectmonitor = "";
+                var con = e.con;
+                getamstationByorgid(con)
+            });
+
+            parent.one("onClosing", function () {
+                //  if (!Dev.IsNull(pointkey)) { picMap.unByKey(pointkey); pointkey = null; }
+                    if (!Dev.IsNull(pointkey)) {
+                        Dev.MapUtils.removePointKey(pointkeyid, picMap);
+                        pointkey = null;
+                    }
+                if (!Dev.IsNull(picMapclick)) { picMap.unByKey(picMapclick); picMapclick = null; }
+                if (!Dev.IsNull(picMap)) {
+                    Dev.MapUtils.ClearFeature("tempGraphicLayer", picMap);
+                    picMap.un("pointermove");
+                    picMap.un("pointerdrag");
+                    picMap.un("moveend");
+                    $("#map_monitor", Dev.App.FillPanel.Target).remove();
+                    picMap = null;
+                }
+                Dev.App.EventObject.unbind("selectchange");
+                var element_detail = $("#imgsearchdetail", Dev.App.FillPanel.Target);
+                if (!Dev.IsNull(element_detail)) element_detail.remove();
+
+            });
+
+            //点击关闭按钮
+            $("#closeBtn").click(function () {
+                // if (!Dev.IsNull(pointkey)) { picMap.unByKey(pointkey); pointkey = null; }
+                if (!Dev.IsNull(pointkey)) {
+                    Dev.MapUtils.removePointKey(pointkeyid, picMap);
+                    pointkey = null;
+                }
+                if (!Dev.IsNull(picMapclick)) { picMap.unByKey(picMapclick); picMapclick = null; }
+                Dev.MapUtils.ClearFeature("tempGraphicLayer", picMap);
+                $("#map_monitor", Dev.App.FillPanel.Target).remove();
+                Dev.App.EventObject.unbind("selectchange");
+                var element_detail = $("#imgsearchdetail", Dev.App.FillPanel.Target);
+                if (!Dev.IsNull(element_detail)) element_detail.remove();
+            });
+
+            resize();
+            $(window).resize(function () {
+                resize();
+            });
+
+            $(".imgsother").scroll(function () {
+                var top = $(".mapdiv").offset().top;
+                var width = $(".mapdiv").width();
+                $("#map_monitor", Dev.App.FillPanel.Target).css("top", top + "px");
+                $("#map_monitor", Dev.App.FillPanel.Target).css("right", "16px");
+                $("#map_monitor", Dev.App.FillPanel.Target).css("width", width);
+            });
+
+            //$(" .viewer-canvas > img").css("margin-left", $(" .viewer-canvas > img").width() / 4 + "px !important");
+        }
+
+        //初始化地图
+        function initimgMap() {
+            var top = $(".imginfo").height() + $(".boxshaw").height() + 50;
+            var mapdiv = $('<div id="map_monitor" style="z-index:10007; position:absolute;right:0px;top:' + top + 'px;background-color:#fff;"></div>').appendTo(Dev.App.FillPanel.Target);
+            mapdiv.height($(".mapdiv").height());
+            mapdiv.width($(".mapdiv").width());
+            var initconfig = Dev.App.Config.SystemMap;
+            var resolutions;
+            if (!Dev.IsNull(initconfig.LevelInfo) && !Dev.IsNull(initconfig.LevelInfo.IsVisibleLevel) && initconfig.LevelInfo.IsVisibleLevel == "true") {
+                resolutions = [];
+                // for (var i = 0; i < initconfig.LevelInfo.Levels.length; i++) resolutions.push(parseFloat(initconfig.LevelInfo.Levels[i].Resolution));
+                for (var i = 0; i < initconfig.LevelInfo.Levels.length; i++) {
+                    if (Dev.App.Config.SystemMap.DisplayEPSG == 'EPSG:3857')
+                        resolutions.push(parseFloat(initconfig.LevelInfo.Levels[i].Resolution3857));
+                    else
+                        resolutions.push(parseFloat(initconfig.LevelInfo.Levels[i].Resolution));
+                };
+            }
+            var view = new Dev.View({
+                projection:Dev.proj.get(Dev.App.Config.SystemMap.DisplayEPSG),
+                resolutions: resolutions,
+                minZoom: 1,
+                maxResolution: resolutions[resolutions.length - 1],
+                maxZoom: 20,
+                minResolution: resolutions[0],
+            });
+            picMap = new Dev.Map({
+                controls: new Dev.control.defaults({ zoom: false, rotate: false, attribution: false }),
+                interactions: Dev.interaction.defaults().extend([new Dev.interaction.DragRotateAndZoom()]),
+                target: mapdiv[0],
+                logo: false,
+                view: view
+            });
+            Dev.MapLoad.InitMap($.extend({ Map: picMap }, initconfig));
+            var initExtent = [parseFloat(initconfig.Extent.XMin), parseFloat(initconfig.Extent.YMin), parseFloat(initconfig.Extent.XMax), parseFloat(initconfig.Extent.YMax)];
+            picMap.getView().fit(initExtent, picMap.getSize());
+
+            picMapclick = picMap.on("singleclick", function (e) {
+                var pixel = this.getPixelFromCoordinate(e.coordinate);
+                var feature_detail;
+                picMap.forEachFeatureAtPixel(pixel, function (feature) {
+                    feature_detail = feature;
+                });
+                if (Dev.IsNull(feature_detail)) return;
+                if (!Dev.IsNull(pointkey)) {
+                    //picMap.unByKey(pointkey); pointkey = null;
+                    Dev.MapUtils.removePointKey(pointkeyid, picMap);
+                    pointkey = null;
+                }
+                //中心点定位
+                var centerPoint = feature_detail.getProperties().geometry.B;
+                picMap.getView().setCenter(centerPoint, picMap.getSize());
+                picMap.getView().setZoom(16);
+
+                ////设置高亮图层的Z-index
+                //var hl_layer = Dev.MapUtils.GetLayer("HightLightLayer", picMap);
+                //var c_index = hl_layer.getZIndex();
+                //hl_layer.setZIndex(c_index - 1);
+
+                pointkeyid = feature_detail.getId();
+                pointkey = Dev.MapUtils.PointSymbolStyle1(feature_detail, 1, "rgba(0, 21, 42, 1)", "rgba(0,21,42,0.5)", 30, picMap, false);
+                indepeid = feature_detail.getProperties().indepeid;
+                serialnumber = feature_detail.getProperties().serialnumber;
+                showamstationImg();
+            });
+
+            mapdiv.css("cursor", "url(" + Dev.App.Root + "image/hands.cur),auto");
+            picMap.on('pointermove', function (evt) {
+                var normalcur = "url(" + Dev.App.Root + "image/hands.cur),auto";
+                if (isdrag) normalcur = 'url(' + Dev.App.Root + 'image/handm.cur),auto'
+                picMap.getTargetElement().style.cursor = picMap.hasFeatureAtPixel(evt.pixel) ? 'pointer' : normalcur;
+            });
+            //点击事件
+            var isdrag = false;
+            picMap.on('pointerdrag', function (evt) {
+                isdrag = true;
+                mapdiv.css("cursor", 'url(' + Dev.App.Root + 'image/handm.cur),auto');
+            });
+            picMap.on("moveend", function () {
+               isdrag = false;
+               mapdiv.css("cursor", "url(" + Dev.App.Root + "image/hands.cur),auto");
+            });
+
+        }
+
+        //通过orgid 获取监测站点
+        function getamstationByorgid(con) {
+            $.ajax({
+                url: Dev.GetSystemUrlByRelID("Service") + "amstation/getbyfilter",
+                type: "post",
+                contentType: 'application/json',
+                dataType: 'json',
+                data: con,
+                success: function (result) {
+                    //清空界面
+                    Dev.MapUtils.ClearFeature("tempGraphicLayer", picMap);
+                  
+                    showpagedata(result.data);
+                }
+            });
+        }
+
+        var pointkeyid;
+        //通过查询检测站点展示在地图上面
+        function showpagedata(data) {
+            if (!Dev.IsNull(pointkey)) {
+                Dev.MapUtils.removePointKey(pointkeyid, picMap);
+                pointkey = null;
+            }
+            if (Dev.IsNull(picMap) && Dev.IsNull(data) || data.length == 0) {
+                indepeid = "";
+                serialnumber = "";
+                showamstationImg();
+                return;
+            }
+            var features = [];
+            for (var i = 0; i < data.length; i++) {
+                var x = data[i].longitude;
+                var y = data[i].latitude;
+                var currfeature = new Dev.Feature(new Dev.geom.Point([parseFloat(x), parseFloat(y)]));
+                currfeature.set("serialnumber", data[i].serialnumber);
+                currfeature.set("indepeid", data[i].indepeid);
+                currfeature.set("id",data[i].serialnumber)
+                currfeature.setStyle(new Dev.style.Style({
+                    image: new Dev.style.Icon({ src: Dev.App.Root + "image/agri/ams-online1.png" }),
+                    text: new Dev.style.Text({ text: data[i].no, font: "15px serif", offsetX: 5, offsetY: -20, fill: new Dev.style.Fill({ color: [255, 255, 255, 1] }) })
+                }));
+                features.push(currfeature);
+            }
+            var extentd = Dev.getExtentByFeatures(features);
+            picMap.getView().fit(extentd, picMap.getSize());
+            Dev.MapUtils.ClearAndAddFeatures(features, "tempGraphicLayer", null, picMap);
+            var select_feature = features[0];
+            if (!Dev.IsNull(selectmonitor)) select_feature = selectmonitor;
+            selectmonitor = null;
+
+            //设置高亮图层的Z-index
+            var hl_layer = Dev.MapUtils.GetLayer("HightLightLayer", picMap);
+            var c_index = hl_layer.getZIndex();
+            hl_layer.setZIndex(c_index - 1);
+
+            //中心点定位
+            var centerPoint = select_feature.getProperties().geometry.B;
+             picMap.getView().setCenter(centerPoint, picMap.getSize());
+             picMap.getView().setZoom(16);
+             pointkeyid = select_feature.getId();
+             pointkey = Dev.MapUtils.PointSymbolStyle1(select_feature, 1, "rgba(0, 21, 42, 1)", "rgba(0,21,42,0.5)", 30, picMap, false);
+
+            indepeid = select_feature.getProperties().indepeid;
+            serialnumber = select_feature.getProperties().serialnumber;
+            showamstationImg();
+        }
+
+        //通过一体机序列号和监测站序列号查询相关图片
+        function showamstationImg() {
+            $.ajax({
+                url: Dev.GetSystemUrlByRelID("Service") + "cameraImage/findImageBySerNumNew",
+                type: "post",
+                data: {
+                    "indepeId": indepeid,
+                    "serialNumber": serialnumber,
+                    "date": searchdate
+                },
+                success: function (result) {
+                    if (Dev.IsNull(result.data) || result.data.length == 0) result.data = [];
+                    liImg(result.data);
+                    var piclistArr = Enumerable.From(result.data).Where("s=>s.brandtype !='球机'").FirstOrDefault();
+                    var piclist_big = [];
+                    if (Dev.IsNull(piclistArr)) { piclist_big = []; }
+                    else { piclist_big = piclistArr.imageList }
+                    bigImg(piclist_big, 0);
+                }
+            });
+        }
+
+        //展示大图
+        function bigImg(piclist_big, index) {
+            var pics = [];
+            if (Dev.IsNull(piclist_big) || piclist_big.length == 0) pics.push(Dev.App.Root + 'image/agri/nopic.png')
+            else {
+                for (var i = 0; i < piclist_big.length; i++) {
+                    pics.push(piclist_big[i].path);
+                }
+            }
+           
+            $(".viewer-container").remove();
+            $("#showviewer").remove();
+            
+            var showviewer = $("<div id='showviewer' style='width:0px;height:0px;z-index:0;'><img id='showimg'  src='" + pics[index] + "'/></div>").appendTo($(".picViewDiv"));
+            var picviewer = showviewer.viewer({ toolbar: false, title: false, navbar: false, button: false, backdrop: false, container: $(".picViewDiv")[0], isview: true, parent: $(".picViewDiv")[0] });
+            if (pics.length > 1) {
+                var lastbtn = $('<div style="background:rgba(0,0,0,0.8);width:60px;height:60px;border-radius:45px;position:absolute;left:20px;top:50%;"><div style="height:60px;width:60px; background-image:url(' + Dev.App.Root + "image/agri/previewleft.png" + ');background-position:center;background-repeat:no-repeat;"></div></div>').appendTo($(".viewer-container", $(".picViewDiv")));
+                lastbtn.click(function () {
+                    if (index > 0) index = index - 1;
+                    $("#showimg").attr("src", pics[index]);
+                    $(".viewer-move", $(".viewer-canvas")).attr("src", pics[index]);
+                });
+                var nextbtn = $('<div style="background:rgba(0,0,0,0.8);width:60px;height:60px;border-radius:45px;position:absolute;right:20px;top:50%;"><div style="height:60px;width:60px;background-image:url(' + Dev.App.Root + "image/agri/previewright.png" + ');background-position:center;background-repeat:no-repeat;"></div></div>').appendTo($(".viewer-container", $(".picViewDiv")));
+                nextbtn.click(function () {
+                    if (index < pics.length - 1) index += 1;
+                    $("#showimg").attr("src", pics[index]);
+                    $(".viewer-move", $(".viewer-canvas")).attr("src", pics[index]);
+                });
+            }
+
+        }
+
+        //展示ul-li的图片
+        function liImg(piclist) {
+            if ($('.imginfo>ul').length > 0) $('.imginfo>ul').remove();//清除imginfo里面存在的ul
+            for (var i = 0; i < piclist.length; i++) {
+                var length = piclist[i].imageList.length;
+                if (Dev.IsNull(length) || length == 0) length = 2;
+                var ul_height = Math.ceil(length / 2) * 125;
+                if ("球机" == piclist[i].brandtype) continue;
+                var ul = $(' <ul style="height:' + ul_height + 'px;" class="' + piclist[i].serialnumber + '"> <div class="img_title">' + (Dev.IsNull(piclist[i].angle) ? "其他" : (piclist[i].angle + "°")) + ' (' + piclist[i].serialnumber + ')</div> </ul>').appendTo($('.imginfo'));
+                for (var k = 0; k < length; k++) {
+                    var pic_li = piclist[i].imageList[k];
+                    var li;
+                    if (Dev.IsNull(pic_li)) {
+                        li = $('<li><img src="' + Dev.App.Root + 'image/agri/nopic.png" style="margin-top:13px" /></li>').appendTo(ul)
+                    } else {
+                        var filename = pic_li.filename;
+                        filename = filename.substr(0, filename.length - 4).replace(/-/g, ":");
+                        li = $('<li onclick="showinfo(' + k + ',this)"><div class="img_a_title"><span style="float: left; padding-left: 2px;">' + filename + '</span><span style="float: right; padding-right: 10px;color:#3f55e1;">叶面积指数 ' + (Dev.IsNull(pic_li.leafareaindex) ? "" : pic_li.leafareaindex) + '</span></div><img src="' + pic_li.path + '" /></li>').appendTo(ul)
+                    }
+                }
+            }
+            if ($('.imginfo>ul').length > 2) {
+                var top = $('.imginfo').height() + $(".boxshaw").height() + 50;
+                $("#map_monitor", Dev.App.FillPanel.Target).css("top", top + "px");
+                var width = $(".mapdiv").width();
+                $("#map_monitor", Dev.App.FillPanel.Target).css("right", "16px");
+                $("#map_monitor", Dev.App.FillPanel.Target).css("width", width);
+            }
+          
+        }
+
+        //点击ul-li出现左边的大图
+        function showinfo(index, e) {
+            var piclist = [];
+            var li = $(e).parent().find("li");
+            for (var i = 0; i < li.length; i++) {
+                var obj = {};
+                obj.path = $(li[i]).find("img")[0].src;
+                piclist.push(obj);
+            }
+            bigImg(piclist, index)
+        }
+
+        //地图点的聚合
+
+
+        //窗口重置
+        function resize() {
+            var top = $(".mapdiv").offset().top;
+            var width = $(".mapdiv").width();
+            $("#map_monitor", Dev.App.FillPanel.Target).css("top", top + "px");
+            $("#map_monitor", Dev.App.FillPanel.Target).css("right", "0px");
+            $("#map_monitor", Dev.App.FillPanel.Target).css("width", width);
+        }
+
+    </script>
+</head>
+<body style="background-color: #fff; margin: 0px; padding: 0px; width: 100%; height: 100%;">
+    <div id="container" style="width: 100%; height: 100%;">
+        <div id="closeBtn" style="z-index: 50; top: 0px; width: 30px; height: 40px; text-align: center; right: 0px; color: rgb(255, 255, 255); line-height: 35px; padding-left: 10px; font-size: 30px; font-weight: bold; position: absolute; border-bottom-left-radius: 40px; background-color: rgba(0, 0, 0, 0.6); cursor: pointer;">×</div>
+        <div class="showbigImgs">
+            <div class="picViewDiv" style="width: 100%; height: 100%; position: relative;"></div>
+        </div>
+        <div class="imgsother" style="overflow-x: hidden; overflow-y: auto;">
+            <div id='schedule-box' class="boxshaw">
+            </div>
+            <div class="imginfo"></div>
+            <div class="mapdiv"></div>
+        </div>
+    </div>
+</body>
+</html>

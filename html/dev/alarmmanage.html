@@ -1,0 +1,892 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>报警管理</title>
+    <link rel="stylesheet" href="../../theme/default/easyui.css" />
+    <link rel="stylesheet" type="text/css" href="../../theme/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/app.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/icon.css" />
+    <link type="text/css" href="../../css/dev.css" rel="stylesheet" />
+    <link rel="stylesheet" type="text/css" href="../../css/dev.css" />
+    <script type="text/javascript" src="../../js/jquery.min.js"></script>
+    <script type="text/javascript" src="../../js/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="../../js/easyui-lang-zh_CN.js"></script>
+    <script type="text/javascript" src="../../js/linq.min.js"></script>
+    <script type="text/javascript" src="../../js/data.util.js"></script>
+    <script type="text/javascript" src="../../js/jquery.dev.control.js"></script>
+    <script type="text/javascript" src="../../js/dev.ui.js"></script>
+    <script type="text/javascript" src="../../js/dev.gis.js"></script>
+    <script type="text/javascript" src="../../js/jquery.dev.js"></script>
+    <script type="text/javascript" src="../../js/guid.js"></script>
+    <style type="text/css">
+        .content {
+            height: 100%;
+            width: 100%;
+            position: relative;
+        }
+
+        .Title {
+            width: 75px;
+            text-align: right;
+            line-height: 40px;
+            height: 40px;
+            display: inline-block;
+            float: left;
+        }
+
+            .Title .Icon {
+                width: 16px;
+                height: 16px;
+                display: inline-block;
+                margin-top: 11px;
+            }
+
+            .Title .Text {
+                display: inline-block;
+                float: right;
+                width: 49px;
+            }
+
+        .content .SearchDiv {
+            width: 210px;
+            height: 40px;
+            display: inline-block;
+            margin-left: 0px;
+            margin-right: 0px;
+            float: left;
+        }
+
+        .content .Button {
+            width: 70px;
+            height: 26px;
+            float: left;
+            margin-top: 7px;
+            background-color: #16dbbb;
+            /*border-radius: 5px;*/
+            text-align: center;
+            border: 1px solid #16dbbb;
+            display: inline-block;
+            margin-left: 5px;
+        }
+
+            .content .Button:hover {
+                background-color: #5227de;
+                border: 1px solid #5227de;
+                cursor: pointer;
+            }
+
+            .content .Button:active {
+                background-color: #210097;
+                border: 1px solid #210097;
+                cursor: pointer;
+            }
+
+        .datagrid-row {
+            height: 28px;
+        }
+    </style>
+    <script type="text/javascript">
+        var Dev = window.top.window.dev;
+        var dataGrid, pageIndex = 1, pageSize = 5;
+        var treeControl;
+        var parent;
+        var orgFilter;
+        var orgids = [];
+        var selectorgid;
+        var searchNum;
+        var pointkey;
+        var dialog1;
+        var dialog = new Dev.Messager({ AutoShow: false, Type: "question", Timeout: 1000, ButtonVisible: false, AutoVisible: true, Effect: "normal" });
+        var treeData = [];
+        var rebackWIn;
+        var selectRowOrgId;
+        var accessoryId;
+        var msg = {
+            title: "系统提示",
+            netout: "网络超时，请稍后再试！",
+            deleteFailed: "删除失败，请稍后再试！",
+            deleteSuccess: "删除成功！",
+            addSuccess: "操作成功！",
+            addFailed: "操作失败，请稍后再试！"
+        };
+        var selectAl;
+        var fileList = [];
+        var paramType;
+        function WidgetCommunication(s) {//部件通讯
+            parent = s.parent;
+            if (!Dev.IsNull(s.param) && !Dev.IsNull(s.param.DeviceType)) paramType = s.param.DeviceType;
+            Dev.App.BottomPanel.Header.css({ "background": "#14cdad", "color": "#fcfcfc", "font-weight": "bold" });
+            Dev.App.BottomPanel.SetIconCls("machine-caralarm");
+            inittree();
+            initDataGrid();
+            searchNum = $("#machineNum").prop("$this");
+            resize();
+            $(window).resize(function () {
+                resize();
+            });
+            $(".Button").click(function () {
+                var tag = $(this).attr("tag");
+                if (tag == "search") {
+                    var start = $("#uploadtime1").datetimebox('getValue');
+                    var end = $("#uploadtime2").datetimebox('getValue');
+                    if (!Dev.IsNull(start) && !Dev.IsNull(end)) {
+                        if (start > end) {
+                            return;
+                        }
+                    }
+                    pageIndex = 1;
+                    bindData();
+                }
+                if (tag == "clear") {
+                    pageIndex = 1;
+                    searchclear();
+                    bindData();
+                }
+                if (tag == "save") {
+                    if (saveInfo()) rebackWIn.Close();
+
+                }
+                if (tag == "cancel") {
+                    editCancel();//清空重置
+                    rebackWIn.Close();
+                }
+
+            });
+            parent.one("onClosing", function () {
+                Dev.App.BottomPanel.SetHeight(262);
+                if (!Dev.IsNull(treeControl)) {
+                    treeControl.unbind("onSelectChanged");
+                    treeControl = null;
+                }
+                if (!Dev.IsNull(dataGrid)) {
+                    dataGrid.Target.unbind("onSelectPage");
+                    dataGrid.Target.unbind("onClickRow");
+                    dataGrid.Target.unbind("onPageSizeChange");
+                    dataGrid = null;
+                    Dev.App.RightPanel.Clear();
+                    Dev.App.RightPanel.SetVisible(false);
+                }
+                if (!Dev.IsNull(rebackWIn)) {
+                    rebackWIn.unbind("onClosing");
+                    rebackWIn.Close();
+                    rebackWIn.Destroy();
+                    rebackWIn = null;
+                }
+                if (!Dev.IsNull(showWin)) {
+                    showWin.unbind("onClosing");
+                    showWin.Close();
+                    showWin.Destroy();
+                    showWin = null;
+                }
+                if (!Dev.IsNull(pointkey)) {
+                    Dev.MapUtils.removePointKey("alarmhightlight", Dev.App.Map);
+                    pointkey = null;
+                }
+                Dev.MapUtils.ClearFeature("tempGraphicLayer");
+            });
+            dialog1 = new Dev.Messager({ AutoShow: false, Type: "question" });
+            if (Dev.IsNull(paramType)) {
+                var deviceType = $("#deviceType").prop("$this");
+                deviceType.SetData(getdevicetype());
+            }
+            else $("#searchType").css("display", "none");
+        }
+        function getdevicetype() {
+            var devicetypes = [];
+            $.each(Dev.DeviceType, function (s, e) {
+                devicetypes.push(e);
+            });
+            devicetypes.push("不限");
+            return devicetypes;
+        }
+
+        function inittree() {
+            treeControl = $('.dev-tree').prop("$this");
+            treeControl.bind("onSelectChanged", function (s, e) {
+                Dev.App.RightPanel.SetVisible(false);
+                searchclear();
+                var treenode = e;
+                var isleaf = treeControl.IsLeaf(treenode);
+                orgids = [];
+                selectorgid = e.id;
+                orgids.push(e.id);
+                if (!isleaf) {
+                    var allchilds = treeControl.GetAllChildren(treenode);
+                    for (var i = 0; i < allchilds.length; i++) orgids.push(allchilds[i].id);
+                }
+                orgFilter = "";
+                if (Dev.IsNull(orgids) || orgids.length == 0) return;
+                orgFilter = "\"ORGID\"  IN(";
+                for (var i = 0; i < orgids.length; i++) orgFilter += "'" + orgids[i] + "',";
+                orgFilter = orgFilter.substr(0, orgFilter.length - 1);
+                orgFilter += ")";
+                bindData();
+            });
+            var orgid = Dev.cookie.user.orgid;
+            $.ajax({
+                url: Dev.GetSystemUrlByRelID("Service") + "organize/gettreebyid/" + orgid + "?" + new Date().getTime(),
+                type: "Get",
+                contentType: 'application/json',
+                dataType: 'json',
+                success: function (result) {
+                    treeData = Dev.ConvertTreeData(result.data, orgid);
+                    treeControl.LoadData(treeData);
+                    if (treeData.length > 0) treeControl.SetSelectNode(treeControl.GetRoots()[0]);
+                }
+            });
+            bindData();
+        }
+
+        function initDataGrid() {
+            if (Dev.IsNull(dataGrid)) {
+                $("#gridDiv").empty();
+                var columns = [
+                    { field: "no", width: 80, align: 'center', title: '设备编号', sortable: false },
+                    { field: "type", width: 150, align: 'center', title: '报警内容', sortable: false },
+
+                    {
+                        field: "locationtime",
+                        width: 80,
+                        align: 'center',
+                        title: '报警时间',
+                        sortable: false,
+                        formatter: function (value, row, index) {
+                            if (!Dev.IsNull(value)) {
+                                return Dev.DateToString("/Date(" + value + ")/")
+                            }
+                            else return value;
+                        }
+                    },
+                    { field: "speed", width: 40, align: 'center', title: '速度(km/h)', sortable: false },
+                            {
+                                field: "uploadtime",
+                                width: 80,
+                                align: 'center',
+                                title: '上传时间',
+                                sortable: false,
+                                formatter: function (value, row, index) {
+                                    if (!Dev.IsNull(value)) {
+                                        return Dev.DateToString("/Date(" + value + ")/")
+                                    }
+                                    else return value;
+                                }
+                            },
+                    {
+                        field: "_oprate",
+                        width: 100,
+                        align: 'center',
+                        title: '操作',
+                        sortable: false,
+                        formatter: function (value, row, index) {
+                            return (row.state == "1" ? '<a href="javascript:void(0)" style="color:blue;margin-left:6px;"><img src="../../image/agri/unupdate.png"/></a>' :
+                                '<a href="javascript:void(0)" style="color:blue;margin-left:6px;" onclick="reback(\'' + row.id + '\',\'' + index + '\')" title="报警反馈"><img src="../../image/agri/update.png"/></a>') +
+                                '&nbsp;&nbsp;<a href="javascript:void(0)" style="color:blue;margin-left:6px;" onclick="showReback(\'' + row.type + '\',\'' + index + '\')" title=""><img src="../../image/agri/view.png"/"></a>' +
+                                '&nbsp;&nbsp;<a href="javascript:void(0)" style="color:blue;margin-left:6px;" onclick="deleteinfo(\'' + index + '\')" title="删除"><img src="../../image/agri/delete.png"/></a>';
+
+                        }
+                    },
+                ];
+                dataGrid = new UCDataGrid(Dev, {
+                    PageIndex: pageIndex, PageSize: pageSize, RowNumbers: false, ID: "trackGrid", pagequery: false, IsSizeSelect: true
+                });
+                $("#gridDiv").append(dataGrid.Target);
+                dataGrid.Layout(columns);
+                dataGrid.Target.bind("onSelectPage", function (s, e) {
+                    pageIndex = e.index;
+                    bindData();
+                });
+                dataGrid.Target.bind("onClickRow", function (s, e) {
+                    if (!isclickrow) { isclickrow = true; return; }
+                    var row = e.Row;
+                    hightlight(row);
+                    var keyvalue = row.no;
+                    var newtype = "AGRI_DEVICE";
+                    if (paramType == Dev.DeviceType.uav) {
+                        newtype = "AGRI_UAV";
+                    }
+                    Dev.App.RightPanel.Add(Dev.App.Root + "html/detailInfo.html", { Type: newtype, ServerUrl: Dev.GetSystemUrlByRelID("Service") + "device/getbyfilter", PrimaryKey: "NO", KeyValue: keyvalue });
+                });
+                dataGrid.Target.bind("onPageSizeChange", function (s, e) {
+                    if (Dev.IsNull(e)) return;
+                    pageIndex = 1;
+                    pageSize = e;
+                    bindData();
+                });
+            }
+        }
+
+        function bindData() {
+            var data = null;
+            var condition = "1=1";//搜索条件
+            if (!Dev.IsNull(searchNum)) {
+                var machineNumvalue = searchNum.GetValue();
+                if (!Dev.IsNull(machineNumvalue) && machineNumvalue.length > 0) {
+                    condition += " AND ( \"NO\"  LIKE '%" + $.trim(machineNumvalue) + "%'" + " OR " + "UPPER( \"NO\" )  LIKE " + "UPPER('%" + $.trim(machineNumvalue) + "%')" + " OR " + "LOWER( \"NO\" )  LIKE " + "LOWER('%" + $.trim(machineNumvalue) + "%'))";       //大小写不敏感
+                }
+            }
+            if (Dev.IsNull(paramType)) {
+                var devicttype = $("#deviceType").prop("$this");
+                if (!Dev.IsNull(devicttype)) {
+                    var value = devicttype.GetValue();
+                    if (!Dev.IsNull(value) && value != "不限") condition += " AND \"DEVICETYPE\"='" + value + "' ";
+                }
+            }
+            else condition += " AND \"DEVICETYPE\"='" + paramType + "'";
+            //获取上次时间
+            var time1 = $("#uploadtime1").datebox("getValue");
+            var time2 = $("#uploadtime2").datebox("getValue");
+            if (!Dev.IsNull(time1)) condition += " AND \"LOCATIONTIME\">='" + time1 + " 00:00:00'";
+            if (!Dev.IsNull(time2)) condition += " AND \"LOCATIONTIME\"<='" + time2 + " 23:59:59'";
+            if (!dev.IsNull(orgFilter)) condition += " AND  " + orgFilter;
+
+            condition += " ORDER BY \"LOCATIONTIME\" DESC";
+            //请求分页内容
+            $.ajax({
+                type: "POST",
+                data: condition,
+                contentType: "application/json;charset=UTF-8",
+                url: Dev.cookie.baseUri + "caution/getbyfilter/" + pageIndex + "/" + pageSize,
+                success: function (response) {
+                    if (response.statusCode != 200 || Dev.IsNull(response.data)) {
+                        loadError();
+                        return;
+                    }
+                    dataGrid.Load(response.data.dataSource, response.data.pageInfo);
+                    higtpage(response.data.dataSource);
+                },
+                error: function (e) {
+                    dialog.Alert(msg.netout, "error");
+                    loadError();
+                }
+            })
+        }
+
+        function loadError() {
+            dataGrid.Load([], { totalCount: 0, pageIndex: pageIndex, pageSize: pageSize, pageCount: 0 });
+        }
+
+        function resize() {
+            //  Dev.App.BottomPanel.SetHeight(262);
+            var height = $(window).outerHeight();
+            treeControl.SetHeight(height == 0 ? (262 - 26) : (height - 26));
+
+            var gridheight = height - 40;
+            var gridwidth = parseInt($(window).width() * 0.80) - 2;
+            if (gridwidth < 1050) {
+                gridwidth = 1050;
+                gridheight = parseInt(gridheight) - 16;
+            }
+            $("#searchDiv").width(gridwidth);
+            $("#gridDiv").height(gridheight).width(gridwidth);
+            if (!Dev.IsNull(dataGrid)) dataGrid.Resize(gridwidth, gridheight);
+            //$("#treediv").height(height - 26);
+        }
+
+        function searchclear() {
+            if (!Dev.IsNull(searchNum)) searchNum.Clear();
+            $("#uploadtime1").datebox("setValue", "");
+            $("#uploadtime2").datebox("setValue", "");
+            var devicetype = $("#deviceType").prop("$this");
+            if (!Dev.IsNull(devicetype)) devicetype.SetValue("");
+        }
+
+        function higtpage(datas) {
+            //clear();
+            //var features = [];
+            //for (var i = 0; i < datas.length; i++) {
+            //    var feature = new Dev.Feature({
+            //        id: "track" + i,
+            //        geometry: new Dev.geom.Point([datas[i].longitude, datas[i].latitude])
+            //    });
+            //    feature.setProperties(datas[i]);
+            //    feature.setStyle(function (resolution) {
+            //        return new Dev.style.Style({
+            //            fill: new Dev.style.Fill({ color: [236, 179, 73, 0.2] }),
+            //            image: new Dev.style.Icon({
+            //                src: Dev.App.Root + "image/" + ((paramType == Dev.DeviceType.machine) ? "tractor.png" : "uavtrack.png")
+            //            }),
+            //            text: new Dev.style.Text({
+            //                text: this.getProperties().no + "," + this.getProperties().speed + "km/h",
+            //                font: Dev.App.Map.getView().getZoom() + "px serif",
+            //                offsetX: 5,
+            //                offsetY: -20,
+            //                fill: new Dev.style.Fill({ color: [255, 255, 255, 1] }),
+            //            })
+            //        });
+            //    });
+            //    features.push(feature);
+            //}
+            //Dev.MapUtils.ClearAndAddFeatures(features, "tempGraphicLayer");
+            clear();
+            var features = [];
+            for (var i = 0; i < datas.length; i++) {
+                var feature = new Dev.Feature({
+                    id: "track" + i,
+                    geometry: new Dev.geom.Point([parseFloat(datas[i].longitude), parseFloat(datas[i].latitude)])
+                });
+                feature.setProperties(datas[i]);
+                feature.setStyle(new Dev.style.Style({
+                    fill: new Dev.style.Fill({ color: [236, 179, 73, 0.2] }),
+                    image: new Dev.style.Icon({
+                        src: Dev.App.Root + "image/" + ((paramType == Dev.DeviceType.machine) ? "tractor.png" : "uavtrack.png"),
+                    })
+                }));
+                features.push(feature);
+            }
+            Dev.MapUtils.ClearAndAddFeatures(features, "tempGraphicLayer");
+        }
+
+
+        function hightlight(row) {
+            clear();
+            x = row.longitude;
+            y = row.latitude;
+            var feature = new Dev.Feature({
+                id: "trackhightlight",
+                geometry: new Dev.geom.Point([parseFloat(x), parseFloat(y)])
+            });
+            feature.setId("alarmhightlight");
+            pointkey = Dev.MapUtils.PointSymbolStyle1(feature, 1, "rgba(63, 85, 225, 1)", "rgba(63,85,225,0.5)", null, Dev.App.Map);
+
+          //  pointkey = Dev.MapUtils.PointSymbolStyle(feature, 1, 'rgba(255, 0, 0, 1)', Dev.App.Map);
+          //  Dev.MapUtils.AddFeature(feature, "tempGraphicLayer");
+            var c_center = [parseFloat(x), parseFloat(y)];
+            var mapproj = Dev.App.Map.getView().getProjection();
+            if (mapproj.getCode() != Dev.App.Config.SystemMap.DataEPSG) c_center = Dev.proj.transform(c_center, Dev.App.Config.SystemMap.DataEPSG, mapproj.getCode());
+            Dev.App.Map.getView().centerOn(c_center, Dev.App.Map.getSize(), [Dev.App.Map.getSize()[0] / 2, Dev.App.Map.getSize()[1] / 2]);
+            Dev.App.Map.getView().setZoom(16);
+        }
+
+        function deleteinfo(index) {
+            dataGrid.DataGrid.datagrid("selectRow", index);
+            var row = dataGrid.DataGrid.datagrid("getSelected");
+            if (Dev.IsNull(row) || row.length == 0) return;
+            dialog1.Confirm('确定删除所选记录吗？', function (r) {
+                if (!r) return;
+                removeData(row);
+                bindData();
+            });
+        }
+
+        function removeData(row) {
+            var id = row.id;
+            $.ajax({
+                type: "GET",
+                url: Dev.cookie.baseUri + "caution/deleteCautionById/" + id,
+                success: function (response) {
+                    if (!Dev.IsNull(response) && response.statusCode == 200) {
+                        dialog.Alert(msg.deleteSuccess, "success");
+                        pageIndex = 1;
+                        bindData();
+                    } else {
+                        dialog.Alert(msg.deleteFailed, "error");
+                    }
+                },
+                error: function (e) {
+                    dialog.Alert(msg.netout, "error");
+                }
+            })
+        }
+
+        function clear() {
+            if (!Dev.IsNull(pointkey)) {
+                Dev.MapUtils.removePointKey("alarmhightlight", Dev.App.Map);
+                pointkey = null;
+            }
+            var lastfeature = Dev.MapUtils.GetFeatureByID("trackhightlight", "tempGraphicLayer");
+            if (!Dev.IsNull(lastfeature)) Dev.MapUtils.RemoveFeature(lastfeature, "tempGraphicLayer");
+        }
+
+        function saveInfo() {
+            var form = {};
+            var textcontrol = $(".dev-textbox", $(".MachineEdit", Dev.App.FillPanel.Target));
+            for (var i = 0; i < textcontrol.length; i++) {
+                var tag = $(textcontrol[i]).attr("name");
+                var value = $(textcontrol[i]).prop("$this").GetValue();
+                //验证
+                if (tag == "content") {
+                    if (Dev.IsNull(value)) {
+                        $("#errorMsg", $(".MachineEdit", Dev.App.FillPanel.Target)).html("请输入反馈内容!");
+                        return false;
+                    }
+                    if (value.length > 120) {
+                        $("#errorMsg", $(".MachineEdit", Dev.App.FillPanel.Target)).html("反馈内容过长!");
+                        return false;
+                    }
+                }
+                if (tag == "remark") {
+                    if (value.length > 120) {
+                        $("#errorMsg", $(".MachineEdit", Dev.App.FillPanel.Target)).html("备注内容过长!");
+                        return false;
+                    }
+                }
+                form[tag] = value;
+            }
+
+            form["files"] = JSON.stringify(fileList);
+            form["attid"] = accessoryId;
+            form["orgid"] = selectRowOrgId;
+            form["cautionid"] = selectAl;
+            form["fkder"] = Dev.cookie.user.truename;
+            form["mtype"] = paramType;
+            $.ajax({
+                type: "POST",
+                url: Dev.cookie.baseUri + "cautionfeedback/addfile",
+                data: form,
+                success: function (response) {
+                    if (!Dev.IsNull(response) && response.statusCode == 200) {
+                        dialog.Alert(msg.addSuccess, "success", function () {
+                            editCancel();//清空重置
+                            rebackWIn.Close();
+                        });
+                        bindData();
+                    } else {
+                        dialog.Alert(msg.addFailed, "error");
+                    }
+                },
+                error: function (e) {
+                    dialog.Alert(msg.netout, "error");
+                }
+            });
+            return true;
+        }
+
+        function reback(id, index) {
+            accessoryId = Guid.NewGuid().ToString('N');
+            selectAl = id;
+            dataGrid.DataGrid.datagrid("selectRow", index);
+            var row = dataGrid.DataGrid.datagrid("getSelected");
+            selectRowOrgId = row.orgid.id;
+            if (Dev.IsNull(row) || row.length == 0) return;
+            isclickrow = false;
+            selectorgid = row.OrgID;
+            if (Dev.IsNull(rebackWIn)) {
+                rebackWIn = new Dev.Window({
+                    ID: "editwin",
+                    IconCls: 'machine-trackedit',
+                    Title: "报警信息反馈",
+                    Parent: Dev.App.FillPanel.Target,
+                    Maximizable: false,
+                    Modal: false,
+                    Draggable: true,
+                    HAlign: 'center',
+                    VAlign: 'center',
+                    Resizable: false,
+                    Content: $("#edit-div"),
+                    Height: 370,
+                    Width: 500
+                });
+
+                $("#photo1", $(".MachineEdit", Dev.App.FillPanel.Target)).bind("change", function () {
+                    uploadPhoto(this, "photo1");
+                });
+                $("#photo2", $(".MachineEdit", Dev.App.FillPanel.Target)).bind("change", function () {
+                    uploadPhoto(this, "photo2");
+                });
+                $("#photo3", $(".MachineEdit", Dev.App.FillPanel.Target)).bind("change", function () {
+                    uploadPhoto(this, "photo3");
+                });
+
+                $("[id='imgpreviwe1']", $(".MachineEdit", Dev.App.FillPanel.Target)).mouseover(function () {
+                    $("[id='btons1']", $(".MachineEdit", Dev.App.FillPanel.Target)).css({ "opacity": "1" });
+                }).mouseleave(function () {
+                    $("[id='btons1']", $(".MachineEdit", Dev.App.FillPanel.Target)).css({ "opacity": "0" });
+                });
+                $("[id='btons1']", $(".MachineEdit", Dev.App.FillPanel.Target)).mouseover(function () {
+                    $("[id='btons1']", $(".MachineEdit", Dev.App.FillPanel.Target)).css({ "opacity": "1" });
+                }).mouseleave(function () {
+                    $("[id='btons1']", $(".MachineEdit", Dev.App.FillPanel.Target)).css({ "opacity": "0" });
+                });
+
+                $("[id='imgpreviwe2']", $(".MachineEdit", Dev.App.FillPanel.Target)).mouseover(function () {
+                    $("[id='btons2']", $(".MachineEdit", Dev.App.FillPanel.Target)).css({ "opacity": "1" });
+                }).mouseleave(function () {
+                    $("[id='btons2']", $(".MachineEdit", Dev.App.FillPanel.Target)).css({ "opacity": "0" });
+                });
+                $("[id='btons2']", $(".MachineEdit", Dev.App.FillPanel.Target)).mouseover(function () {
+                    $("[id='btons2']", $(".MachineEdit", Dev.App.FillPanel.Target)).css({ "opacity": "1" });
+                }).mouseleave(function () {
+                    $("[id='btons2']", $(".MachineEdit", Dev.App.FillPanel.Target)).css({ "opacity": "0" });
+                });
+
+                $("[id='imgpreviwe3']", $(".MachineEdit", Dev.App.FillPanel.Target)).mouseover(function () {
+                    $("[id='btons3']", $(".MachineEdit", Dev.App.FillPanel.Target)).css({ "opacity": "1" });
+                }).mouseleave(function () {
+                    $("[id='btons3']", $(".MachineEdit", Dev.App.FillPanel.Target)).css({ "opacity": "0" });
+                });
+                $("[id='btons3']", $(".MachineEdit", Dev.App.FillPanel.Target)).mouseover(function () {
+                    $("[id='btons3']", $(".MachineEdit", Dev.App.FillPanel.Target)).css({ "opacity": "1" });
+                }).mouseleave(function () {
+                    $("[id='btons3']", $(".MachineEdit", Dev.App.FillPanel.Target)).css({ "opacity": "0" });
+                });
+
+                rebackWIn.bind("onClosing", function () {
+                    editCancel();
+                    fileList = [];
+                });
+            }
+            else {
+                rebackWIn.Open();
+            }
+        }
+        var showWin;
+        var isclickrow = true;
+        function showReback(type) {
+            isclickrow = false;
+            //dataGrid.DataGrid.datagrid("selectRow", index);
+            //var row = dataGrid.DataGrid.datagrid("getSelected");
+            //if (Dev.IsNull(row) || row.length == 0) return;
+            //selectorgid = row.OrgID;
+            Dev.App.RightPanel.Clear();
+            Dev.App.RightPanel.SetVisible(false);
+            showWin = new Dev.Window({
+                ID: "editwin",
+                IconCls: 'machine-caralarm',
+                Title: "报警类型：" + type,
+                Parent: Dev.App.FillPanel.Target,
+                Maximizable: false,
+                Modal: false,
+                Draggable: true,
+                HAlign: 'center',
+                VAlign: 'center',
+                Resizable: false,
+                Url: "html/dev/alertcase.html",
+                Parameters: { Type: type, mType: paramType },
+                Height: 512,
+                Width: 800,
+
+            });
+
+            showWin.bind("onClosing", function () {
+                //    rebackWIn.Destroy();
+                //  rebackWIn = null;
+                //editCancel();
+            });
+            //       }
+            //      else {
+            //          rebackWIn.Open();
+            //     }
+        }
+
+
+        function editCancel() {
+            //清空所有信息
+            var textcontrol = $(".dev-textbox", $(".MachineEdit", Dev.App.FillPanel.Target));
+            var combobocontrol = $('.dev-combobox', $(".MachineEdit", Dev.App.FillPanel.Target));
+            for (var i = 0; i < textcontrol.length; i++) {
+                var currcontrol = $(textcontrol[i]).prop("$this");
+                currcontrol.Clear();
+                if (!Dev.IsNull(currcontrol.SetLengthTip)) currcontrol.SetLengthTip("");
+
+            }
+            for (var i = 0; i < combobocontrol.length; i++) {
+                var currcontrol = $(combobocontrol[i]).prop("$this");
+                currcontrol.SetValue("");
+            }
+            $("#errorMsg", $(".MachineEdit", Dev.App.FillPanel.Target)).html("");
+            $("[id^='imgpreviwe']", $(".MachineEdit", Dev.App.FillPanel.Target)).each(function () {
+                $(this).attr("src", "image/authorization/default.jpg");
+            });
+            $("input[name='devfile']", $(".MachineEdit", Dev.App.FillPanel.Target)).each(function () {
+                $(this).val("");
+            })
+        }
+
+        /*检测照片格式*/
+        function checkType(image) {
+            var extStart = image.lastIndexOf(".");
+            var ext = image.substring(extStart, image.length).toUpperCase();
+            if (ext != ".PNG" && ext != ".GIF" && ext != ".JPG" && ext != ".JPEG") {
+                dialog.Alert("图片限于png，gif，jpeg，jpg格式！", "error");
+                return false;
+            }
+            return true;
+        }
+
+        //预览图片
+        function uploadPhoto(dom, id) {
+            //var preview = $("#"+dom, $(".MachineEdit", Dev.App.FillPanel.Target));
+            var file;
+            var preview;
+            if (id == "photo1") {
+                preview = $("#imgpreviwe1", $(".MachineEdit", Dev.App.FillPanel.Target));
+            } else if (id == "photo2") {
+                preview = $("#imgpreviwe2", $(".MachineEdit", Dev.App.FillPanel.Target));
+            } else if (id == "photo3") {
+                preview = $("#imgpreviwe3", $(".MachineEdit", Dev.App.FillPanel.Target));
+            }
+            if (dom.files.length == 0) return;
+            file = dom.files[0];
+            if (file.size > 102400000) {
+                dialog.Alert("文件最大为100M", "error");
+                clearImage(dom);
+                return;
+            }
+            if (!checkType(file.name)) {
+                clearImage(dom);
+                return;
+            }
+            var form = new FormData();
+            form.append("devfile", file);
+            $.ajax({
+                type: 'post',
+                url: Dev.cookie.baseUri + "file/upload",
+                data: form,
+                contentType: false,
+                processData: false,
+                success: function (response) {
+                    if (!Dev.IsNull(response) && response.statusCode == 200) {
+                        preview.attr("src", response.data[0].path);
+                        fileList.push(response.data[0]);
+                    }
+                },
+                error: function (e) {
+                    dialog.Alert(msg.netout, "error");
+                }
+            });
+            return true;
+        }
+        /**
+         * 清空input file中的文件
+         * 兼容 ie firefox chrome
+         * @param dom file dom
+         */
+        function clearImage(dom) {
+            var fileDom = $(dom);
+            fileDom.after(fileDom.clone().val(""));
+            fileDom.remove();
+        }
+    </script>
+</head>
+<body style="height: 100%; width: 100%;">
+    <div id="content" class="content">
+        <div style="height: 100%; width: 20%; position: absolute;">
+            <div id="treediv" style="width: 100%; height: 100%;">
+                <div class="dev-tree" opt='{"ValueField":"id","TextField":"name","ChildrenField":"child","Height":220}'></div>
+            </div>
+        </div>
+        <div style="height: 100%; width: 80%; position: absolute; left: 20%; overflow: auto; overflow-y: hidden">
+            <div id="searchDiv" style="height: 38px; border-left: 1px solid #ddd; position: relative; min-width: 1050px;">
+                <div style="height: 38px; position: absolute; left: 0px;">
+                    <div class="SearchDiv">
+                        <div id="machineNum" class="dev-text" style="z-index: 2; width: 210px; display: inline-block;"
+                            opt='{"TipInfo":"","HeaderCSS":{"padding":"0px","width":"80px"},"IsOverShow":true,"Padding":"0px 5px","TextAlign":"left","BodyCSS": { "background-color": "transparent","margin-top":"8px" },"Title":"<div class=\"Title\" style=\"height:32px;\"><div class=\"Icon machine-carnum\"></div><span class=\"Text\" style=\"width:50px\">设备编号</span></div>"}'>
+                        </div>
+                    </div>
+                    <div id="searchType" class="SearchDiv">
+                        <div style="width: 75px; height: 40px; line-height: 40px; text-align: right; display: inline-block; float: left;">
+                            <div class="machine-carnum"
+                                style="height: 16px; width: 16px; display: inline-block; float: left; margin-left: 5px; margin-top: 11px;">
+                            </div>
+                            <span style="height: 40px; line-height: 40px; width: 49px; float: right;">设备类型</span>
+                        </div>
+                        <div style="width: 120px; height: 40px; line-height: 40px; display: inline-block; margin: 6px;">
+                            <div id="deviceType" class="dev-combobox" style="z-index: 2; width: 130px; margin-top: 2px;" opt='{"TipInfo":"选择设备类型","IsOverShow":true,"Padding":"0px 5px","TextAlign":"left","BodyCSS": { "background-color": "transparent"}}'></div>
+                        </div>
+                    </div>
+                    <div class="SearchDiv" style="width: 209px;">
+                        <div style="width: 75px; height: 40px; line-height: 40px; text-align: right; display: inline-block; float: left;">
+                            <div class="icon-calendar"
+                                style="height: 16px; width: 16px; display: inline-block; float: left; margin-left: 5px; margin-top: 11px;">
+                            </div>
+                            <span style="height: 40px; line-height: 40px; width: 49px; float: right;">报警时间</span>
+                        </div>
+                        <div style="width: 120px; height: 40px; line-height: 38px; padding: 0px 5px; display: inline-block; float: left; margin-top: 0px; margin-left: 3px">
+                            <input id="uploadtime1" class="easyui-datebox" data-options="width:120,height:24,editable:false" />
+                        </div>
+                    </div>
+                    <div class="SearchDiv">
+                        <div style="width: 16px; height: 40px; display: inline-block; line-height: 40px; text-align: center; float: left;">
+                            至
+                        </div>
+                        <div style="width: 120px; height: 40px; line-height: 38px; padding: 0px 5px; display: inline-block; float: left; margin-top: 0px;">
+                            <input id="uploadtime2" class="easyui-datebox" data-options="editable:false,width:120,height:24,validType:'equaldDate[\'#uploadtime1\']'" />
+                        </div>
+                    </div>
+                </div>
+                <div style="width: 160px; height: 100%; position: absolute; right: 10px; z-index: 2">
+                    <div class="Button" tag="search">
+                        <div class="machine-query"
+                            style="height: 16px; width: 16px; margin-top: 4px; margin-left: 4px; display: inline-block; float: left;">
+                        </div>
+                        <span style="line-height: 26px; color: #fcfcfc;">查&nbsp;询</span>
+                    </div>
+                    <div class="Button" tag="clear">
+                        <div class="machine-reset"
+                            style="height: 16px; width: 16px; margin-top: 4px; margin-left: 4px; display: inline-block; float: left;">
+                        </div>
+                        <span style="line-height: 26px; color: #fcfcfc;">重&nbsp;置</span>
+                    </div>
+                </div>
+            </div>
+            <div id="gridDiv" style="border-left: 1px solid #ddd; border-top: 1px solid #ddd;"></div>
+        </div>
+    </div>
+    <div id="edit-div" class="MachineEdit">
+        <div style="height: 82px; width: 100%; border-bottom: 1px solid #ddd;">
+            <div class="dev-textbox" name="content" style="z-index: 2; width: 488px; height: 77px; margin-top: 6px;"
+                maxlength='256'
+                opt='{"MaxLength":120, "Required":true,"TipInfo":"","Type":"multi-text","HeaderCSS":{"padding":"0px 5px","width":"75px", "text-align": "RIGHT"},"IsOverShow":true,"Padding":"5px","Title":"<div class=\"Title\">反馈内容</div>"}'>
+            </div>
+        </div>
+        <div style="height: 82px; width: 100%; border-bottom: 1px solid #ddd;">
+            <div class="dev-textbox" name="remark" style="z-index: 2; width: 488px; height: 77px; margin-top: 6px;"
+                maxlength='256'
+                opt='{"MaxLength":120, "TipInfo":"","Type":"multi-text","HeaderCSS":{"padding":"0px 5px","width":"75px", "text-align": "RIGHT"},"IsOverShow":true,"Padding":"5px","Title":"<div class=\"Title\">备注</div>"}'>
+            </div>
+        </div>
+        <div style="height: 107px; width: 100%; border-bottom: 1px solid #ddd; padding-top: 5px">
+            <div style="width: 80px; height: 100px; float: left; text-align: right; line-height: 100px;">反馈图片</div>
+            <div style="margin-left: 5px; border: solid 1px #aec9eb; height: 100px; width: 100px; float: left; position: relative;">
+                <img id="imgpreviwe1" src="image/authorization/default.jpg"
+                    style="width: 100px; height: 100px; position: absolute; top: 0px;" />
+                <div id="btons1"
+                    style="position: absolute; width: 100px; background-color: rgba(0,0,0,0.4); opacity: 0; height: 25px; text-align: center; line-height: 25px; z-index: 10; bottom: 0px; cursor: pointer;">
+                    <span style="color: white; width: 58px; cursor: pointer;">选择图片</span>
+                    <div style="filter: alpha(opacity=0); opacity: 0; position: absolute; bottom: 0px; cursor: hand;">
+                        <input
+                            type="file" name="devfile" id="photo1" style="cursor: pointer;" />
+                    </div>
+                </div>
+            </div>
+            <div style="margin-left: 49px; border: solid 1px #aec9eb; height: 100px; width: 100px; float: left; position: relative;">
+                <img id="imgpreviwe2" src="image/authorization/default.jpg"
+                    style="width: 100px; height: 100px; position: absolute; top: 0px;" />
+                <div id="btons2"
+                    style="position: absolute; width: 100px; background-color: rgba(0,0,0,0.4); opacity: 0; height: 25px; text-align: center; line-height: 25px; z-index: 10; bottom: 0px; cursor: pointer;">
+                    <span style="color: white; width: 58px; cursor: pointer;">选择图片</span>
+                    <div style="filter: alpha(opacity=0); opacity: 0; position: absolute; bottom: 0px; cursor: hand;">
+                        <input
+                            type="file" name="devfile" id="photo2" style="cursor: pointer;" />
+                    </div>
+                </div>
+            </div>
+            <div style="margin-left: 48px; border: solid 1px #aec9eb; height: 100px; width: 100px; float: left; position: relative;">
+                <img id="imgpreviwe3" src="image/authorization/default.jpg"
+                    style="width: 100px; height: 100px; position: absolute; top: 0px;" />
+                <div id="btons3"
+                    style="position: absolute; width: 100px; background-color: rgba(0,0,0,0.4); opacity: 0; height: 25px; text-align: center; line-height: 25px; z-index: 10; bottom: 0px; cursor: pointer;">
+                    <span style="color: white; width: 58px; cursor: pointer;">选择图片</span>
+                    <div style="filter: alpha(opacity=0); opacity: 0; position: absolute; bottom: 0px; cursor: hand;">
+                        <input
+                            type="file" name="devfile" id="photo3" style="cursor: pointer;" />
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="errorMsg"
+            style="height: 35px; width: 200px; line-height: 35px; display: inline-block; color: red; padding-left: 10px; margin-left: 20px;">
+        </div>
+        <div class="Submit">
+            <div class="Button" tag="save">
+                <span style="line-height: 26px; color: #fcfcfc;">保&nbsp;&nbsp;存</span>
+            </div>
+            <div class="Button" tag="cancel">
+                <span style="line-height: 26px; color: #fcfcfc;">取&nbsp;&nbsp;消</span>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

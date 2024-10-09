@@ -1,0 +1,441 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>农业大数据研究与管理平台</title>
+    <link rel="stylesheet" href="../theme/default/easyui.css" />
+    <link rel="stylesheet" type="text/css" href="../css/app.css" />
+    <link rel="stylesheet" type="text/css" href="../css/main.css" />
+    <link type="text/css" href="../css/dev.css" rel="stylesheet" />
+    <link rel="stylesheet" type="text/css" href="../css/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../cesium/Widgets/widgets.css" />
+    <link href="../js/viewer.min.css" rel="stylesheet" />
+    <script type="text/javascript" src="../js/jquery.min.js"></script>
+    <script type="text/javascript" src="../js/dev.ui.js"></script>
+    <script type="text/javascript" src="../js/data.util.js"></script>
+    <script type="text/javascript" src="../js/ol.min.3.2.1.js"></script>
+    <script type="text/javascript" src="../js/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="../js/easyui-lang-zh_CN.js"></script>
+    <script type="text/javascript" src="js/show.gis.js"></script>
+    <script type="text/javascript" src="js/mapswitch.js"></script>
+    <script type="text/javascript" src="../js/linq.min.js"></script>
+    <script type="text/javascript" src="../js/guid.js"></script>
+    <script type="text/javascript" src="../js/jquery.dev.js"></script>
+    <script type="text/javascript" src="../js/jquery.cookie.js"></script>
+    <script type="text/javascript" src="../cesium/Cesium.js"></script>
+    <script type="text/javascript" src="../js/measure3D.js"></script>
+    <script type="text/javascript" src="../cesium/viewerNavigation.js"></script>
+    <script type="text/javascript" src="../streetview/three.min.js"></script>
+    <script type="text/javascript" src="../streetview/tpanorama.js"></script>
+    <script type="text/javascript" src="../js/viewer.js"></script>
+    <style>
+        .conten {
+            /*width: 100%;
+            height: calc(100% - 33px);
+            background: url(showimg/bg1.png) no-repeat top,url(showimg/bglogo.png) no-repeat center 20px,-webkit-radial-gradient(#291f3a 30%,#0f0e23 70%);
+            background: url(showimg/bg1.png) no-repeat top,url(showimg/bglogo.png) no-repeat center 20px,-o-radial-gradient(#291f3a 30%,#0f0e23 70%);
+            background: url(showimg/bg1.png) no-repeat top,url(showimg/bglogo.png) no-repeat center 20px,-moz-radial-gradient(#291f3a 30%,#0f0e23 70%);
+            background: url(showimg/bg1.png) no-repeat top,url(showimg/bglogo.png) no-repeat center 20px,radial-gradient(#291f3a 30%,#0f0e23 70%);*/
+            width: 100%;
+            height: calc(100% - 33px);
+            background: url(showimg/logo_1.png) no-repeat top,-webkit-radial-gradient(#000c09 30%,#000c09 70%);
+            background: url(showimg/logo_1.png) no-repeat top,-o-radial-gradient(#000c09 30%,#000c09 70%);
+            background: url(showimg/logo_1.png) no-repeat top,-moz-radial-gradient(#000c09 30%,#000c09 70%);
+            background: url(showimg/logo_1.png) no-repeat top,radial-gradient(#000c09 30%,#000c09 70%);
+        }
+
+        .Window-Mask {
+            z-index: 10;
+        }
+
+        .fillpanel {
+            width: 100%;
+            height: 100%;
+            display: none;
+            position: absolute;
+            top: 0;
+        }
+
+        .mappanel {
+            width: 96%;
+            height: calc(100% - 140px);
+            background: url(showimg/topl.png),url(showimg/topr.png),url(showimg/bottoml.png),url(showimg/bottomr.png),url(showimg/divbg.png) no-repeat center/100% 100%;
+            background-repeat: no-repeat,no-repeat,no-repeat,no-repeat;
+            background-position: top left,top right,bottom left,bottom right;
+            margin-left: 2%;
+            margin-top: 60px;
+        }
+
+        .mappaneldom {
+            float: left;
+            margin: 3px;
+            width: calc(100% - 6px);
+            height: calc(100% - 6px);
+            display: inline-block;
+        }
+
+        .mappanel3d {
+            margin: 3px;
+            width: calc(100% - 6px);
+            height: calc(100% - 6px);
+            display: none;
+        }
+
+        .street {
+            margin: 3px;
+            width: calc(100% - 6px);
+            height: calc(100% - 6px);
+            display: none;
+        }
+        /* 底部样式 */
+        footer {
+            background-color: #363636;
+            font-size: 14px;
+            color: #fff;
+            line-height: 33px;
+            position: relative;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
+            height: 33px;
+            text-align: center;
+        }
+
+        .headqury {
+            position: relative;
+            width: 96%;
+            height: 62px;
+            left: 2%;
+            top: 60px;
+        }
+
+        #infobtn {
+            float: left;
+            width: 140px;
+            height: 62px;
+            cursor: pointer;
+            background: url(showimg/hoveback.png) no-repeat center/100% 100%;
+        }
+
+        #qury {
+            float: left;
+            width: 340px;
+            height: 62px;
+            background: url(showimg/search.png) no-repeat center/100% 100%;
+        }
+
+        #input {
+            float: left;
+            width: 268px;
+            height: 60px;
+            margin-left: 16px;
+            line-height: 60px;
+            font-size: 16px;
+            color: white;
+        }
+
+        #sub {
+            float: left;
+            width: 50px;
+            height: 60px;
+            cursor: pointer;
+        }
+
+        #city-location {
+            float: right;
+            width: 108px;
+            height: 62px;
+            cursor: pointer;
+            line-height: 65px;
+            color: white;
+            font-size: 16px;
+            text-align: center;
+            background: url(showimg/city.png) no-repeat center/100% 100%;
+        }
+
+        #layer {
+            float: right;
+            width: 63px;
+            height: 62px;
+            cursor: pointer;
+            background: url(showimg/layer.png) no-repeat center/100% 100%;
+        }
+
+        #tool {
+            float: right;
+            width: 63px;
+            height: 62px;
+            cursor: pointer;
+            background: url(showimg/tool.png) no-repeat center/100% 100%;
+        }
+
+        #help {
+            float: right;
+            width: 108px;
+            height: 62px;
+            cursor: pointer;
+            background: url(showimg/help.png) no-repeat center/100% 100%;
+        }
+
+        #infobtn:hover {
+            background: url(showimg/backindex.png) no-repeat center/100% 100%;
+        }
+
+        #qury:hover {
+            background: url(showimg/search-h.png) no-repeat center/100% 100%;
+        }
+
+        #city-location:hover {
+            background: url(showimg/city-h.png) no-repeat center/100% 100%;
+        }
+
+        #layer:hover {
+            background: url(showimg/layer-h.png) no-repeat center/100% 100%;
+        }
+
+        #tool:hover {
+            background: url(showimg/tool-h.png) no-repeat center/100% 100%;
+        }
+
+        #help:hover {
+            background: url(showimg/help-h.png) no-repeat center/100% 100%;
+        }
+
+        .ol-default-popup {
+            position: absolute;
+            background-color: white;
+            -webkit-filter: drop-shadow(0 1px 4px rgba(0,0,0,0.2));
+            filter: drop-shadow(0 1px 4px rgba(0,0,0,0.2));
+            padding: 5px;
+            border-radius: 10px;
+            border: 1px solid #cccccc;
+            bottom: 12px;
+            left: -50px;
+        }
+
+            .ol-default-popup:after, .ol-popup:before {
+                top: 100%;
+                border: solid transparent;
+                content: " ";
+                height: 0;
+                width: 0;
+                position: absolute;
+                pointer-events: none;
+            }
+
+            .ol-default-popup:after {
+                border-top-color: white;
+                border-width: 10px;
+                left: 70px;
+                margin-left: -10px;
+            }
+    </style>
+    <script type="text/javascript">
+        var Config, pestsMap, streetview;
+        var selectcity;
+        var tipicPanel;
+        $(window).ready(function () {
+            dev.cookie.user = JSON.parse($.cookie("usertoken"));
+            dev.App.MapPanel = $(".mappanel");
+            dev.App.MapPanel.Target = $(".mappanel");
+            dev.App.FillPanel = new dev.FillPanel($(".fillpanel"));
+            dev.App.MapPanel.MapDOM = $(".mappaneldom");
+            dev.App.MapPanel.MapDOM3D = $(".mappanel3d");
+            dev.App.MapPanel.MapStreet = $(".conten");
+            if (dev.IsNull(Config)) {
+                var config = null;
+                $.ajax({
+                    url: "../config/app.xml",
+                    dataType: 'xml',
+                    type: 'GET',
+                    cache: false,
+                    timeout: 2000,
+                    async: false,
+                    error: function (xml) {
+                        alert("加载系统配置文件出错！");
+                        return;
+                    },
+                    success: function (xml) {
+                        config = $.xml2json(xml);
+                    }
+                });
+                dev.App.Config = Config = config;
+            }
+            initMap();
+            dev.InitSMap3D(Config, true);
+            dev.App.Root = GetRootPath();
+            dev.App.TempStyle = dev.CreateTempStyle();
+            dev.App.InitMapMenu();
+            dev.App.EventObject = $(dev);
+            dev.projTransf({ "top": "130px", "crstoolpanel_top": "157px" });
+            InitQSwitch(Config, $(".mappanel"));
+            initmaptool();
+            //二三维切换
+            dev.App.MapSwitch.Target.bind("onSwitchClick", function (sender, opt) {
+                $('#tool', $('.headqury')).css("display", "block");
+                $('#qury', $('.headqury')).css("display", "block");
+                if (!dev.IsNull(streetview)) streetview.Clear();
+                if (dev.IsNull(opt)) return;
+                if (opt.type == "StreetView") {
+                    dev.App.MapPanel.MapDOM3D.css("display", "none");
+                    $('.mappaneldom').css({ "width": "calc(100% - 6px)", "display": "block" });
+                    streetview = new dev.ShowStreetView();
+                    streetview.LoadStreet();
+                }
+                else if (opt.type == "PotreeMap") {
+                    $('.fillpanel').css({ "display": "block" });
+                    dev.App.FillPanel.Add(GetRootPath() + "html/potreeview.html", null, "potreeviewframe");
+                }
+                else if (opt.type == "MonitorMap") {
+                    $.ajax({
+                        url: dev.MapLoad.GetUrlByRelID("Service") + "amstation/getall",
+                        type: "Get",
+                        contentType: 'application/json',
+                        success: function (result) {
+                            if (result.statusCode != 200 || result.data.length == 0) return;
+                            showmonitor(result.data);
+                        }
+                    });
+                }
+                else {
+                    if (opt.type == "3D") {
+                        $('.mappaneldom').css({ "width": "calc(100% - 6px)", "display": "none" });
+                        dev.App.MapPanel.MapDOM3D.css({ "width": "calc(100% - 6px)", "display": "block" });
+                        $('#tool', $('.headqury')).css("display", "none");
+                        $('#qury', $('.headqury')).css("display", "none");
+                    }
+                    else if (opt.type == "2D") {
+                        $('.mappaneldom').css({ "width": "calc(100% - 6px)", "display": "block" });
+                        dev.App.MapPanel.MapDOM3D.css("display", "none");
+                    }
+                    else if (opt.type == "Unit") {
+                        dev.App.MapAngleLink = opt.check;
+                        $('.mappaneldom').css({ "width": "calc(50% - 3px)", "display": "block", "margin-right": "0" });
+                        dev.App.MapPanel.MapDOM3D.css({ "width": "calc(50% - 3px)", "display": "block", "float": "left", "margin-left": "0" });
+                    }
+                }
+                pestsMap.updateSize();
+            });
+            //获取图层
+            var layerconfig = dev.App.Config.Extend.LayerForTree;
+            var temp = dev.ObjClone(layerconfig);
+            if (!dev.IsNull(temp.LayerRoot) && dev.IsNull(temp.LayerRoot.length)) temp.LayerRoot = [temp.LayerRoot];
+            dev.App.treedata = temp.LayerRoot.clone();
+            dev.App.treedata = SGetTreeLayers(STreeLayerType.Tipoc, dev.App.treedata);
+            $('#infobtn').click(function () {
+                window.open(GetRootPath() + "show/index.html", "_self");
+            });
+            $('#city-location').click(function () {
+                showmapcity();//城市列表
+            });
+            $('#layer').click(function () {
+                //显示专题图层
+                if (dev.IsNull(tipicPanel)) {
+                    tipicPanel = new SfloatPanel({
+                        ID: "topicPanel",
+                        IconCls: "icon-maptool-topic",
+                        CSS: { "top": "150px", "right": "110px", "background": "transparent", "z-index": "10" },
+                        Title: "专题图层",
+                        Width: 376,
+                        Draggable: "true"
+                    });
+                    tipicPanel.Target.one("onClosing", function () {
+                        tipicPanel = null;
+                    });
+                    //添加图层树
+                    initshowLayer(dev.App.treedata);//专题图层
+                    $(".dev-box", tipicPanel.Target).css("background-color", "rgba(135,206,235,0.5)");
+                }
+                else {
+                    tipicPanel.SetDock(true);
+                    tipicPanel.SetVisible(true);
+                }
+
+            });
+            dev.App.Config.SystemMap.Position.Code = "000000";
+            dev.App.Config.SystemMap.Position.Type = "Country";
+            $('#sub').click(function () {
+                if ($("#input").text() != "请输入姓名/身份证/电话号码")
+                    SQuery($("#input").text());//查询
+            });
+            $('#input').keydown(function (e) {
+                var key = e.which;
+                if (key == 13) SQuery($("#input").text());//查询
+            });
+            $("#input").focus(function (e) {
+                if (e.target.innerText == "请输入姓名/身份证/电话号码")
+                    e.target.innerText = "";
+            });
+            $("#input").focusout(function (e) {
+                if (dev.IsNull(e.target.innerText))
+                    e.target.innerText = "请输入姓名/身份证/电话号码"
+            });
+        });
+        $(window).resize(function () {
+            resize();
+        });
+        $(window).unload(function () {
+            $(this).remove();
+        });
+        function resize() {
+        }
+        //初始化地图
+        function initMap() {
+            var initconfig = Config.SystemMap;
+            var resolutions;
+            if (!dev.IsNull(initconfig.LevelInfo) && !dev.IsNull(initconfig.LevelInfo.IsVisibleLevel)
+                && initconfig.LevelInfo.IsVisibleLevel == "true") {
+                resolutions = [];
+                if (dev.IsNull(initconfig.DisplayEPSG)) initconfig.DisplayEPSG = "EPSG:4326";
+                for (var i = 0; i < initconfig.LevelInfo.Levels.length; i++)
+                    if (dev.IsNull(initconfig.DisplayEPSG) || initconfig.DisplayEPSG == "EPSG:4326") resolutions.push(parseFloat(initconfig.LevelInfo.Levels[i].Resolution));
+                    else resolutions.push(parseFloat(initconfig.LevelInfo.Levels[i].Resolution3857));
+            }
+
+            pestsMap = new ol.Map({
+                controls: new ol.control.defaults({ zoom: false, rotate: false, attribution: false }),
+                interactions: ol.interaction.defaults().extend([new ol.interaction.DragRotateAndZoom()]),
+                target: $(".mappaneldom")[0],
+                logo: false
+            });
+            var minZoom = parseInt(initconfig.LevelInfo.MinZoom);
+            var proj = ol.proj.get(initconfig.DisplayEPSG);
+            pestsMap.setView(new ol.View({
+                projection: proj,
+                resolutions: resolutions,
+                minZoom: minZoom,
+                minResolution: resolutions[resolutions.length - 1],
+                maxZoom: resolutions.length + minZoom - 1,
+                maxResolution: resolutions[0]
+            }));
+            dev.App.Map = pestsMap;
+            dev.MapLoad.InitMap($.extend({ Map: pestsMap }, initconfig), true);
+        }
+    </script>
+</head>
+<body id="flow">
+    <div class="conten">
+        <div class="headqury">
+            <div id="infobtn"></div>
+            <div id="qury">
+                <div id="input" contenteditable="true">请输入姓名/身份证/电话号码</div>
+                <div id="sub"></div>
+            </div>
+            <div id="help"></div>
+            <!--<div id="tool"></div>-->
+            <div id="layer"></div>
+            <div id="city-location">全国</div>
+        </div>
+        <div class="mappanel">
+            <div class="mappaneldom"></div>
+            <div class="mappanel3d"></div>
+            <div class="street"></div>
+        </div>
+    </div>
+    <div class="fillpanel"></div>
+    <footer>
+        Copyright&nbsp;©&nbsp;2017-2020&nbsp;&nbsp;北京禾壮慧农科技发展有限公司&nbsp;&nbsp;版权所有
+    </footer>
+</body>
+</html>

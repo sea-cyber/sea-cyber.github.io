@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>文件列表</title>
+    <link rel="stylesheet" href="../../theme/default/easyui.css" />
+    <link rel="stylesheet" type="text/css" href="../../theme/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/app.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/icon.css" />
+    <link type="text/css" href="../../css/dev.css" rel="stylesheet" />
+    <script type="text/javascript" src="../../js/jquery.min.js"></script>
+    <script type="text/javascript" src="../../js/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="../../js/easyui-lang-zh_CN.js"></script>
+    <script type="text/javascript" src="../../js/data.util.js"></script>
+    <script type="text/javascript" src="../../js/dev.ui.js"></script>
+    <script type="text/javascript" src="../../js/jquery.dev.control.js"></script>
+    <style>
+        .content {
+            height: 100%;
+            width: 100%;
+            position: relative;
+        }
+
+        .Title {
+            width: 75px;
+            text-align: right;
+            line-height: 40px;
+            height: 38px;
+            display: inline-block;
+            float: left;
+        }
+
+            .Title .Icon {
+                width: 16px;
+                height: 16px;
+                display: inline-block;
+                margin-top: 11px;
+            }
+
+            .Title .Text {
+                display: inline-block;
+                float: right;
+                /*width: 49px;*/
+            }
+
+        .content .SearchDiv {
+            width: 210px;
+            height: 40px;
+            display: inline-block;
+            margin-left: 0px;
+            margin-right: 0px;
+            float: left;
+        }
+
+        .Button {
+            width: 70px;
+            height: 26px;
+            float: left;
+            margin-top: 7px;
+            background-color: #16dbbb;
+            /*border-radius: 5px;*/
+            text-align: center;
+            border: 1px solid #16dbbb;
+            display: inline-block;
+            margin-left: 5px;
+        }
+
+            .Button:hover {
+                background-color: #5227de;
+                border: 1px solid #5227de;
+                cursor: pointer;
+            }
+
+           .Button:active {
+                background-color: #210097;
+                border: 1px solid #210097;
+                cursor: pointer;
+            }
+    </style>
+</head>
+<body>
+    <!-- 文件展示-->
+    <div class="content">
+        <div id="searchDiv"
+            style="height: 38px; border-left: 1px solid #ddd; position: relative; min-width: 1020px;">
+            <div style="height: 38px; position: absolute; left: 0px;">
+                <div class="SearchDiv">
+                    <div id="file-name" class="dev-text" style="z-index: 2; width: 200px; display: inline-block;"
+                        opt='{"TipInfo":"请输入关键字","HeaderCSS":{"padding":"0px","width":"75px"},"IsOverShow":true,"Padding":"0px","TextAlign":"left","BodyCSS": { "background-color": "transparent","margin-top":"8px","margin-left":"5px" },"Title":"<div class=\"Title\"><div class=\"Icon machine-name\" style=\"float:left;margin-left:3px\"></div><span class=\"Text\" style=\"width:50px\">文件名称</span></div>"}'>
+                    </div>
+                </div>
+                <div class="SearchDiv" style="width: 209px;">
+                    <div style="width: 75px; height: 38px; line-height: 38px; text-align: right; display: inline-block; float: left;">
+                        <div class="icon-calendar"
+                            style="height: 16px; width: 16px; display: inline-block; float: left; margin-left: 5px; margin-top: 11px;">
+                        </div>
+                        <span style="height: 40px; line-height: 40px; width: 49px; float: right;">入库时间</span>
+                    </div>
+                    <div style="width: 120px; height: 40px; line-height: 38px; padding: 0px 5px; display: inline-block; float: left; margin-top: 0px; margin-left: 3px">
+                        <input id="uploadtime1" class="easyui-datebox"
+                            data-options="width:120,height:24,editable:false" />
+                    </div>
+                </div>
+                <div class="SearchDiv">
+                    <div style="width: 16px; height: 38px; display: inline-block; line-height: 40px; text-align: center; float: left;">
+                        至
+                    </div>
+                    <div style="width: 120px; height: 38px; line-height: 38px; padding: 0px 5px; display: inline-block; float: left; margin-top: 0px;">
+                        <input id="uploadtime2" class="easyui-datebox"
+                            data-options="editable:false,width:120,height:24,validType:'equaldDate[\'#uploadtime1\']'" />
+                    </div>
+                </div>
+            </div>
+            <div style="width: 160px; height: 100%; position: absolute; right: 10px; z-index: 2; bottom: 2px">
+                <div class="Button" tag="search">
+                    <div class="machine-query"
+                        style="height: 16px; width: 16px; margin-top: 4px; margin-left: 4px; display: inline-block; float: left;">
+                    </div>
+                    <span style="line-height: 26px; color: #fcfcfc;">查&nbsp;询</span>
+                </div>
+                <div class="Button" tag="clear">
+                    <div class="machine-reset"
+                        style="height: 16px; width: 16px; margin-top: 4px; margin-left: 4px; display: inline-block; float: left;">
+                    </div>
+                    <span style="line-height: 26px; color: #fcfcfc;">重&nbsp;置</span>
+                </div>
+            </div>
+        </div>
+        <div id="fileGrid" style="border-left: 1px solid #ddd; border-top: 1px solid #ddd; overflow-x: auto"></div>
+    </div>
+    <script type="text/javascript">
+        var Dev = window.top.window.dev;
+        var parent, param;
+        var baseUri = Dev.cookie.baseUri;
+        var dataGrid, pageIndex = 1, pageSize = 5;
+        var dialog = new Dev.Messager({ AutoShow: false, Type: "question", Timeout: 1000, ButtonVisible: false, AutoVisible: true, Effect: "normal" });
+        var folderId;
+        var filter;
+        var searchValue;
+        var searchDom;
+        var start;
+        var end;
+        var infoMsg = {
+            timeOut: "网络超时，请稍后再试！"
+        };
+
+        function WidgetCommunication(s) {
+            parent = s.parent;
+            param = s.param;
+            folderId = param.ID;
+            filter = param.FT;
+            searchDom = $("#file-name").prop("$this");
+            $(window).resize(function () { resize(); });
+            $(".Button").click(function () {
+                var tag = $(this).attr("tag");
+                if (tag == "search") {
+                    fileSearch();
+                }
+                if (tag == "clear") {
+                    refresh();
+                }
+            });
+
+            /**
+             * 清除控件
+             */
+            parent.one("onClosing", function () {
+                if (!Dev.IsNull(dataGrid)) {
+                    dataGrid.Target.unbind("onSelectPage");
+                    dataGrid.Target.unbind("onPageSizeChange");
+                    dataGrid = null;
+                }
+            });
+            initDataGrid();
+            getFiles();
+        }
+
+        function resize() {
+            var height = $(window).outerHeight();
+            var gridheight = height - 40;
+            var gridwidth = parseInt($(window).width()) - 2;
+            if (gridwidth < 1200) {
+                gridwidth = 1200;
+                gridheight = parseInt(gridheight) - 16;
+            }
+            $("#gridDiv").height(gridheight).width(gridwidth);
+            if (!Dev.IsNull(dataGrid)) dataGrid.Resize(gridwidth, gridheight);
+        }
+
+        /**
+         * 初始化表格
+         */
+        function initDataGrid() {
+            if (Dev.IsNull(dataGrid)) {
+                var columns = [
+                    { field: 'name', title: '文件名', width: 50, align: 'center' },
+                    {
+                        field: 'size', title: '文件大小', width: 20, align: 'center', formatter: function (value, row, index) {
+                            var unit = "byte";
+                            if (value > 1024) {
+                                value = value / 1024;
+                                unit = "KB";
+                            }
+                            if (value > 1024) {
+                                value = value / 1024;
+                                unit = "MB";
+                            }
+                            if (value > 1024) {
+                                value = value / 1024;
+                                unit = "GB";
+                            }
+                            return value.toFixed(3) + " " + unit;
+                        }
+                    },
+                    { field: 'downloadtimes', title: '下载次数', width: 20, align: 'center' },
+                    {
+                        field: 'createdate',
+                        title: '入库时间',
+                        width: 40,
+                        align: 'center',
+                        formatter: function (value, row, index) {
+                            return Dev.GetDateString(value);
+                        }
+                    }
+                ];
+                dataGrid = new UCDataGrid(Dev,{
+                    PageIndex: pageIndex, PageSize: pageSize, RowNumbers: true, ID: "fileRecorder", pagequery: false, IsSizeSelect: true
+                });
+                $("#fileGrid").append(dataGrid.Target);
+                dataGrid.Layout(columns);
+                dataGrid.Target.bind("onSelectPage", function (s, e) {
+                    pageIndex = e.index;
+                    getFiles();
+                });
+                dataGrid.Target.bind("onPageSizeChange", function (s, e) {
+                    if (Dev.IsNull(e)) return;
+                    pageIndex = 1;
+                    pageSize = e;
+                    getFiles();
+                });
+                dataGrid.Resize(Dev.App.BottomPanel.Target.width(), 186);
+            }
+        }
+
+        /**
+         * 绑定dataGrid数据
+         */
+        function getFiles() {
+            $.ajax({
+                type: "post",
+                url: baseUri + "source/getbyfilter/" + pageIndex + "/" + pageSize,
+                data: getData(),
+                contentType: "application/json",
+                success: function (response) {
+                    if (Dev.IsNull(response) || response.statusCode != 200) {
+                        dialog.Alert(infoMsg.timeOut, "error");
+                    } else {
+                        currentData = response.data.dataSource;
+                        dataGrid.Load(currentData, response.data.pageInfo);
+                    }
+                },
+                error: function (e) {
+                    dialog.Alert(infoMsg.timeOut, "error");
+                }
+            })
+        }
+
+        /**
+         * 搜索按钮
+         */
+        function fileSearch() {
+            start = $("#uploadtime1").datetimebox('getValue');
+            end = $("#uploadtime2").datetimebox('getValue');
+            var startGreaterEnd = !Dev.IsNull(start) && !Dev.IsNull(end) && start > end;
+            if (startGreaterEnd) {
+                var index = start;
+                start = end;
+                end = index;
+            }
+            searchValue = searchDom.GetValue();
+            pageIndex = 1;
+            getFiles();
+        }
+        /**
+         * 获取查询条件
+         */
+        function getData() {
+            if (Dev.IsNull(searchValue)) searchValue = "";
+            var data = "\"NAME\" like '%" + searchValue + "%'";
+            if (!dev.IsNull(filter)) data += " AND  " + filter;
+            if (!Dev.IsNull(start)) {
+                data += " AND \"CREATEDATE\">='" + start + "'";
+            }
+            if (!Dev.IsNull(end)) {
+                data += " AND \"CREATEDATE\"<='" + end + "'";
+            }
+            return data + " ORDER BY \"CREATEDATE\" DESC";
+        }
+
+        /**
+         * 获取查询条件
+         */
+        /**
+         * 重置刷新
+         */
+        function refresh() {
+            $("#uploadtime1").datebox("setValue", "");
+            $("#uploadtime2").datebox("setValue", "");
+            if (!Dev.IsNull(searchDom)) searchDom.Clear();
+            fileSearch();
+        }
+    </script>
+</body>
+</html>

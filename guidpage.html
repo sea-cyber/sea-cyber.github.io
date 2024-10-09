@@ -1,0 +1,185 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>农业大数据研究与管理平台</title>
+    <script type="text/javascript" src="js/jquery.min.js"></script>
+    <script type="text/javascript" src="js/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="js/jquery.cookie.js"></script>
+    <link rel="icon" type="image/x-icon" href="image/logo.ico" />
+    <style>
+        *,
+        html {
+            margin: 0;
+            padding: 0;
+            border: 0;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            background: url(image/log/bg_index.png) no-repeat 100% 100%;
+            background-size:100% 100%;
+            overflow-y: auto;
+            overflow-x: auto;
+            min-width: 1200px;
+            min-height:665px;
+            /* 标准的语法 */
+        }
+
+        .container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            background: url(image/log/bg_bottom.png) no-repeat center;
+        }
+
+            .container .guide {
+                width: 128px;
+                height: 100px;
+                position: absolute;
+                font-size: 16px;
+                text-align: center;
+            }
+            .container .page_back {
+                height: 55px;
+                width: 130px;
+                position: absolute;
+                top: 50px;
+                right: 40px;
+                cursor: pointer;
+                background: url(image/log/back1.png) no-repeat center;
+            }
+                .container .page_back:hover {
+                    background: url(image/log/back2.png) no-repeat center;
+                }
+                .container .guide a {
+                    text-decoration: none;
+                    color: #000;
+                    font-size: 16px;
+                    font-weight: bold;
+                }
+
+                .container .guide img {
+                    width: 80px;
+                    height: 80px;
+                }
+
+        .roate-1 {
+            top: 10px;
+            left: calc(48% - 36px);
+        }
+
+
+        .roate-2 {
+            top: calc(45% - 25px);
+            left: calc(42% - 232px);
+        }
+
+        .roate-3 {
+            top: calc(45% - 25px);
+            right: calc(42% - 232px);
+        }
+
+        .roate-4 {
+            bottom: 12%;
+            left: 32%;
+        }
+
+        .roate-5 {
+            bottom: 12%;
+            right: 32%;
+        }
+        @media screen and (min-width: 1370px) {
+            .roate-1 {
+                top: 15%;
+                left: calc(48% - 24px);
+            }
+
+
+            .roate-2 {
+                top: calc(47% - 23px);
+                left: calc(44% - 224px);
+            }
+
+            .roate-3 {
+                top: calc(47% - 23px);
+                right: calc(44% - 224px);
+            }
+
+            .roate-4 {
+                bottom: 23%;
+                left: 37%;
+            }
+
+            .roate-5 {
+                bottom: 23%;
+                right: 37%;
+            }
+            /*.roate-6 {
+                bottom: 10%;
+                left: calc(48% - 24px);
+            }*/
+        }
+
+        .title_content {
+            height: 40px;
+            line-height: 40px;
+            font-size: 30px;
+            color: #fff;
+            position: absolute;
+            top: 50px;
+            left: 40px;
+        }
+
+        
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="title_content">农业大数据研究与管理平台</div>
+        <div class="guide roate-1">
+            <a href="index.html?param=6">
+                <img src="image/log/farming.png" alt="">
+                <p>轮作休耕监测系统</p>
+            </a>
+        </div>
+        <div class="guide roate-2">
+            <a href="index.html?param=9">
+                <img src="image/log/maintain.png" alt="">
+                <p>管理维护系统</p>
+            </a>
+        </div>
+        <div class="guide roate-3">
+            <a href="index.html?param=5">
+                <img src="image/log/analyze.png" alt="">
+                <p>智能农情分析系统</p>
+            </a>
+        </div>
+        <div class="guide roate-4">
+            <a href="show/index.html">
+                <img src="image/log/bigdata.png" alt="">
+                <p>大数据服务平台</p>
+            </a>
+        </div>
+        <div class="guide roate-5">
+            <a href="index.html?param=8">
+                <img src="image/log/monitor.png" alt="">
+                <p>地面监测系统</p>
+            </a>
+        </div>
+        <div class="page_back">
+            <!--<img src="image/log/back1.png" alt="">-->
+        </div>
+    </div>
+    <script>
+        $(".page_back").click(function () {
+            $.removeCookie("usertoken");
+            location.href = location.href.substring(0, location.href.lastIndexOf('/')) + "/login.html";
+        })
+    </script>
+</body>
+
+</html>

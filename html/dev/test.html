@@ -1,0 +1,101 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>图片预览</title>
+    <link href="../../css/app.css" rel="stylesheet" />
+    <link href="../../js/viewer.min.css" rel="stylesheet" />
+    <script src="../../js/jquery.min.js"></script>
+    <script src="../../js/viewer.js"></script>
+    <style type="text/css">
+        .picpanel {
+            width: 500px;
+            height: 500px;
+            position: absolute;
+            left: calc(50% - 250px);
+            top: calc(50% - 250px);
+            border: 1px solid #0099cc;
+        }
+    </style>
+    <script>
+        var imgs = [{ name: "图片1", url: "image/login1/login_bg2.png" }, { name: "图片2", url: "image/login1/ng.png" }];
+        $(function () {
+            var index = 0;
+            var rootpath = getpath();
+            $("#showimg").attr("src", rootpath + imgs[index].url);
+            //   $(".picpanel").viewer({ toolbar: false, title: false, navbar: false, container: "#viewpic", parent: $("#viewpic") });
+            function getpath() {
+                var pathName = window.document.location.pathname;
+                var localhost = window.location.host;
+                var projectName = pathName.substring(0, pathName.substr(1).indexOf('/') + 1);
+                return ("http://" + localhost + projectName + "/");
+            }
+            //$(".picpanel").click(function () {
+            //    var lastbtn = $("#lastpicbtn", $(".viewer-container"));
+            //    if (lastbtn.length == 0) {
+            //        lastbtn = $(' <div id="lastpicbtn" style="position:absolute;left:30px;top:50%;width:24px;height:44px;background-color:red;z-index:10000;"></div>').appendTo($(".viewer-container"));
+            //        lastbtn.click(function () {
+            //            if (index > 0) index = index - 1;
+            //            $("#showimg").attr("src", rootpath + imgs[index].url);
+            //            $(".viewer-move", $(".viewer-canvas")).attr("src", rootpath + imgs[index].url);
+            //        });
+            //    }
+            //    var nextbtn = $("#nextpicbtn", $("viewer-container"));
+            //    if (nextbtn.length == 0) {
+            //        nextbtn = $('<div id="nextpicbtn" style="position:absolute;right:30px;top:50%;width:24px;height:44px;background-color:red;z-index:10000;"></div>').appendTo($(".viewer-container"));
+            //        nextbtn.click(function () {
+            //            if (index < imgs.length - 1) index += 1;
+            //            $("#showimg").attr("src", rootpath + imgs[index].url);
+            //            $(".viewer-move", $(".viewer-canvas")).attr("src", rootpath + imgs[index].url);
+            //        });
+            //    }
+            //});
+            var picviewer;
+            $("#showimg").click(function () {
+                $(".viewer-container").remove();
+                $("#showviewer").remove();
+                var showviewer = $("<div id='showviewer' style='width:0px;height:0px;z-index:0'><img id='zimg' src='" + rootpath + imgs[index].url + "'/></div>").appendTo($("#content"));
+                picviewer = showviewer.viewer({
+                    toolbar: false, title: false, navbar: false, container: "#viewpic", parent: $("#viewpic"), isview: true,button:false
+                });
+                var lastbtn = $("#lastpicbtn", $(".viewer-container"));
+                if (lastbtn.length == 0) {
+                    lastbtn = $(' <div id="lastpicbtn" style="position:absolute;left:30px;top:50%;width:24px;height:44px;background-color:red;z-index:10000;"></div>').appendTo($(".viewer-container"));
+                    lastbtn.click(function () {
+                        if (index > 0) index = index - 1;
+                        $("#showimg").attr("src", rootpath + imgs[index].url);
+                        $(".viewer-move", $(".viewer-canvas")).attr("src", rootpath + imgs[index].url);
+                    });
+                }
+                var nextbtn = $("#nextpicbtn", $("viewer-container"));
+                if (nextbtn.length == 0) {
+                    nextbtn = $('<div id="nextpicbtn" style="position:absolute;right:30px;top:50%;width:24px;height:44px;background-color:red;z-index:10000;"></div>').appendTo($(".viewer-container"));
+                    nextbtn.click(function () {
+                        if (index < imgs.length - 1) index += 1;
+                        $("#showimg").attr("src", rootpath + imgs[index].url);
+                        $(".viewer-move", $(".viewer-canvas")).attr("src", rootpath + imgs[index].url);
+                    });
+                }
+            });
+        });
+
+    </script>
+
+</head>
+
+<body>
+    <div id="content" style="width: 100%; height: 100%; background-color: green;">
+        <input type="checkbox" name="checkbox" value="" id="user">
+        <div class="picpanel">
+            <img id="showimg" src="" width="500" height="500" />
+        </div>
+        <div id="viewpic" style="width: 50%; position: absolute; left: 50%; top: 0px; background: red; height: 100%;"></div>
+    </div>
+</body>
+</html>
+
+
+

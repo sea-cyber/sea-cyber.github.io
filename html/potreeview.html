@@ -1,0 +1,402 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <meta name="description" content="" />
+    <meta name="author" content="" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <title>点云预览</title>
+    <link rel="stylesheet" type="text/css" href="../potree/clouddata/libs/potree/potree.css" />
+    <link rel="stylesheet" type="text/css" href="../css/app.css" />
+    <link rel="stylesheet" type="text/css" href="../css/main.css" />
+    <link rel="stylesheet" type="text/css" href="../css/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../css/dev.css" />
+    <script src="../js/jquery.min.js"></script>
+    <script src="../potree/clouddata/libs/three.js/build/three.min.js"></script>
+    <script src="../potree/clouddata/libs/other/BinaryHeap.js"></script>
+    <script src="../potree/clouddata/libs/tween/tween.min.js"></script>
+    <script src="../potree/clouddata/libs/proj4/proj4.js"></script>
+    <script src="../js/ol.min.3.2.1.js"></script>
+    <script type="text/javascript" src="../js/linq.min.js"></script>
+    <script type="text/javascript" src="../js/data.util.js"></script>
+    <script type="text/javascript" src="../js/dev.ui.js"></script>
+    <script type="text/javascript" src="../js/jquery.dev.js"></script>
+    <script src="../potree/clouddata/libs/potree/potree.js"></script>
+    <script>
+        var Dev = window.top.window.dev;
+        var parent, viewer;
+        var cloudlist = [];
+        var topicfloatpanel;
+        var box;
+        var treecontrol;
+        var layerinfo;
+        var measuringTool, volumeTool;
+        function WidgetCommunication(s) {//部件通讯
+            parent = s.parent;
+            initView();
+            $("#tools").mouseenter(function () {
+                $("#toolsymbol").css({ "border": "1px solid #3399ff", "background-color": "#fff" });
+                $(".icon", $("#toolsymbol")).removeClass("icon-maptool-tool");
+                $(".icon", $("#toolsymbol")).addClass("icon-maptool-tool1");
+                $("#toolsPanel").css("display", "block");
+                $(this).css("height", "245px");
+            }).mouseleave(function () {
+                $("#toolsymbol").css({ "border": "1px solid #999", "background": "rgba(0,0,0,0.3)" });
+                $(".icon", $("#toolsymbol")).removeClass("icon-maptool-tool1");
+                $(".icon", $("#toolsymbol")).addClass("icon-maptool-tool");
+                $("#toolsPanel").css("display", "none");
+                $(this).css("height", "30px");
+            });
+            $(".toolssimple").mouseenter(function () {
+                var tag = $(this).attr("tag");
+                $(".icon", $(this)).removeClass("icon-" + tag);
+                $(".icon", $(this)).addClass("icon-" + tag + "1");
+                $(this).css("background-color", "#fff");
+            }).mouseleave(function () {
+                var tag = $(this).attr("tag");
+                $(".icon", $(this)).removeClass("icon-" + tag + "1");
+                $(".icon", $(this)).addClass("icon-" + tag);
+                $(this).css("background", "rgba(0,0,0,0.3)");
+            }).click(function () {
+                var tag = $(this).attr("tag");
+                if (tag == "angle") var measurement = measuringTool.startInsertion({ showDistances: false, showAngles: true, showArea: false, closed: true, maxMarkers: 3, name: 'Angle' });
+                if (tag == "point") var measurement = measuringTool.startInsertion({ showDistances: false, showAngles: false, showCoordinates: true, showArea: false, closed: true, maxMarkers: 1, name: 'Point' });
+                if (tag == "distance") var measurement = measuringTool.startInsertion({ showDistances: true, showArea: false, closed: false, name: 'Distance' });
+                if (tag == "height") var measurement = measuringTool.startInsertion({ showDistances: false, showHeight: true, showArea: false, closed: false, maxMarkers: 2, name: 'Height' });
+                if (tag == "area") var measurement = measuringTool.startInsertion({ showDistances: true, showArea: true, closed: true, name: 'Area' });
+                if (tag == "volume") var volume = volumeTool.startInsertion();
+                if (tag == "clear") viewer.scene.removeAllMeasurements();
+                if (tag == "fullmap") {
+                    if (cloudlist.length == 0) return;
+                    var box = viewer.getBoundingBox([cloudlist[0].clouds]);
+                    var node = new THREE.Object3D();
+                    node.boundingBox = box;
+                    viewer.zoomTo(node, 1, 500);
+                }
+            });
+            $("#potreetopic").mouseover(function () {
+                $(".icon", $(this)).removeClass("icon-maptool-topic").addClass("icon-maptool-topic1");
+                $(this).css("background-color", "#fff");
+            }).mouseleave(function () {
+                $(".icon", $(this)).removeClass("icon-maptool-topic1").addClass("icon-maptool-topic");
+                $(this).css("background", "rgba(0,0,0,0.3)");
+            }).click(function () {
+                if (Dev.IsNull(topicfloatpanel)) {
+                    topicfloatpanel = new Dev.floatPanel({
+                        ID: "potreeTopicPanel",
+                        IconCls: "icon-maptool-topic",
+                        CSS: { "top": "50px", "right": "110px", "z-index": "10000" },
+                        Title: "点云图层",
+                        Width: 300,
+                        Draggable: "true",
+                        Parent: $(".potree_container")
+                    });
+                    topicfloatpanel.Target.one("onClosing", function () {
+                        topicfloatpanel = null;
+                    });
+                    initlayertree();
+                }
+                else {
+                    topicfloatpanel.SetDock(true);
+                    topicfloatpanel.SetVisible(true);
+                }
+            });
+            $("#potreeclosebtn").click(function () {//关闭
+                //切换到对应的状态下
+                Dev.App.MapSwitch.SetVisibleByID(Dev.App.MapSwitch.GetPreId());
+                $("#potreeviewframe", parent).remove();
+            });
+        }
+        function initView() {
+            viewer = new Potree.Viewer($("#potree_render_area")[0]);
+            viewer.setEDLEnabled(true);
+            viewer.setFOV(60);
+            viewer.setPointBudget(1 * 10000 * 10000);
+            viewer.setEDLEnabled(false);
+            viewer.setBackground("gradient");
+            viewer.setDescription('');
+            viewer.loadSettingsFromURL();
+            viewer.setNavigationMode(Potree.EarthControls);
+            measuringTool = new Potree.MeasuringTool(viewer);
+            volumeTool = new Potree.VolumeTool(viewer);
+        }
+        function initlayertree() {
+            //获取组织树
+            if (Dev.IsNull(layerinfo)) layerinfo = Dev.GetTreeLayers(Dev.TreeLayerType.Potree);
+            box = new Dev.Box({
+                HasBorder: false, Width: 300, Height: 373,
+                Parent: $(".Content", topicfloatpanel.Target)
+            });
+            treecontrol = new Dev.Tree({
+                CheckBox: true,
+                ValueField: "Value",
+                TextField: "Text",
+                ChildrenField: "Child",
+                CheckedField: "Checked",
+                Data: layerinfo,
+                StateField: "State"
+            });
+            treecontrol.bind("onSelectChanged", function (e, o) {//选择哪个图层，那个图层的范围就在哪里
+                var currdata = o.$this;
+                if (!Dev.IsNull(currdata.Checked) && currdata.Checked) {
+                    var currcloud = Enumerable.From(cloudlist).Where('s=>s.Name=="' + currdata.Value + '"').FirstOrDefault();
+                    if (!Dev.IsNull(currcloud)) {
+                        var box = viewer.getBoundingBox([currcloud.clouds]);
+                        var node = new THREE.Object3D();
+                        node.boundingBox = box;
+                        viewer.zoomTo(node, 1, 500);
+                    }
+                }
+
+            });
+            treecontrol.bind("onChecked", function (e, o) {//勾选或者反选
+                //改变checked属性
+                var data = o.node[0].$this;
+                var ischeck = o.checked;
+                var isparent = false;
+                //判断是否为叶子节点
+                if (treecontrol.IsLeaf(o.node[0])) {
+                    var currcloud = Enumerable.From(cloudlist).Where('s=>s.Name=="' + data.Value + '"').FirstOrDefault();
+                    if (!Dev.IsNull(currcloud)) {
+                        var index = Enumerable.From(cloudlist).IndexOf(currcloud);
+                        cloudlist[index].clouds.visible = ischeck;
+                    }
+                    else {
+                        if (ischeck) potreeloadcloud(data);
+                    }
+                }
+                else {
+                    //获取改节点的所有叶子节点
+                    var childnodes = treecontrol.GetAllChildren(o.node[0]);
+                    for (var i = 0; i < childnodes.length; i++) {
+                        if (childnodes[i].$this.IsLayer == "true") {
+                            var currcloud = Enumerable.From(cloudlist).Where('s=>s.Name=="' + childnodes[i].$this.Value + '"').FirstOrDefault();
+                            if (!Dev.IsNull(currcloud)) {
+                                var index = Enumerable.From(cloudlist).IndexOf(currcloud);
+                                cloudlist[index].clouds.visible = ischeck;
+                            }
+                            else if (ischeck) potreeloadcloud(childnodes[i].$this);
+                        }
+                    }
+                }
+                updateconfigcheck(o.node[0], ischeck, isparent);
+            });
+            treecontrol.bind("onExpanded", function (e, o) {
+                box.Layout();
+            });
+            treecontrol.bind("onCollapsed", function (e, o) {
+                box.Layout();
+            });
+            treecontrol.Target.css("overflow", "hidden");
+            box.SetContent(treecontrol.Target[0]);
+            box.Layout();
+        }
+        function potreeloadcloud(currnode) {
+            Potree.loadPointCloud(Dev.GetSystemUrlByRelID(currnode.Url), "testCabniet", function (e) {
+                var pointcloud = e.pointcloud;
+                var material = pointcloud.material;
+                material.pointColorType = Potree.PointColorType.RGB;
+                material.size = 0.2;
+                material.pointSizeType = Potree.PointSizeType.ADAPTIVE;
+                viewer.scene.addPointCloud(pointcloud);
+                viewer.fitToScreen();
+                //初始化位置
+                var box = viewer.getBoundingBox([pointcloud]);
+                var node = new THREE.Object3D();
+                node.boundingBox = box;
+                viewer.zoomTo(node, 1, 500);
+                cloudlist.push({ Name: currnode.Value, clouds: e.pointcloud });
+            });
+        }
+        //辅助函数
+        function updateconfigcheck(target, checked, isparent) {
+            data = [];
+            if (isparent) {
+                var tempchilds = treecontrol.GetAllChildren(target);
+                for (var i = 0; i < tempchilds.length; i++) data.push(tempchilds[i].$this);
+            }
+            else data = [target.$this];
+            if (dev.IsNull(data) || data.length == 0) return;
+            for (var i = 0; i < data.length; i++) {
+                updatecheck(data[i], checked);
+            }
+        }
+        function updatecheck(data, ischeck) {
+            if (dev.IsNull(data)) return;
+            var currlayer = getclayerbyid(data.ID);
+            if (dev.IsNull(currlayer)) return;
+            currlayer.Checked = ischeck;
+        }
+        function getclayerbyid(id, layers, c_layer) {
+            if (Dev.IsNull(id)) return null;
+            if (Dev.IsNull(layers)) layers = layerinfo;
+            var c = Enumerable.From(layers).Where('s=>s.ID=="' + id + '"').FirstOrDefault();
+            if (!Dev.IsNull(c)) c_layer = c;
+            else {
+                for (var i = 0; i < layers.length; i++) {
+                    if (!dev.IsNull(layers[i].Child) && layers[i].Child.length > 0) c_layer = getclayerbyid(id, layers[i].Child, c_layer);
+                }
+            }
+            return c_layer;
+        }
+    </script>
+    <style type="text/css">
+        .measuretools {
+            width: 30px;
+            height: 30px;
+            border: 1px solid #999;
+            background: rgba(0,0,0,0.4);
+            cursor:pointer;
+        }
+
+        .icon {
+            height: 16px;
+            width: 16px;
+            margin-left: 7px;
+            margin-top: 7px;
+        }
+
+        .toolssimple {
+            height: 30px;
+            width: 100%;
+            position: absolute;
+        }
+
+        .icon-angle {
+            background-image: url(../potree/clouddata/image/angle.png);
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        .icon-angle1 {
+            background-image: url(../potree/clouddata/image/angle1.png);
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        .icon-point {
+            background-image: url(../potree/clouddata/image/point1.png);
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        .icon-point1 {
+            background-image: url(../potree/clouddata/image/point.png);
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        .icon-distance {
+            background-image: url(../potree/clouddata/image/distance.png);
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        .icon-distance1 {
+            background-image: url(../potree/clouddata/image/distance1.png);
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        .icon-height {
+            background-image: url(../potree/clouddata/image/height.png);
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        .icon-height1 {
+            background-image: url(../potree/clouddata/image/height1.png);
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        .icon-area {
+            background-image: url(../potree/clouddata/image/area.png);
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        .icon-area1 {
+            background-image: url(../potree/clouddata/image/area1.png);
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        .icon-volume {
+            background-image: url(../potree/clouddata/image/volume.png);
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        .icon-volume1 {
+            background-image: url(../potree/clouddata/image/volume1.png);
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        .icon-clear {
+            background-image: url(../potree/clouddata/image/clear.png);
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        .icon-clear1 {
+            background-image: url(../potree/clouddata/image/clear1.png);
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        .icon-fullmap {
+            background-image: url(../image/maptool/fullmap.png);
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        .icon-fullmap1 {
+            background-image: url(../image/maptool/fullmap1.png);
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+    </style>
+</head>
+<body style="background-color: rgba(0,0,0,1)">
+    <div class="potree_container" style="position: absolute; width: 100%; height: 100%; left: 0px; top: 0px;">
+        <div id="potree_render_area"></div>
+        <div id="tools" style="position: absolute; top: 18px; height: 30px; width: 30px; right: 75px; z-index: 105;">
+            <div id="toolsymbol" class="measuretools">
+                <div class="icon icon-maptool-tool"></div>
+            </div>
+            <div id="toolsPanel" class="measuretools" style="height: 244px; display: none; right: 0px; border-top: 0px; position: relative;">
+                <div class="toolssimple" style="top: 0px;" tag="angle" title="角度测量">
+                    <div class="icon icon-angle"></div>
+                </div>
+                <div class="toolssimple" style="top: 32px;" tag="point" title="点测量">
+                    <div class="icon icon-point"></div>
+                </div>
+                <div class="toolssimple" style="top: 62px;" tag="distance" title="距离测量">
+                    <div class="icon icon-distance"></div>
+                </div>
+                <div class="toolssimple" style="top: 92px;" tag="height" title="测量高度">
+                    <div class="icon icon-height"></div>
+                </div>
+                <div class="toolssimple" style="top: 122px;" tag="area" title="面积测量">
+                    <div class="icon icon-area"></div>
+                </div>
+                <div class="toolssimple" style="border-bottom: 1px solid #999; top: 152px;" tag="volume" title="体积测量">
+                    <div class="icon icon-volume"></div>
+                </div>
+                <div class="toolssimple" style="border-bottom: 1px solid #999; top: 183px;" tag="fullmap" title="全屏">
+                    <div class="icon icon-fullmap"></div>
+                </div>
+                <div class="toolssimple" style="top: 214px;" tag="clear" title="清除">
+                    <div class="icon icon-clear"></div>
+                </div>
+            </div>
+        </div>
+        <div id="potreetopic" style="width: 30px; height: 30px; position: absolute; top: 18px; right: 120px; background: rgba(0,0,0,0.4); border: 1px solid #999; z-index: 105;cursor:pointer;">
+            <div style="width: 16px; height: 16px; margin-left: 7px; margin-top: 7px;" class="icon icon-maptool-topic"></div>
+        </div>
+        <div id="potreeclosebtn" style="cursor: pointer; width: 30px; height: 30px; position: absolute; right: 0px; top: 0px; background-color: red; z-index: 106; text-align: center; color: rgb(255, 0, 0); line-height: 30px; padding-left: 10px; font-size: 20px; font-weight: bold; border-bottom-left-radius: 30px; background-color: rgba(255, 255, 255, 0.4);">×</div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,321 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>发电机详细信息</title>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+    <link rel="stylesheet" href="../../theme/default/easyui.css" />
+    <link rel="stylesheet" type="text/css" href="../../theme/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/app.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/icon.css" />
+    <script type="text/javascript" src="../../js/jquery.min.js"></script>
+    <script type="text/javascript" src="../../js/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="../../js/easyui-lang-zh_CN.js"></script>
+    <script type="text/javascript" src="../../js/linq.min.js"></script>
+    <script type="text/javascript" src="../../js/data.util.js"></script>
+    <script type="text/javascript" src="../../js/jquery.dev.control.js"></script>
+    <script type="text/javascript" src="../../js/dev.ui.js"></script>
+    <script type="text/javascript" src="../../js/highcharts.js"></script>
+    <script type="text/javascript" src="../../js/highcharts-more.js"></script>
+    <script type="text/javascript" src="../../js/solid-gauge.js"></script>
+    <script type="text/javascript">
+        var Dev = window.top.window.dev;
+        var parent, param;
+        var id, no,type;
+        var box;
+        var filedConfig = Dev.App.Config.Extend.DetailFields.FieldInfo;
+        var fileds;
+        var type, url, primarykey, keyvalue, paramType;
+        function WidgetCommunication(s) {//部件通讯
+            parent = s.parent;
+            param = s.param;
+            id = param.KeyValue.id;
+            no = param.KeyValue.no;
+            url = param.ServerUrl;
+            type = param.Type;
+            primarykey = param.PrimaryKey;
+            paramType = param.paramType;
+            if (paramType != Dev.DeviceType.uav) {
+                var data = getData();
+                if (Dev.IsNull(data)) return;
+            }
+            Dev.App.RightPanel.SetVisible(true);
+            Dev.App.RightPanel.SetWidth(240);
+            Dev.App.RightPanel.SetTitle("详细信息");
+            Dev.App.RightPanel.Header.css({ "background": "#14cdad", "color": "#fcfcfc", "font-weight": "bold" });
+            Dev.App.RightPanel.SetIconCls("machine-carmanage");
+            if (paramType != Dev.DeviceType.uav) {
+                initChart(parseFloat(Dev.IsNull(data.speed) ? 0 : data.speed));
+                initChart2(parseFloat(Dev.IsNull(data.coolant) ? 0 : data.coolant));
+                initChart3(parseFloat(Dev.IsNull(data.oil) ? 0 : data.oil));
+            }
+            if (paramType == Dev.DeviceType.uav) {
+                $("#chart1").remove();
+                $("#chart2").remove();
+                $("#chart3").remove();
+            }
+            //获取设备信息
+            //初始化box
+            if (Dev.IsNull(box)) {
+                box = new Dev.Box({ HasBorder: false });
+                box.Target.css({
+                    width: Dev.App.RightPanel.Width - 1,
+                    height: $(window).height() - 451
+                });
+                box.Target.appendTo($(".machineinfo"));
+                var div = $('<div id="filedsContent" style=" position: relative;width: 100%;"></div>');
+                box.SetContent(div);
+            }
+            getDeviceData();
+            $(window).resize(function () { resize(); });
+        }
+        //获取发动机信息
+        function getData() {
+            var data;
+            $.ajax({
+                url: Dev.GetSystemUrlByRelID("Service") + "motor/getbyid/" + id,
+                type: "GET",
+                contentType: 'application/json',
+                dataType: 'json',
+                async: false,
+                success: function (result) {
+                    if (result.statusCode == 200) data = result.data;
+                }
+            });
+            return data;
+        }
+        //转速
+        function initChart(speed) {
+            $("#chart1").highcharts({
+                chart: { type: 'gauge' },
+                credits: { enabled: false },
+                title: null,
+                pane: {
+                    startAngle: -150, endAngle: 150,
+                    size: "110%"
+                },
+                yAxis: {
+                    min: 0, max: 30, minorTickWidth: 1, minorTickLength: 5, minorTickPosition: 'inside',
+                    minorTickColor: '#666', tickPixelInterval: 100, tickWidth: 2, tickPosition: 'inside',
+                    tickLength: 15, tickColor: '#000', labels: { step: 2, rotation: 'auto' }, title: { text: '转速x100' },
+                    plotBands: [
+                    {
+                        from: 20,
+                        to: 25,
+                        color: '#DDDF0D' // yellow
+                    }, {
+                        from: 25,
+                        to: 30,
+                        color: '#DF5353' // red
+                    }]
+                },
+                series: [{
+                    name: '转速',
+                    data: [speed],
+                    tooltip: {
+                        pointFormat: "<b>转速:{point.y}</b>r/min x100</b>"
+                    },
+                    dataLabels: {
+                        format: "{y}r/min x100"
+                    }
+
+                }]
+            });
+        }
+        //温度
+        function initChart2(temp) {
+            $("#chart2").highcharts({
+                chart: { type: 'gauge' },
+                credits: { enabled: false },
+                title: null,
+                pane: {
+                    startAngle: -150, endAngle: 150, size: "110%"
+                },
+                yAxis: {
+                    min: 0, max: 120, minorTickWidth: 1, minorTickLength: 5, minorTickPosition: 'inside',
+                    minorTickColor: '#666', tickPixelInterval: 100, tickWidth: 2, tickPosition: 'inside',
+                    tickLength: 15, tickColor: '#000', labels: { step: 2, rotation: 'auto' }, title: { text: '冷却液温度', y: 10 },
+                    plotBands: [
+                    {
+                        from: 96,
+                        to: 108,
+                        color: '#DDDF0D' // yellow
+                    }, {
+                        from: 108,
+                        to: 120,
+                        color: '#DF5353' // red
+                    }]
+                },
+                series: [{
+                    name: '冷却液温度',
+                    data: [temp],
+                    tooltip: {
+                        pointFormat: "<b>冷却液温度:{point.y}</b>℃</b>"
+                    },
+                    dataLabels: {
+                        format: "{y}℃"
+                    }
+                }]
+            });
+        }
+        //油压
+        function initChart3(oildata) {
+            $("#chart3").highcharts({
+                chart: { type: 'gauge' },
+                credits: { enabled: false },
+                title: null,
+                pane: {
+                    startAngle: -150, endAngle: 150, size: "110%"
+                },
+                yAxis: {
+                    min: 0, max: 1, minorTickWidth: 1, minorTickLength: 5, minorTickPosition: 'inside',
+                    minorTickColor: '#666', tickPixelInterval: 150, tickWidth: 2, tickPosition: 'inside',
+                    tickLength: 15, tickColor: '#000', labels: { step: 2, rotation: 'auto' }, title: { text: '油压' },
+                },
+                series: [{
+                    name: '油压',
+                    data: [oildata],
+                    tooltip: {
+                        pointFormat: "<b>油压:{point.y}</b>MPa</b>"
+                    },
+                    dataLabels: {
+                        format: "{y}MPa"
+                    }
+                }]
+            });
+        }
+        //获取设备信息
+        function getDeviceData() {
+            if (Dev.IsNull(no)) return;
+            if (Dev.IsNull(filedConfig)) return;
+            if (Dev.IsNull(filedConfig.length)) fileds = [Dev.ObjClone(filedConfig)];
+            else fileds = filedConfig.clone();
+            fileds = Enumerable.From(fileds).Where('s=>s.BelongData.indexOf("'+type+'")>=0').ToArray();
+          //  var condition = "\"NO\"='" + no + "'";
+            $.ajax({
+                type: "POST",
+                contentType: 'application/json',
+                dataType: 'json',
+                data: "\"" + primarykey + "\"='" + no + "'",
+                url: url,
+                success: function (result) {
+                    if (result.statusCode != 200 || result.data.length == 0) return;
+                    var currdata = result.data[0];
+                    initInfo(currdata);
+                    resize();
+                }
+            });
+        }
+        function initInfo(data) {
+            //当无人机时加入航速和航向
+            if (paramType == Dev.DeviceType.uav) {
+                data.speed = param.KeyValue.speed;
+                data.course = param.KeyValue.course;
+                data.altitude = param.KeyValue.altitude;
+            }
+            for (var i = 0; i < fileds.length; i++) {
+                var rowdiv = $('<div style="width:100%;height:35px;"></div>').appendTo($("#filedsContent"));
+                var byname = fileds[i].ByName;
+                var style = "";
+                var style2 = "";
+                var titleCls = (i % 2 == 0) ? "Title" : "Title1";
+                var valueCls = (i % 2 == 0) ? "Value" : "Value1";
+                if (fileds[i].ByName.length > 6) {
+                    byname = byname.substring(0, 4) + "<br/>" + byname.substring(4, byname.length);
+                    style += "line-height:17.5px;";
+                }
+
+                if (fileds[i].ByName == "备注") {
+                    style2 += "line-height:17.5px;height:190px;";
+                    style += "line-height:17.5px;height:190px;";
+                }
+                $('<div class="' + titleCls + '" style="' + style + '">' + byname + '</div>').appendTo(rowdiv);
+                if (fileds[i].ValueType == "bool") data[fileds[i].Name.toLowerCase()] = data[fileds[i].Name.toLowerCase()] > 0 ? "是" : "否";
+                else if (fileds[i].ValueType == "number") data[fileds[i].Name.toLowerCase()] = data[fileds[i].Name.toLowerCase()] > 0 ? data[fileds[i].Name.toLowerCase()] : "-";
+                else if (fileds[i].ValueType == "datetime") data[fileds[i].Name.toLowerCase()] = Dev.IsNull(data[fileds[i].Name.toLowerCase()]) ? "-" : Dev.GetDateString(new Date(parseFloat(data[fileds[i].Name.toLowerCase()])));
+                var value = Dev.IsNull(data[fileds[i].Name.toLowerCase()]) ? "-" : data[fileds[i].Name.toLowerCase()];
+                $('<div class="' + valueCls + '" style="top:' + top + ';' + style2 + '">' + value + '</div>').appendTo(rowdiv);
+            }
+            var width = ($(window).width() - 106) + "px";
+            $(".Value", $("#filedsContent")).css("width", width);
+            $(".Value1", $("#filedsContent")).css("width", width);
+        }
+        function resize() {
+            var height = $(window).height();
+            var infoh;
+            if (paramType != Dev.DeviceType.uav) {
+                infoh = height - 450;
+            } else {
+                infoh = height - 1;
+            }
+            $(".machineinfo").height(infoh);
+            var width = $(window).width();
+            if (!Dev.IsNull(box)) {
+                box.SetSize({ Width: width - 2, Height: infoh });
+                $(".Value", $("#filedsContent")).css({ width: (width - 106) + "px" });
+                $(".Value1", $("#filedsContent")).css({ width: (width - 106) + "px" });
+            }
+        }
+    </script>
+    <style>
+        .detailinfo {
+            width: 100%;
+            height: 100%;
+        }
+
+            .detailinfo .machineinfo {
+                border-top: 1px solid #eee;
+                position: relative;
+            }
+
+                .detailinfo .machineinfo .Title {
+                    width: 80px;
+                    height: 35px;
+                    background-color: #fff;
+                    text-align: right;
+                    line-height: 35px;
+                    display: inline-block;
+                    float: left;
+                }
+
+                .detailinfo .machineinfo .Title1 {
+                    width: 80px;
+                    height: 35px;
+                    background-color: #f1f1f1;
+                    text-align: right;
+                    line-height: 35px;
+                    display: inline-block;
+                    float: left;
+                }
+
+                .detailinfo .machineinfo .Value {
+                    height: 35px;
+                    background-color: #fff;
+                    padding-left: 15px;
+                    line-height: 35px;
+                    overflow: hidden;
+                    display: inline-block;
+                    float: right;
+                }
+
+                .detailinfo .machineinfo .Value1 {
+                    height: 35px;
+                    background-color: #f1f1f1;
+                    padding-left: 15px;
+                    line-height: 35px;
+                    overflow: hidden;
+                    float: right;
+                }
+    </style>
+</head>
+<body style="height: 100%; width: 100%">
+    <div class="detailinfo">
+        <div id="chart1" style="height: 150px; width: 100%;"></div>
+        <div id="chart2" style="height: 150px; width: 100%;"></div>
+        <div id="chart3" style="height: 150px; width: 100%;"></div>
+        <div class="machineinfo">
+        </div>
+    </div>
+</body>
+</html>

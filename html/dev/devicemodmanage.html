@@ -1,0 +1,646 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>农机模板注册</title>
+    <link rel="stylesheet" href="../../theme/default/easyui.css" />
+    <link rel="stylesheet" type="text/css" href="../../theme/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/app.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/icon.css" />
+    <link type="text/css" href="../../css/dev.css" rel="stylesheet" />
+    <script type="text/javascript" src="../../js/jquery.min.js"></script>
+    <script type="text/javascript" src="../../js/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="../../js/easyui-lang-zh_CN.js"></script>
+    <script type="text/javascript" src="../../js/jquery.dev.control.js"></script>
+    <script type="text/javascript" src="../../js/dev.ui.js"></script>
+    <script type="text/javascript" src="../../js/linq.min.js"></script>
+    <style type="text/css">
+        .content {
+            height: 100%;
+            width: 100%;
+            position: relative;
+        }
+
+        .Title {
+            width: 75px;
+            /*text-align: right;*/
+            line-height: 38px;
+            height: 38px;
+            display: inline-block;
+            float: left;
+        }
+
+            .Title .Icon {
+                width: 16px;
+                height: 16px;
+                display: inline-block;
+                margin-top: 10px;
+            }
+
+            .Title .Text {
+                display: inline-block;
+                float: right;
+                /*width: 49px;*/
+                padding-right: 5px;
+            }
+
+        .title3 {
+            width: 90px;
+        }
+
+        .content .SearchDiv {
+            width: 195px;
+            height: 38px;
+            display: inline-block;
+            margin-left: 0px;
+            margin-right: 0px;
+        }
+
+        .content .Button {
+            width: 60px;
+            height: 26px;
+            float: left;
+            margin-top: 7px;
+            background-color: #16dbbb;
+            /*border-radius: 5px;*/
+            text-align: center;
+            border: 1px solid #16dbbb;
+            display: inline-block;
+            margin-left: 5px;
+            cursor:pointer;
+        }
+
+            .content .Button:hover {
+                background-color: #5227de;
+                border: 1px solid #5227de;
+                cursor: pointer;
+            }
+
+              .content .Button:active {
+                background-color: #210097;
+                border: 1px solid #210097;
+                cursor: pointer;
+            }
+
+        .content .ButtonDisable {
+            background-color: #808080;
+            color: #000;
+            border: 1px solid #808080;
+        }
+
+            .content .ButtonDisable:hover {
+                background-color: #808080;
+                color: #000;
+                border: 1px solid #808080;
+            }
+
+        .datagrid-row {
+            height: 28px;
+        }
+    </style>
+    <script type="text/javascript">
+        var Dev = window.top.window.dev;
+        var dataGrid, pageIndex = 1, pageSize = 5;
+        var searchType, searchVr;
+        var bindBrand, bindType,bindModel;         //  绑定数据字典
+        var parent;
+        var editWin;
+        var comboTree;
+        var dialog, flashDialog;
+        var oldid, updateid;     //oldid修改之前的农机id
+        var orgFilter;
+        var cDate;        //创建时间
+        var isadd = true;            //新增/修改 标识符
+        function WidgetCommunication(s) {   //部件通讯
+            parent = s.parent;
+            Dev.App.BottomPanel.Header.css({ "background": "#14cdad", "color": "#fcfcfc", "font-weight": "bold" });
+            Dev.App.BottomPanel.SetIconCls("machine-carmanage");
+            inittree();
+            initDataGrid();
+            init();
+            $(window).resize(function () { resize(); });
+            $(".Button").click(function () {
+                var tag = $(this).attr("tag");
+                if (tag == "add") {
+                    isadd = true;          //isadding
+                    editClear();
+                    initEditWin("机型新增", 'machine-carmanage');
+                    $("#errorlog", editWin.Target).html("");        //清空提示区
+                    if (!Dev.IsNull(bindType) && bindType.length > 0) {            //bin the Dic data
+                        var editMacType = $("#macType", editWin.Target).prop("$this");
+                        editMacType.SetData(bindType);
+                        editMacType.Layout();
+                    }
+                    //绑定型号
+                    if (!Dev.IsNull(bindModel) && bindModel.length > 0) {
+                        var editmacMachine = $("#macMachine", editWin.Target).prop("$this");
+                        editmacMachine.SetData(bindModel);
+                        editmacMachine.Layout();
+                    }
+                  //  macMachine
+                }
+                if (tag == "search") { pageIndex = 1; search(); }
+                if (tag == "clear") { pageIndex = 1; searchClear(); search(); };
+                if (tag == "deletes") deletes();
+                if (tag == "save") saveInfo();
+                if (tag == "cancel") editWin.Close();
+            });
+            flashDialog = new Dev.Messager({ Height: 95, Width: 200, AutoShow: false, Type: "question", Timeout: 1500, ButtonVisible: false, AutoVisible: true, Effect: "normal" });
+            dialog = new Dev.Messager({ AutoShow: false, Type: "question" });
+            parent.one("onClosing", function () {
+                //页面释放
+                Dev.App.BottomPanel.SetHeight(262);
+                if (!Dev.IsNull(treeControl)) {
+                    treeControl.unbind("onSelectChanged");
+                    treeControl = null;
+                }
+                if (!Dev.IsNull(dataGrid)) {
+                    dataGrid.Target.unbind("onSelectPage");
+                    dataGrid = null;
+                }
+                if (!Dev.IsNull(editWin)) {
+                    editWin.unbind("onClosing");
+                    editWin.Close();
+                    editWin.Destroy();
+                    editWin = null;
+                }
+                if (!Dev.IsNull(detailWin)) {
+                    detailWin.unbind("onClosing");
+                    detailWin.Close();
+                    detailWin.Destroy();
+                    detailWin = null;
+                }
+            });
+            resize();
+        }
+        function init() {
+            searchType = $("#sType").prop("$this");
+            searchVr = $("#sVersion").prop("$this");
+            var dicdatas = Dev.GetDicData(["MacType", "MachineModel"]);
+            bindType = Enumerable.From(dicdatas).Where('s=>s.type=="MacType"').ToArray();
+            bindModel = Enumerable.From(dicdatas).Where('s=>s.type=="MachineModel"').ToArray();
+            if (!Dev.IsNull(bindType) && bindType.length > 0) {
+                var bt = bindType.concat();         //不改变 字典数据
+                bt.unshift({ "data": "不限", "id": 9999999999, "parentid": bt[0].parentid }); //插入数组首部
+                searchType.SetData(bt);
+                searchType.Layout();
+            }
+            search();
+        }
+        function inittree() {
+            treeControl = $('.dev-tree').prop("$this");
+            treeControl.bind("onSelectChanged", function (s, e) {
+                pageIndex = 1;          //切换组织结构时，从第一面开始显示
+                searchClear();
+                var treenode = e;
+                var isleaf = treeControl.IsLeaf(treenode);
+                var orgids = [];
+                orgids.push(e.id);
+                if (!isleaf) {
+                    var allchilds = treeControl.GetAllChildren(treenode);
+                    for (var i = 0; i < allchilds.length; i++) orgids.push(allchilds[i].id);
+                }
+                orgFilter = "";
+                if (Dev.IsNull(orgids) || orgids.length == 0) return;
+                orgFilter = "\"ORGID\"  IN(";
+                for (var i = 0; i < orgids.length; i++) orgFilter += "'" + orgids[i] + "',";
+                orgFilter = orgFilter.substr(0, orgFilter.length - 1);
+                orgFilter += ")";
+                search();
+            });
+            var orgid = Dev.cookie.user.orgid;
+            $.ajax({
+                url: Dev.GetSystemUrlByRelID("Service") + "organize/gettreebyid/" + orgid + "?" + new Date().getTime(),
+                type: "Get",
+                contentType: 'application/json',
+                dataType: 'json',
+                success: function (result) {
+                    treedata = Dev.ConvertTreeData(result.data, orgid);
+                    treeControl.LoadData(treedata);
+                    if (treedata.length > 0) treeControl.SetSelectNode(treeControl.GetRoots()[0]);
+                }
+            });
+        }
+
+        function initEditWin(title, cls) {
+            if (Dev.IsNull(editWin)) {                    //添加窗体
+                editWin = new Dev.Window({
+                    ID: "editMachineWin",
+                    IconCls: cls,
+                    Title: title,
+                    Parent: Dev.App.FillPanel.Target,
+                    Maximizable: false,
+                    Modal: false,
+                    Draggable: true,
+                    HAlign: 'center',
+                    VAlign: 'center',
+                    Resizable: false,
+                    Content: $("#EditDiv"),
+                    Height: 220,
+                    Width: 500
+                });
+                comboTree = new Dev.Combotree({
+                    Required: true, PopupHeight: 'auto', TipInfo: "请选择",
+                    MultiSelect: false, StateField: "State", ValueField: "id",
+                    TextField: "name", ChildrenField: "child", Height: 24, Border: "1px", Width: 154
+                });
+                $("#treecomboDiv", $(".MachineEdit", Dev.App.FillPanel.Target)).append(comboTree.Target);
+                comboTree.Layout();
+                var selectnode = treeControl.GetSelectNode();
+                comboTree.SetData(selectnode[0].$this);
+                //农机型号 
+
+                $(".PositionBtn", editWin.Target).click(function () {
+                    isposiiton = true;
+                });
+                editWin.bind("onClosing", function () {
+                    showmodal(false);
+                    search();
+                });
+            }
+            else {      //窗体不为空时 的新增，例如 修改操作马上再进行 新增
+                editWin.Open();
+                editWin.SetTitle(title);
+                editWin.SetIconCls(cls);
+                editClear();
+                var selectnode = treeControl.GetSelectNode();
+                comboTree.SetData(selectnode[0].$this);
+            }
+            showmodal(true);
+        }       //输入标题 与 图标
+        function initDataGrid() {
+            if (Dev.IsNull(dataGrid)) {
+                $("#gridDiv").empty();
+                var columns = [
+                    { field: "ck", width: 30, align: 'center', title: '勾选', sortable: false, checkbox: true },
+                    { field: "type", width: 100, align: 'center', title: '农机类型', sortable: false },
+                    { field: "spec", width: 80, align: 'center', title: '农机型号', sortable: false },
+                    { field: "vendor", width: 80, align: 'center', title: '厂商', sortable: false },
+                    { field: "mintrunradius", width: 80, align: 'center', title: '最小转弯半径(m)', sortable: false },
+                    { field: "wheelbase", width: 80, align: 'center', title: '轴距(m)', sortable: false },
+                    { field: "antheight", width: 100, align: 'center', title: '天线高(m)', sortable: false },
+                      {
+                          field: "_oprate", width: 50, align: 'center', title: '操作', sortable: false, formatter: function (value, row, index) {
+                              return '<a href="javascript:void(0)" style="color:blue;"onclick="update(\'' + row.id + '\',\'' + index + '\')"><img src="../../image/agri/update.png"/></a>'
+                                  + '&nbsp;<a href="javascript:void(0)" style="color:blue;margin-left:6px;" onclick="detailInfo(\'' + row.id + '\')" title="详细信息"><img src="../../image/agri/cartype.png"/></a>&nbsp;<a href="javascript:void(0)" style="color:blue;margin-left:6px;" onclick="deleteinfo(\'' + index + '\')"><img src="../../image/agri/delete.png"/></a>';
+                          }
+                      },
+                ];
+                dataGrid = new UCDataGrid(Dev, { PageIndex: pageIndex, PageSize: pageSize, RowNumbers: false, ID: "machineGrid", pagequery: false,IsSizeSelect:true});
+                $("#gridDiv").append(dataGrid.Target);
+                dataGrid.Layout(columns);
+                dataGrid.Target.bind("onSelectPage", function (s, e) {
+                    pageIndex = e.index;
+                    search();
+                });
+                dataGrid.Target.bind("onPageSizeChange", function (s, e) {
+                    if (Dev.IsNull(e)) return;
+                    pageIndex = 1;
+                    pageSize = e;
+                    search();
+                });
+            }
+        }
+
+        var detailWin;
+        function detailInfo(id) {
+            if (Dev.IsNull(detailWin)) {
+                detailWin = new Dev.Window({
+                    ID: "detailwin",
+                    IconCls: 'icon-detailinfo',
+                    Title: "机型详情",
+                    Parent: Dev.App.FillPanel.Target,
+                    Maximizable: false,
+                    Modal: true,
+                    Draggable: true,
+                    HAlign: 'center',
+                    VAlign: 'center',
+                    Resizable: false,
+                    Url: Dev.App.Root + "html/detailinfo/devicemodetail.html",
+                    Height: 140,
+                    Width: 500,
+                    Parameters: { id: id }
+                });
+                detailWin.one("onClosing", function () {
+                });
+            } else {
+                detailWin.SetUrl(Dev.App.Root + "html/detailinfo/devicemodetail.html");
+                detailWin.Parameters = { id: id };
+                detailWin.Open();
+            }
+        } //初始化详细信息页面
+
+        function getCondition() {
+            var condition = " 1=1 ";
+            if (!Dev.IsNull(searchVr)) {
+                var mNo = searchVr.GetValue();
+                if (!Dev.IsNull(mNo) && mNo.length > 0) condition += " AND ( \"SPEC\"  LIKE '%" + $.trim(mNo) + "%'" + " OR " + "UPPER( \"SPEC\" )  LIKE " + "UPPER('%" + $.trim(mNo) + "%')" + " OR " + "LOWER( \"SPEC\" )  LIKE " + "LOWER('%" + $.trim(mNo) + "%'))";       //大小写不敏感
+            }
+            if (!Dev.IsNull(searchType)) {
+                var mType = searchType.GetText();       //获取combobox的值
+                if (!dev.IsNull(mType) && mType.length > 0 && mType != "不限") condition += " AND  \"TYPE\" LIKE '%" + $.trim(mType) + "%'";
+            }
+            if (!dev.IsNull(orgFilter)) condition += " AND  " + orgFilter;
+            condition += "ORDER BY \"CREATEDATE\" DESC";
+            return condition;
+        }        //获取农机查询条件
+        function search() {
+            var con = getCondition();
+            $.ajax({
+                type: "POST",
+                data: con,
+                contentType: "application/json",
+                url: Dev.GetSystemUrlByRelID("Service") + "deviceModel/getbyfilter/" + pageIndex + "/" + pageSize,
+                success: function (result) {
+                    if (!result.statusCode == 200) return;
+                    dataGrid.Load(result.data.dataSource, result.data.pageInfo);
+                }
+            });
+        }
+        function searchClear() {
+            var textcontrol = $(".dev-textbox");
+            for (var i = 0; i < textcontrol.length; i++) $(textcontrol[i]).prop("$this").Clear();
+            if (!Dev.IsNull(searchType)) searchType.SetValue("");
+        }        //清除所有查询条件，重置
+
+        function verify(model) {
+            var errorMsg = $("#errorlog", $(".MachineEdit", Dev.App.FillPanel.Target));
+            errorMsg.html("");
+            if (Dev.IsNull(model.type)) { errorMsg.html("农机类型不能为空！"); return false }
+            if (Dev.IsNull(model.spec)) { errorMsg.html("农机型号不能为空！"); return false }
+            //if (model.spec.length > 18) { errorMsg.html("农机型号太长！"); return false; }
+            if (Dev.IsNull(model.vendor)) { errorMsg.html("厂商不能为空！"); return false }
+            if (model.vendor.length > 36) { errorMsg.html("厂商太长！"); return false; }
+            if (Dev.IsNull(model.mintrunradius)) { errorMsg.html("最小转弯半径不能为空！"); return false }
+            if (model.mintrunradius.length > 10) { errorMsg.html("最小转弯半径不合理！"); return false; }
+            if (Dev.IsNull(model.wheelbase)) { errorMsg.html("轴距不能为空！"); return false }
+            if (model.wheelbase.length > 10) { errorMsg.html("轴距不合理！"); return false; }
+            if (Dev.IsNull(model.antheight)) { errorMsg.html("天线高不能为空！"); return false }
+            if (model.antheight.length > 10) { errorMsg.html("天线高不合理！"); return false; }
+            return true;
+        }
+        function saveInfo() {
+            var textcontrol = $(".dev-textbox", $(".MachineEdit", Dev.App.FillPanel.Target));
+            var numbercontrol = $('.dev-numberbox', $(".MachineEdit", Dev.App.FillPanel.Target));
+            var comboboxcontrol = $(".dev-combobox", $(".MachineEdit", Dev.App.FillPanel.Target));
+            var model = {};
+            $("#errorlog", $(".MachineEdit", Dev.App.FillPanel.Target)).html("");
+            for (var i = 0; i < textcontrol.length; i++) {
+                var tag = $(textcontrol[i]).attr("name");
+                var value = $(textcontrol[i]).prop("$this").GetValue().trim();
+                model[tag] = value;
+            }
+            for (var i = 0; i < numbercontrol.length; i++) {
+                var tag = $(numbercontrol[i]).attr("name");
+                var value = $(numbercontrol[i]).prop("$this").GetValue().trim();
+                model[tag] = value;
+            }
+            for (var i = 0; i < comboboxcontrol.length; i++) {
+                var tag = $(comboboxcontrol[i]).attr("name");
+                var value = $(comboboxcontrol[i]).prop("$this").GetText();          //获取combobox选定值
+                model[tag] = value;
+            }
+            model.orgid = comboTree.GetValue();     //根据Select选项获取orgid
+            var pathMethod;
+            if (isadd) {
+                pathMethod = "insertDeviceModel";
+            }
+            else {
+                model.id = oldid;  //如果是修改，需要获取旧的id（主键信息）
+                pathMethod = "updateDeviceModel";
+            }   //区别新增还是更新
+            var isok = verify(model);            //简单长度与非空验证
+            if (!isok) return;
+            $.ajax({
+                type: "POST",
+                data: JSON.stringify(model),
+                contentType: "application/json",
+                url: Dev.GetSystemUrlByRelID("Service") + "deviceModel/" + pathMethod,
+                success: function (result) {
+                    if (!result.statusCode == 200 || model.length == 0) return;
+                    editWin.Close();
+                    flashDialog.Alert((pathMethod == "insertDeviceModel" ? "新增成功!" : "修改成功!"), "info");
+                },
+                error: function (msg) {
+                    if (pathMethod == "insertDeviceModel") flashDialog.Alert("新增失败!", "info")
+                    else flashDialog.Alert("修改失败!", "info");
+                }
+            });
+        }
+        function update(id, index) {
+            isadd = false;         //isModify
+            updateid = id;
+            dataGrid.DataGrid.datagrid("selectRow", index);
+            var row = dataGrid.DataGrid.datagrid("getSelected");
+            cDate = row.createdate;         //存储修改前 农机的时间信息
+            oldid = row.id;
+            if (Dev.IsNull(row) || row.length == 0) return;
+            initEditWin("机型修改", "machine-trackedit");
+            if (!Dev.IsNull(row.orgid)) comboTree.SetValueEx(row.orgid);
+
+            if (!Dev.IsNull(bindType) && bindType.length > 0) {            //bin the Dic data
+                var editMacType = $("#macType", editWin.Target).prop("$this");
+                var bt = bindType.concat();
+                editMacType.SetData(bt);
+                editMacType.Layout();
+            }
+            $("#errorlog", editWin.Target).html("");
+            loadData(row);
+        }   // 修改/更新农机信息
+        function deletes() {
+            var rows = dataGrid.DataGrid.datagrid("getChecked");
+            var curRowNo = dataGrid.DataGrid.datagrid("getData").total;       //获取已有的数据行数
+            if (curRowNo == rows.length && pageIndex != 1) pageIndex -= 1;     //如果没删完，保持在本页，删完回到上一页。
+            if (Dev.IsNull(rows) || rows.length == 0) {
+                flashDialog.Alert("请选择需要删除的数据!", "info");
+                return;
+            }
+            var nos = [];
+            for (var i = 0, len = rows.length; i < len; i++) {
+                nos.push(rows[i].id);
+            }
+            dialog.Confirm('确定删除所有勾选记录吗？', function (r) {
+                if (!r) return;
+                $.ajax({
+                    type: "DELETE",
+                    url: Dev.GetSystemUrlByRelID("Service") + "deviceModel/delete?id=" + encodeURIComponent(nos.join(",")),
+                    success: function (re) {
+                        if (!re.statusCode == 200) { flashDialog.Alert("删除失败!", "info"); return; };
+                        flashDialog.Alert("删除成功!", "info")
+                        search();
+                    },
+                    error: function (msg) {
+                        flashDialog.Alert("删除失败!", "info");
+                    }
+                });
+            }, "question");
+        }        //批量删除
+        function deleteinfo(index) {
+            dataGrid.DataGrid.datagrid("selectRow", index);
+            var row = dataGrid.DataGrid.datagrid("getSelected");
+            var curRowNo = dataGrid.DataGrid.datagrid("getData").total;       //获取已有的数据行数
+            if (curRowNo == 1 && pageIndex != 1) pageIndex -= 1;                //删光则返回上一页
+            if (Dev.IsNull(row)) return;
+            dialog.Confirm('确定删除选中记录吗？', function (r) {
+                if (!r) return;
+                $.ajax({
+                    type: "POST",
+                    url: Dev.GetSystemUrlByRelID("Service") + "deviceModel/deleteOneById/" + encodeURIComponent(row.id),//encodeURIComponent
+                    success: function (result) {
+                        if (!result.statusCode == 200) { flashDialog.Alert("删除失败!", "info"); return; };
+                        flashDialog.Alert("删除成功!", "info")
+                        search();
+                    },
+                    error: function (msg) {
+                        flashDialog.Alert("删除失败!", "info");
+                    }
+                });
+            }, "question");
+        }  //删除
+
+        function resize() {
+            var wh = Dev.App.BottomPanel.Target.outerHeight();
+            var height = $(window).outerHeight();
+            var gridheight = height - 40;
+            var gridwidth = parseInt($(window).width() * 0.80) - 2;
+            treeControl.SetHeight(height == 0 ? (wh - 26) : (height - 26));
+            if (gridwidth < 1200) {
+                gridwidth = 1200;
+                gridheight = parseInt(gridheight) - 16;
+            }
+            $("#searchDiv").width(gridwidth);
+            $("#gridDiv").height(gridheight).width(gridwidth);
+            if (!Dev.IsNull(dataGrid)) dataGrid.Resize(gridwidth, gridheight);
+        }
+        function editClear() {
+            var textcontrol = $(".dev-textbox", $(".MachineEdit", Dev.App.FillPanel.Target));
+            var numbercontrol = $(".dev-numberbox", $(".MachineEdit", Dev.App.FillPanel.Target));
+            var comboboxcontrol = $(".dev-combobox", $(".MachineEdit", Dev.App.FillPanel.Target));
+            for (var i = 0; i < textcontrol.length; i++) {
+                var currcontrol = $(textcontrol[i]).prop("$this");
+                currcontrol.Clear();
+                if (!Dev.IsNull(currcontrol.SetLengthTip)) currcontrol.SetLengthTip("");
+            }
+            for (var i = 0; i < numbercontrol.length; i++) { var currcontrol = $(numbercontrol[i]).prop("$this"); currcontrol.Clear(); }
+            for (var i = 0; i < comboboxcontrol.length; i++) { var currcontrol = $(comboboxcontrol[i]).prop("$this"); currcontrol.SetValue(""); }
+        }      //清空所有信息
+        function loadData(model) {
+            var textcontrol = $(".dev-textbox", $(".MachineEdit", Dev.App.FillPanel.Target));
+            var numbercontrol = $('.dev-numberbox', $(".MachineEdit", Dev.App.FillPanel.Target));
+            var comboboxcontrol = $(".dev-combobox", $(".MachineEdit", Dev.App.FillPanel.Target));
+            var selectnode = treeControl.GetSelectNode();
+            comboTree.SetData(selectnode[0].$this);
+            if (!Dev.IsNull(model.orgid)) comboTree.SetValueEx(model.orgid);
+
+            for (var i = 0; i < textcontrol.length; i++) {
+                var tag = $(textcontrol[i]).attr("name");
+                var currcontrol = $(textcontrol[i]).prop("$this");
+                if (!Dev.IsNull(currcontrol)) {
+                    currcontrol.SetValue(model[tag]);
+                    currcontrol.SetLengthTip(model[tag]);
+                }
+            }
+            for (var i = 0; i < numbercontrol.length; i++) {
+                var tag = $(numbercontrol[i]).attr("name");
+                var currcontrol = $(numbercontrol[i]).prop("$this");
+                if (!Dev.IsNull(currcontrol) && !Dev.IsNull(model[tag])) currcontrol.SetValue(model[tag]);
+            }
+            for (var i = 0; i < comboboxcontrol.length; i++) {
+                var tag = $(comboboxcontrol[i]).attr("name");
+                var currcontrol = $(comboboxcontrol[i]).prop("$this");
+                if (!Dev.IsNull(currcontrol)) currcontrol.SetText(model[tag]);        //combobox  
+            }
+        }       //加载被修改的农机信息
+        function showmodal(isshow) {
+            if (Dev.IsNull(isshow)) return;
+            $("#shade").css("display", (isshow ? "block" : "none"));
+        }
+    </script>
+</head>
+<body>
+    <div id="shade" style="width: 100%; height: 100%; position: absolute; z-index: 10; display: none; background: rgba(255,255,255,0.3)"></div>
+    <div id="content" class="content">
+        <div style="height: 100%; width: 20%; position: absolute;">
+            <div id="treediv" style="width: 100%; height: 100%;">
+                <div class="dev-tree" opt='{"ValueField":"id","TextField":"name","ChildrenField":"child","Height":210}'></div>
+            </div>
+        </div>
+
+        <div style="height: 100%; width: 80%; position: absolute; left: 20%; overflow: auto; overflow-y: hidden">
+            <div id="searchDiv" style="height: 38px; width: 100%; border-left: 1px solid #ddd; position: relative; min-width: 1200px;">
+                <div style="height: 38px; position: absolute; left: 0px;">
+                    <div class="SearchDiv">
+                        <div id="sType" class="dev-combobox" style="z-index: 2; width: 190px; display: inline-block; margin-top: 8px;" opt='{ "PopupHeight":"auto","TextField":"data","ValueField":"id","TipInfo":"请选择","HeaderCSS":{"padding":"0px","width":"75px","margin-top":"-8px"},"IsOverShow":true,"Padding":"0px 5px","TextAlign":"left","BodyCSS": {"background-color": "transparent","margin-right":"8px"},"Title":"<div class=\"Title\"><div class=\"Icon machine-carpp\" ></div><span class=\"Text\">农机类型</span></div>"}'></div>
+                    </div>
+                    <div class="SearchDiv" style="width: 182px">
+                        <div id="sVersion" class="dev-textbox" style="z-index: 2; width: 190px; display: inline-block;" opt='{"TipInfo":"","HeaderCSS":{"padding":"0px","width":"85px"},"IsOverShow":true,"Padding":"0px 5px","TextAlign":"left","BodyCSS": { "background-color": "transparent","margin-top":"8px","margin-right":"8px","margin-left":"2px"},"Title":"<div class=\"Title title3\"><div class=\"Icon machine-carnum\"></div><span class=\"Text\">农机型号</span></div>"}'></div>
+                    </div>
+                </div>
+                <div style="width: 299px; height: 100%; position: absolute; right: 10px; z-index: 2; top: -2px;">
+                    <div class="Button" tag="search" style="margin-left: 10px;">
+                        <div class="machine-query" style="height: 16px; width: 16px; margin-top: 4px; margin-left: 5px; display: inline-block; float: left;"></div>
+                        <span style="line-height: 28px; color: #fcfcfc;">查&nbsp;询</span>
+                    </div>
+                    <div class="Button" tag="clear">
+                        <div class="machine-reset" style="height: 16px; width: 16px; margin-top: 4px; margin-left: 5px; display: inline-block; float: left;"></div>
+                        <span style="line-height: 28px; color: #fcfcfc;">重&nbsp;置</span>
+                    </div>
+                    <div class="Button" tag="add">
+                        <div class="machine-add" style="height: 16px; width: 16px; margin-top: 4px; margin-left: 5px; display: inline-block; float: left;"></div>
+                        <span style="line-height: 28px; color: #fcfcfc;">新&nbsp;增</span>
+                    </div>
+                    <div class="Button" tag="deletes" style="width: 75px;">
+                        <div class="machine-deletes" style="height: 16px; width: 16px; margin-top: 4px; margin-left: 5px; display: inline-block; float: left;"></div>
+                        <span style="line-height: 28px; color: #fcfcfc;">批量删除</span>
+                    </div>
+                </div>
+            </div>
+            <div id="gridDiv" style="width: 100%; border-left: 1px solid #ddd; border-top: 1px solid #ddd;"></div>
+        </div>
+    </div>
+    <div id="EditDiv" class="MachineEdit" style="height: 150px;">
+        <div class="Row">
+            <div class="Cell">
+                <div class="dev-combobox" id="macType" name="type" style="width: 239px; height: 24px; margin-top: 6px;" opt='{ "PopupHeight":"auto","TextField":"data","ValueField":"id","TipInfo":"请选择","Required":true, "HeaderCSS":{"padding":"0px","width":"85px"},"IsOverShow":true,"Padding":"0px 5px","Title":"<div class=\"Title\"><span>农机类型</span></div>"}'></div>
+            </div>
+            <div class="Cell">
+                <div style="width: 80px; height: 100%; line-height: 35px; text-align: right; padding-right: 5px; float: left">选择组织</div>
+                <div id="treecomboDiv" style="height: 24px; width: 154px; margin-top: 5px; display: block; float: left;">
+                </div>
+            </div>
+        </div>
+        <div class="Row">
+            <div class="Cell">
+                <!--<div class="dev-combobox" name="spec" style="width: 239px; height: 24px; margin-top: 6px;" opt='{ "PopupHeight":"auto","TextField":"data","ValueField":"id","TipInfo":"选择农机型号","Required":true, "HeaderCSS":{"padding":"0px","width":"85px"},"IsOverShow":true,"Padding":"0px 5px","Title":"<div class=\"Title\"><span>农机型号</span></div>"}'></div>-->
+                <div class="dev-combobox" id="macMachine"  name="spec" style="width: 239px; height: 24px; margin-top: 6px;" opt='{"PopupHeight":"auto","TextField":"data","ValueField":"id","TipInfo":"请选择","Required":true,"HeaderCSS":{"padding":"0px","width":"85px"},"IsOverShow":true,"Padding":"0px 5px","Title":"<div class=\"Title\"><span>农机型号</span></div>"}'></div>
+            </div>
+            <div class="Cell">
+                <div class="dev-numberbox" name="mintrunradius" style="width: 239px; height: 24px; margin-top: 6px;" opt='{"MaxLength":10,"Required":true,"TipInfo":"10位以内","Precision":3,"Min":0,"Max":999,"HeaderCSS":{"padding":"0px","width":"85px"},"IsOverShow":true,"Padding":"0px 5px","Title":"<div class=\"Title\" style=\"letter-spacing:-2px\"><span>最小转弯半径(m)</span></div>"}'></div>
+            </div>
+        </div>
+        <div class="Row">
+            <div class="Cell">
+                <div class="dev-textbox" name="vendor" style="width: 486px; height: 24px; margin-top: 6px;" opt='{"MaxLength":18, "Required":true, "TipInfo":"18位以内","HeaderCSS":{"padding":"0px","width":"85px"},"IsOverShow":true,"Padding":"0px 5px","Title":"<div class=\"Title\"><span>厂商</span></div>"}'></div>
+            </div>
+        </div>
+        <div class="Row">
+            <div class="Cell">
+                <div class="dev-numberbox" name="wheelbase" style="width: 239px; height: 24px; margin-top: 6px;" opt='{"MaxLength":10, "Required":true,"TipInfo":"10位以内","Precision":3,"Min":0,"Max":9999,"HeaderCSS":{"padding":"0px","width":"85px"},"IsOverShow":true,"Padding":"0px 5px","Title":"<div class=\"Title\"><span>轴距(m)</span></div>"}'></div>
+            </div>
+            <div class="Cell">
+                <div class="dev-numberbox" name="antheight" style="width: 239px; height: 24px; margin-top: 6px;" opt='{"MaxLength":10,"Required":true,"TipInfo":"10位以内","Precision":3,"Min":0,"Max":9999,"HeaderCSS":{"padding":"0px","width":"85px"},"IsOverShow":true,"Padding":"0px 5px","Title":"<div class=\"Title\"><span>天线高(m)</span></div>"}'></div>
+            </div>
+        </div>
+        <div id="errorlog" style="width: 250px; display: inline-block; float: left; margin-top: 20px; margin-left: 20px; color: red"></div>
+        <div class="Submit">
+            <div class="Button" tag="save">
+                <span style="line-height: 26px; color: #fcfcfc;">保&nbsp;&nbsp;存</span>
+            </div>
+            <div class="Button" tag="cancel">
+                <span style="line-height: 26px; color: #fcfcfc;">取&nbsp;&nbsp;消</span>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

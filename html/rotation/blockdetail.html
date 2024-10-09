@@ -1,0 +1,100 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>地块信息</title>
+    <link rel="stylesheet" type="text/css" href="../../theme/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/app.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/icon.css" />
+    <link type="text/css" href="../../css/dev.css" rel="stylesheet" />
+    <script type="text/javascript" src="../../js/jquery.min.js"></script>
+    <script type="text/javascript" src="../../js/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="../../js/easyui-lang-zh_CN.js"></script>
+    <script type="text/javascript" src="../../js/linq.min.js"></script>
+    <script type="text/javascript" src="../../js/data.util.js"></script>
+    <script type="text/javascript" src="../../js/jquery.dev.control.js"></script>
+    <style type="text/css">
+    </style>
+    <script type="text/javascript">
+        var Dev = window.top.window.dev;
+        var parent, massifdata, massifimgs;
+        function WidgetCommunication(s) {//部件通讯
+            parent = s.parent;
+            massifdata = s.param.massifdata;
+            massifimgs = s.param.massifimgs;
+            //显示数据
+            if (Dev.IsNull(massifdata)) return;
+            $.each(massifdata, function (e, o) {
+                var ctext = $("div[name='" + e + "']");
+                if (e == "farmlandarea") o = (Dev.IsNull(o) || o == "null") ? "" : (Dev.SqrtMetersToMu(o, 3) + "(亩)");
+                if (ctext.length > 0) ctext.html(o);
+            });
+            //添加详细信息
+            var address = "";
+            if (!Dev.IsNullAll(massifdata.province)) address += massifdata.province;
+            if (!Dev.IsNullAll(massifdata.city)) address += massifdata.city;
+            if (!Dev.IsNullAll(massifdata.county)) address += massifdata.county;
+            if (!Dev.IsNullAll(massifdata.town)) address += massifdata.town;
+            if (!Dev.IsNullAll(massifdata.village)) address += massifdata.village;
+            $("div[name='address']").html(address);
+            //查看图片
+            if (Dev.IsNull(massifimgs) || massifimgs.length == 0) return;
+            $("#imgview").css("background-image", "url(" + massifimgs[0] + ")");
+            $("#imgview").attr("title", "点击预览");
+            $("#imgview").click(function () {
+                Dev.PreViewPics(massifimgs, 0, parent.Parent);
+            });
+            //显示当前第几张图片及一共几张图片
+            var picpagetip = $('<div style="width:100%;height:20px;text-align:center;line-height:20px;position:absolute;bottom:0px;color:#0099cc;font-size:16px;font-weight:bold;">' + "1" + "/" + massifimgs.length + '</div>').appendTo($("#imgview"));
+        }
+    </script>
+</head>
+<body style="height: 100%; width: 100%;">
+    <div style="width: 535px; height: 287px;">
+        <div style="height: 251px; width: 535px; border-bottom: 1px dashed #ddd;">
+            <div style="height: 251px; width: 275px; display: inline-block; float: left; border-bottom: 1px dashed #ddd;">
+                <div style="height: 35px; width: 100%; border-bottom: 1px dashed #ddd;">
+                    <div style="height: 35px; line-height: 35px; width: 55px; padding-right: 5px; text-align: right; display: inline-block; float: left;">地块编号</div>
+                    <div name="massifid" style="height: 35px; line-height: 35px; width: 205px; padding-left: 5px; display: inline-block;"></div>
+                </div>
+                <div style="height: 35px; width: 100%; border-bottom: 1px dashed #ddd;">
+                    <div style="height: 35px; line-height: 35px; width: 55px; padding-right: 5px; text-align: right; display: inline-block; float: left;">地类名称</div>
+                    <div name="classname" style="height: 35px; line-height: 35px; width: 205px; padding-left: 5px; display: inline-block;"></div>
+                </div>
+                <div style="height: 35px; width: 100%; border-bottom: 1px dashed #ddd;">
+                    <div style="height: 35px; line-height: 35px; width: 55px; padding-right: 5px; text-align: right; display: inline-block; float: left;">耕地类型</div>
+                    <div name="landtype" style="height: 35px; line-height: 35px; width: 205px; padding-left: 5px; display: inline-block;"></div>
+                </div>
+                <div style="height: 35px; width: 100%; border-bottom: 1px dashed #ddd;">
+                    <div style="height: 35px; line-height: 35px; width: 55px; padding-right: 5px; text-align: right; display: inline-block; float: left;">地块面积</div>
+                    <div name="farmlandarea" style="height: 35px; line-height: 35px; width: 205px; padding-left: 5px; display: inline-block;"></div>
+                </div>
+                <div style="height: 35px; width: 100%; border-bottom: 1px dashed #ddd;">
+                    <div style="height: 35px; line-height: 35px; width: 55px; padding-right: 5px; text-align: right; display: inline-block; float: left;">农田类型</div>
+                    <div name="farmlandtype" style="height: 35px; line-height: 35px; width: 205px; padding-left: 5px; display: inline-block;"></div>
+                </div>
+                <!--   <div style="height: 35px; width: 100%; border-bottom: 1px dashed #ddd;">
+                    <div style="height: 35px; line-height: 35px; width: 65px; padding-right: 5px; text-align: right; display: inline-block; float: left;">权属单位</div>
+                    <div name="ownershipname" style="height: 35px; line-height: 35px; width: 180px; padding-left: 5px; display: inline-block;"></div>
+                </div>-->
+                <div style="height: 35px; width: 100%; border-bottom: 1px dashed #ddd;">
+                    <div style="height: 35px; line-height: 35px; width: 55px; padding-right: 5px; text-align: right; display: inline-block; float: left;">行政区划</div>
+                    <div name="address" style="height: 35px; line-height: 35px; width: 205px; padding-left: 5px; display: inline-block;"></div>
+                </div>
+                <div style="height: 35px; width: 100%; border-bottom: 1px dashed #ddd;">
+                    <div style="height: 35px; line-height: 35px; width: 55px; padding-right: 5px; text-align: right; display: inline-block; float: left;">权属性质</div>
+                    <div name="ownership" style="height: 35px; line-height: 35px; width: 205px; padding-left: 5px; display: inline-block;"></div>
+                </div>
+            </div>
+            <div style="height: 230px; width: 230px; border-left: 1px dashed #ddd; display: inline-block; padding: 10px 14px;">
+                <div id="imgview" style="height: 230px; width: 230px; background-image: url('../../image/agri/nopic.png'); background-position: center; background-repeat: no-repeat; position: relative; background-size: 100%"></div>
+            </div>
+        </div>
+        <div style="height: 35px; width: 456px; border-bottom: 1px dashed #ddd;">
+            <div style="height: 35px; line-height: 35px; width: 55px; padding-right: 5px; text-align: right; display: inline-block; float: left;">权属单位</div>
+            <div name="ownershipname" style="height: 35px; line-height: 35px; width: 380px; padding-left: 5px; display: inline-block;"></div>
+        </div>
+    </div>
+</body>
+</html>
