@@ -1,0 +1,245 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>历史回溯</title>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+    <link rel="stylesheet" href="../../theme/default/easyui.css" />
+    <link rel="stylesheet" type="text/css" href="../../theme/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/app.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/icon.css" />
+    <link type="text/css" href="../../css/dev.css" rel="stylesheet" />
+    <script type="text/javascript" src="../../js/jquery.min.js"></script>
+    <script type="text/javascript" src="../../js/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="../../js/easyui-lang-zh_CN.js"></script>
+    <script type="text/javascript" src="../../js/linq.min.js"></script>
+    <script type="text/javascript" src="../../js/data.util.js"></script>
+    <script type="text/javascript" src="../../js/jquery.dev.control.js"></script>
+    <script type="text/javascript" src="../../js/dev.ui.js"></script>
+    <script type="text/javascript" src="../../js/guid.js"></script>
+    <script type="text/javascript">
+        var Dev = window.top.window.dev;
+        var parent;
+        var treecontrol;
+        var layerconfig = Dev.App.Config.Extend.LayerForTree.LayerRoot;
+        var layersinfo;
+        function WidgetCommunication(s) {//部件通讯
+            parent = s.parent;
+            Dev.App.LeftPanel.SetIconCls("icon-hislinetime");
+            if (!Dev.IsNull(layerconfig)) {
+                //if (Dev.IsNull(layerconfig.length)) layersinfo = [Dev.ObjClone(layerconfig)];
+                //else layersinfo = layerconfig.clone();
+                layersinfo = getlayertreebyType("screen");
+            }
+            inittree();
+            resize();
+            $(window).resize(function () { resize(); });
+            Dev.App.MapPanel.bind("onResize", function () {
+                var flagcontrol = $(".flagcontrol", Dev.App.MapPanel.Target);
+                if (!Dev.IsNull(flagcontrol)) {
+                    flagcontrol.width(Dev.App.MapPanel.Target.outerWidth() - 92);
+                    $(".flagpanel", flagcontrol).width(Dev.App.MapPanel.Target.outerWidth() - 152);
+                }
+            });
+            parent.one("onClosing", function () {
+                stop();
+                Dev.MapUtils.RemoveLayer("histroyWMS", Dev.App.Map);
+                var flagcontrol = $(".flagcontrol", Dev.App.MapPanel.Target);
+                flagcontrol.remove();
+                Dev.App.MapPanel.unbind("onResize");
+                if (Dev.IsNull(treecontrol)) treecontrol.unbind("onChecked");
+                if (!Dev.IsNull(Dev.Legend)) Dev.Legend.SetVisible(false);
+            });
+        }
+        function inittree() {
+            treecontrol = $('.dev-tree').prop("$this");
+            treecontrol.bind("onChecked", function () {
+                var checknode = treecontrol.GetChecked(true);
+                var checkdata = [];
+                for (var i = 0; i < checknode.length; i++) {
+                    if (treecontrol.IsLeaf(checknode[i])) checkdata.push(checknode[i].$this);
+                }
+                showFlagcontrol(checkdata);
+            });
+            treecontrol.LoadData(layersinfo);
+            if (layersinfo.length > 0) {
+                treecontrol.SetSelectNode(treecontrol.GetRoots()[0]);
+                treecontrol.Expand(treecontrol.GetRoots()[0], true);
+            }
+        }
+        function resize() {
+            var height = $(window).outerHeight();
+            //$("#treediv").height(height);
+            $("#content").height(height);
+            if (!Dev.IsNull(treecontrol)) {
+                treecontrol.SetHeight(height);
+            }
+            var flagcontrol = $(".flagcontrol", Dev.App.MapPanel.Target);
+            if (!Dev.IsNull(flagcontrol)) {
+                flagcontrol.width(Dev.App.MapPanel.Target.outerWidth() - 92);
+                $(".flagpanel", flagcontrol).width(Dev.App.MapPanel.Target.outerWidth() - 152);
+            }
+        }
+        //显示图层控件
+        function showFlagcontrol(flags) {
+            var flagcontrol = $(".flagcontrol", Dev.App.MapPanel.Target);
+            if (Dev.IsNull(flagcontrol) || flagcontrol.length == 0) {
+                if (Dev.IsNull(flags) || flags.length == 0) return;
+                flagcontrol = $('<div class="flagcontrol"></div>');
+                Dev.App.MapPanel.Target.append(flagcontrol);
+                var mapwidth = Dev.App.MapPanel.Target.outerWidth();
+                flagcontrol.width(mapwidth - 92);
+                $('<div class="flagpanel" style="width:' + (mapwidth - 152) + 'px"></div>').appendTo(flagcontrol);
+                var btns = $('<div class="btns"></div>').appendTo(flagcontrol);
+                var playbtn = $('<div class="iconplay icon-play"></div>').appendTo(btns);
+                var closebtn = $('<div class="iconclose icon-tip-close"></div>').appendTo(btns);
+                playbtn.click(function () {
+                    //播放
+                    if ($(this).hasClass("icon-play")) {
+                        $(this).removeClass("icon-play").addClass("icon-timeout");
+                        play();
+                    }
+                    else {
+                        $(this).removeClass("icon-timeout").addClass("icon-play");
+                        stop();
+                    }
+                });
+                closebtn.click(function () {
+                    //关闭
+                    stop();
+                    Dev.MapUtils.RemoveLayer("histroyWMS", Dev.App.Map);
+                    var flagcontrol = $(".flagcontrol", Dev.App.MapPanel.Target);
+                    flagcontrol.remove();
+                    //树checked 进行uncheck
+                    treecontrol.Check(null, false);
+                });
+            }
+            if (Dev.IsNull(flags) || flags.length == 0) {
+                flagcontrol.remove();
+                return;
+            }
+            var flagpanel = $(".flagpanel", flagcontrol);
+            flagpanel.empty();
+            //加载falg
+            for (var i = 0; i < flags.length; i++) {
+                var flag = $('<div class="flag" tag="' + flags[i].Value + '" number="' + i + '"><div class="pointDiv"><div class="point"></div></div><div class="Text">' + flags[i].Text + '</div></div>').appendTo(flagpanel);
+                flag.prop("data", flags[i]);
+                flag.click(function (sender, e) {
+                    var currflags = $(".flagpanel .flag", Dev.App.MapPanel.Target);
+                    for (var j = 0; j < currflags.length; j++) {
+                        var currpoint = $(".point", currflags[j]);
+                        if (currpoint.hasClass("SelectPoint")) currpoint.removeClass("SelectPoint");
+                    }
+                    $(".point", $(this)).addClass("SelectPoint");
+                    AddWMS($(this).prop("data"));
+                    playindex = parseInt($(this).attr("number"));
+                });
+            }
+        }
+        var playindex = 0;
+        var timeinterval;
+        function play() {
+            timeinterval = setInterval(function () {
+                playindex++;
+                selectflag();
+            }, 5000);
+            selectflag();
+        }
+        function stop() {
+            if (!Dev.IsNull(timeinterval)) clearInterval(timeinterval);
+        }
+        function selectflag() {
+            var flags = $(".flag", Dev.App.MapPanel.Target);
+            for (var j = 0; j < flags.length; j++) {
+                var currpoint = $(".point", flags[j]);
+                if (currpoint.hasClass("SelectPoint")) currpoint.removeClass("SelectPoint");
+            }
+            if (playindex >= flags.length) playindex = 0;
+            var currflag = flags[playindex];
+            $(".point", currflag).addClass("SelectPoint");
+            AddWMS($(currflag).prop("data"));
+        }
+        function AddWMS(layerinfo) {
+            if (!Dev.IsNull(layerinfo.LayerType) && layerinfo.LayerType == Dev.LayerType.Tile) {
+                var param = {
+                    ID: "histroyWMS",
+                    Url: Dev.GetSystemUrlByRelID(layerinfo.Url),
+                    Layers: layerinfo.TypeName,
+                    Map: Dev.App.Map,
+                    Resolution: "0.703125",
+                    Level: 20
+                };
+                if (!Dev.IsNull(layerinfo.Envelop)) {
+                    var arr = layerinfo.Envelop.split(',');
+                    param.Extent = [parseFloat(arr[0]), parseFloat(arr[1]), parseFloat(arr[2]), parseFloat(arr[3])];
+                }
+                Dev.MapUtils.RemoveLayer("histroyWMS", Dev.App.Map);
+                Dev.MapLoad.AddWMTSLayer(param);
+                if (!Dev.IsNull(Dev.Legend)) Dev.Legend.SetVisible(false);
+            }
+            else {
+                var param = {
+                    ID: "histroyWMS",
+                    Layers: layerinfo.TypeName,
+                    Url: Dev.GetSystemUrlByRelID(layerinfo.Url),
+                    Sldbody: Dev.GetSLDString(layerinfo.TypeName, Dev.LegendToRule(layerinfo.SldLegend)),
+                    Map: Dev.App.Map,
+                    ZIndex: 1,
+                };
+                if (!Dev.IsNull(layerinfo.ServerType)) param.ServerType = layerinfo.ServerType;
+                if (!Dev.IsNull(layerinfo.SldLegend)) {
+                    if (Dev.IsNull(layerinfo.SldLegend.length)) layerinfo.SldLegend = [layerinfo.SldLegend];
+                    if (Dev.IsNull(Dev.Legend)) Dev.InitLegend();
+                    Dev.Legend.SetData(layerinfo.SldLegend);
+                    Dev.Legend.SetVisible(true);
+                }
+                else {
+                    if (!Dev.IsNull(Dev.Legend)) Dev.Legend.SetVisible(false);
+                }
+                //  if (!Dev.IsNull(conditon) && conditon.length > 0) param.CQLFilter = conditon;
+                Dev.MapUtils.RemoveLayer("histroyWMS", Dev.App.Map);
+                Dev.MapLoad.AddWMSLayer(param);
+                //设置中心点
+                if (!Dev.IsNull(layerinfo.Zoom) && parseFloat(layerinfo.Zoom) > 0) Dev.App.Map.getView().setZoom(parseFloat(layerinfo.Zoom));
+
+                var envelop = layerinfo.Envelop;
+                if (Dev.IsNull(envelop)) return;
+                var envelarry = envelop.split(',');
+                if (envelarry.length < 4 || isNaN(envelarry[0]) || isNaN(envelarry[1]) || isNaN(envelarry[2]) || isNaN(envelarry[3])) return;
+                var c_point=[((parseFloat(envelarry[0]) + parseFloat(envelarry[2])) / 2), ((parseFloat(envelarry[1]) + parseFloat(envelarry[3])) / 2)];
+                var mapproj = Dev.App.Map.getView().getProjection();
+                if (mapproj.getCode() != Dev.App.Config.SystemMap.DataEPSG) c_point = Dev.proj.transform(c_point, Dev.App.Config.SystemMap.DataEPSG, mapproj.getCode());
+              //  Dev.MapUtils.ClearAndAddFeatures(resultdata, "tempGraphicLayer");
+                Dev.App.Map.getView().centerOn(c_point, Dev.App.Map.getSize(), [Dev.App.Map.getSize()[0] / 2, Dev.App.Map.getSize()[1] / 2]);
+            }
+
+        };
+        function getlayertreebyType(type) {
+            var layertree = [];
+            if (Dev.IsNull(layerconfig)) return null;
+            if (Dev.IsNull(layerconfig.length)) layertree = [Dev.ObjClone(layerconfig)];
+            else layertree = layerconfig.clone();
+            //首先找到根级节点为该类型的
+            layertree = Enumerable.From(layertree).Where('s=>s.Type.indexOf("' + type + '")>=0').ToArray();
+            getnodebytype(layertree, type);
+            return layertree;
+        }
+        function getnodebytype(nodes, type) {
+            if (Dev.IsNull(nodes) || Dev.IsNull(type)) return;
+            for (var i = 0; i < nodes.length; i++) {
+                if (Dev.IsNull(nodes[i].Child)) continue;
+                if (Dev.IsNull(nodes[i].Child.length)) nodes[i].Child = [nodes[i].Child];
+                nodes[i].Child = Enumerable.From(nodes[i].Child).Where('s=>s.Type!=undefined && s.Type!=null && s.Type.indexOf("' + type + '")>=0').ToArray();
+                if (!Dev.IsNull(nodes[i].Child) && nodes[i].Child.length > 0) getnodebytype(nodes[i].Child, type);
+            }
+        }
+
+    </script>
+</head>
+<body style="width: 100%; height: 100%;">
+    <div id="content" style="height: 100%; width: 100%;">
+        <div class="dev-tree" opt='{"ValueField":"Value","TextField":"Text","ChildrenField":"Child","StateField":"State","CheckBox":true,"Width":320}'></div>
+    </div>
+</body>
+</html>

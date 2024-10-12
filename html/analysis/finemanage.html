@@ -1,0 +1,554 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>精细化管理</title>
+    <link rel="stylesheet" href="../../theme/default/easyui.css" />
+    <link rel="stylesheet" type="text/css" href="../../theme/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/app.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/icon.css" />
+    <link type="text/css" href="../../css/dev.css" rel="stylesheet" />
+    <script type="text/javascript" src="../../js/jquery.min.js"></script>
+    <script type="text/javascript" src="../../js/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="../../js/easyui-lang-zh_CN.js"></script>
+    <script type="text/javascript" src="../../js/linq.min.js"></script>
+    <script type="text/javascript" src="../../js/data.util.js"></script>
+    <script type="text/javascript" src="../../js/jquery.dev.control.js"></script>
+    <script type="text/javascript" src="../../js/dev.ui.js"></script>
+    <script type="text/javascript" src="../../js/highcharts.js"></script>
+    <style type="text/css">
+        .Title {
+            width: 80px;
+            text-align: left;
+            line-height: 30px;
+            height: 26px;
+            display: inline-block;
+            float: left;
+            margin-top: 4px;
+            margin-left: 10px;
+        }
+
+        .content .SearchDiv {
+            width: 100%;
+            height: 30%;
+            display: inline-block;
+            margin-left: 0px;
+            margin-right: 0px;
+            float: left;
+        }
+
+        .content .Button {
+            width: 70px;
+            height: 26px;
+            float: left;
+            margin-top: 7px;
+            background-color: #16dbbb;
+            /*border-radius: 5px;*/
+            text-align: center;
+            border: 1px solid #16dbbb;
+            display: inline-block;
+            margin-left: 5px;
+        }
+
+            .content .Button:hover {
+                background-color: #5227de;
+                border: 1px solid #5227de;
+                cursor: pointer;
+            }
+
+            .content .Button:active {
+                background-color: #210097;
+                border: 1px solid #210097;
+                cursor: pointer;
+            }
+    </style>
+    <script type="text/javascript">
+        var Dev = window.top.window.dev;
+        //   var _mapcenter, _mapZoom;
+        var parent, layersinfo;
+        var layerconfig = Dev.App.Config.Extend.LayerForTree.LayerRoot;
+        var statWin;
+        var flashDialog, mapclick, polygonkey, polygonkeyid;
+        var first = true, tabel, date, tabname;
+        var comboTree, devcombox, box, dataGrid, selectc, listcror = [];
+        var totalseries = [], Children = [], clayer, selectlayer;
+        var growthlayer, titel = "长势";
+        function WidgetCommunication(s) {
+            Dev.App.MapPanel.MapDOM.css("cursor", "default");
+            Dev.finestate = true;
+            parent = s.parent;
+            if (!Dev.IsNull(layerconfig)) layersinfo = getlayertreebyType("fine");
+            Dev.App.globalquery.SetVisible(false);
+            //_mapcenter = Dev.App.Map.getView().getCenter();
+            //_mapZoom = Dev.App.Map.getView().getZoom();
+            flashDialog = new Dev.Messager({ Height: 95, Width: 200, AutoShow: false, Type: "question", Timeout: 1500, ButtonVisible: false, AutoVisible: true, Effect: "normal" });
+
+            devcombox = $("#timestage").prop("$this");
+            initComboTree();
+            initDataGrid();
+            $(".Button").click(function () {
+                var tag = $(this).attr("tag");
+                var value = devcombox.GetText();
+                Dev.MapUtils.RemoveLayer("CROPID", Dev.App.Map);
+                if (tag == "search") {
+                    if (Dev.IsNull(selectc)) {
+                        flashDialog.Alert("请选择地块!", "info");
+                        return;
+                    }
+                    else if (Dev.IsNull(value)) {
+                        flashDialog.Alert("请选择监测日期!", "info");
+                        return;
+                    }
+                    else {
+                        listcror = [];
+                        selectlayer = Enumerable.From(clayer[0].Children).Where('s=>s.CROPDATE.indexOf("' + value + '")>=0').ToArray();
+                        bindData(value);
+                        bindChart("decision", "growth");
+                        AddWMS(selectc, true, null);
+                    }
+                }
+                if (tag == "reset") {
+                    listcror = [];
+                    comboTree.text.Clear();
+                    devcombox.Clear();
+                    reset();
+                }
+            });
+            $(window).resize(function () { resize(); });
+            resize();
+            parent.one("onClosing", function () {
+                Dev.finestate = false;
+                clearchart();
+                if (!Dev.IsNull(dataGrid)) {
+                    dataGrid.Target.unbind("onClickRow");
+                    dataGrid = null;
+                }
+                if (!Dev.IsNull(statWin)) {
+                    statWin.Close();
+                    statWin.Destroy();
+                    statWin = null;
+                }
+                Dev.MapUtils.ClearFeature("tempGraphicLayer", Dev.App.Map);
+                if (!Dev.IsNull(polygonkey)) {
+                    Dev.MapUtils.removePointKey(polygonkeyid, Dev.App.Map);
+                    polygonkey = null;
+                }
+                if (!Dev.IsNull(mapclick)) { Dev.App.Map.unByKey(mapclick); mapclick = null; }
+                Dev.App.globalquery.SetVisible(true);
+            });
+            mapclick = Dev.App.Map.on('singleclick', function (evt) {
+                if (Dev.IsNull(selectc)) return;
+                var coordinate = evt.coordinate;
+                //var mapproj = Dev.App.Map.getView().getProjection();
+                //if (mapproj.getCode() != Dev.App.Config.SystemMap.DataEPSG) coordinate = Dev.proj.transform(coordinate, mapproj.getCode(), Dev.App.Config.SystemMap.DataEPSG);
+                var result = Dev.PointerQuery({
+                    Url: Dev.GetSystemUrlByRelID(selectc.WFSUrl),
+                    TypeName: selectc.TypeName,
+                    Point: coordinate,
+                    SrsName: selectc.EPSG,
+                    GeometryName: selectc.GeomField,
+                    Map: Dev.App.Map,
+                    PX: 2
+                });
+                if (Dev.IsNull(result) || result.length == 0) return;
+                if (!Dev.IsNull(polygonkey)) {
+                    Dev.MapUtils.removePointKey(polygonkeyid, Dev.App.Map);
+                    polygonkey = null;
+                }
+                
+                var prop = result[0].getProperties();
+                polygonkeyid = "fine" + new Date().getTime()
+                var feature = new Dev.Feature({ id: "Hightlayer", geometry: prop.geometry });
+                feature.setId(polygonkeyid);
+                polygonkey = Dev.MapUtils.LineSymbolStyle(feature, Dev.App.Map);
+                //Dev.MapUtils.ClearFeature("HightLightLayer");
+                //feature.setStyle(new Dev.style.Style({
+                //    stroke: new Dev.style.Stroke({ color: 'red', width: 2 }),
+                //}));
+                //Dev.MapUtils.AddFeature(feature, "HightLightLayer");
+                var extent = feature.getGeometry().getExtent();
+                var mapproj = Dev.App.Map.getView().getProjection();
+                if (mapproj.getCode() != Dev.App.Config.SystemMap.DataEPSG) extent = Dev.proj.transformExtent(extent, Dev.App.Config.SystemMap.DataEPSG, mapproj.getCode());
+                Dev.App.Map.getView().centerOn([((extent[0] + extent[2]) / 2), ((extent[1] + extent[3]) / 2)],
+                Dev.App.Map.getSize(), [Dev.App.Map.getSize()[0] / 2, Dev.App.Map.getSize()[1] / 2], 10);
+                Position(prop);
+            });
+        }
+        //定位
+        function Position(prop) {
+            if (Dev.IsNull(statWin)) {
+                statWin = new Dev.Window({
+                    ID: "fineWin",
+                    IconCls: "user-usermanage",
+                    Title: "地块详情",
+                    Parent: Dev.App.MapPanel.Target,
+                    Maximizable: false,
+                    Modal: false,
+                    Draggable: true,
+                    HAlign: 'right',
+                    VAlign: 'bottom',
+                    Resizable: true,
+                    Height: 450,
+                    Width: 500,
+                    Url: Dev.App.Root + "html/analysis/finedetailed.html",
+                    //Parameters: { layerinfo: clayer }
+                });
+                statWin.datap = prop;
+                statWin.layerinfo = selectlayer;
+            }
+            else {
+                statWin.Open();
+                statWin.isfirst = statWin.isfirst1 = statWin.isfirst2 = statWin.isfirst3 = statWin.isfirst4 = statWin.isfirst5 = true;
+                statWin.datap = prop;
+                statWin.layerinfo = selectlayer;
+                statWin.tabselect(statWin.tabi);
+            }
+            //var iframe = $("iframe", statWin).contents();
+            $('iframe', statWin).load(function () {
+                statWin.tabControl.bind("onSelected", function (element, index) {
+                    if (element.target.parentElement.parentElement.id == "growthtab") {
+                        return;
+                    }
+                    if (index.index == 0 || index.index == 2) {
+                        bindChart("decision", "growth");//种植信息、长势信息
+                    }
+                    else if (index.index == 5)
+                        bindChart("produce", "yield");//产量
+                    else if (index.index == 3)
+                        bindChart("bch", "pests");//病虫害
+                    else if (index.index == 1)
+                        bindChart("moisture", "soil");//土壤墒情
+                    else if (index.index == 4)
+                        bindChart("fertilizer", "fertility");//施肥
+                    if (element.target.innerText != "种植信息")
+                        titel = element.target.innerText.substr(0, 2);
+                });
+            });
+        }
+        function bindData(selctdata) {
+            var Code = selectc.CountyCode;
+            tabname = "AGRI_CROP_" + Code + selectlayer[0].PlantDate.replace(/[-]/g, "");
+            //获取时间
+            var condition = "SELECT \"CROPTYPE\",SUM(\"CROPAREA\") FROM \"" + tabname + "\" GROUP BY \"CROPTYPE\"";
+            //请求内容
+            $.ajax({
+                type: "POST",
+                data: { sql: condition },
+                url: Dev.GetSystemUrlByRelID("Service") + "crop/findCropInfoBySql",
+                success: function (response) {
+                    if (Dev.IsNull(response.data)) {
+                        return;
+                    }
+                    dataGrid.Load(response.data);
+                    $(".datagrid-row", dataGrid.Target).css({ "height": "32px" });
+                },
+                error: function (e) {
+                    flashDialog.Alert("请求失败", "error");
+                }
+            });
+            //请求内容
+
+        }
+        function bindChart(name, servername) {
+            growthlayer = Enumerable.From(selectlayer).Where('s=>s.Type.indexOf("' + name + '")>=0').ToArray();
+            var chartdata = [];
+            $.ajax({
+                type: "POST",
+                data: { tableName: growthlayer[0].TypeName.split(':')[1] },
+                url: Dev.GetSystemUrlByRelID("Service") + servername + "/findStatisticsDate",
+                success: function (result) {
+                    if (!Dev.IsNull(result.error)) return;
+                    if (!Dev.IsNull(result.data1)) {
+                        if (servername == "yield")
+                            hchart(result.data3);
+                        else
+                            hchart(result.data1);
+                    }
+                },
+                error: function (msg) {
+                    flashDialog.Alert("查询失败!", "info");
+                }
+            });
+        }
+        function reset() {
+            dataGrid.Load([]);
+            if (!Dev.IsNull($('#chart').highcharts())) {
+                $('#chart').highcharts().destroy();
+            }
+        }
+        //初始化ComboTree
+        function initComboTree() {
+            comboTree = new Dev.Combotree({
+                Required: true, PopupHeight: 'auto', TipInfo: "请选择",
+                MultiSelect: false, StateField: "State", ValueField: "ID",
+                TextField: "Text", ChildrenField: "Child", Height: 24, Border: "1px", Width: "100%"
+            });
+            $(".text-text", comboTree.Target).css("background-color", "transparent");
+            comboTree.SetData(layersinfo);
+            $("#treecomboDiv").append(comboTree.Target);
+            comboTree.Layout();
+            comboTree.bind("onSelectChanged", function (s, e) {
+                var isf = comboTree.tree.IsLeaf(e.$this.Target);//判断是否为叶子节点
+                if (!isf) {
+                    comboTree.text.Clear();
+                    if (e.$this.State == "open") {
+                        if ($('.collapsed:hover', comboTree.Target).length > 0) {
+                            return;
+                        }
+                        comboTree.tree.Collapse(e.$this.Target, false);
+                    }
+                    else {
+                        if ($('.expanded:hover', comboTree.Target).length > 0) {
+                            return;
+                        }
+                        comboTree.tree.Expand(e.$this.Target, false);
+                    }
+                }
+                else {
+                    comboTree.text.SetValue(e.$this.Text);
+                    selectc = e.$this;
+                    var TypeName = selectc.TypeName.substr(selectc.TypeName.lastIndexOf("_") + 1)
+                    clayer = Enumerable.From(Children).Where('s=>s.CountyCode.indexOf("' + selectc.CountyCode + '")>=0').ToArray();
+                    if (!dev.IsNull(clayer) && clayer.length > 0 && !dev.IsNull(clayer[0].Children)) {
+                        var cdatel = Enumerable.From(clayer[0].Children).Where('s=>s.Type.indexOf("decision")>=0').ToArray();
+                        var state = $("#timestage").prop("$this");
+                        var cdate = [];
+                        for (var i = 0; i < cdatel.length; i++) {
+                            cdate.push(cdatel[i].CROPDATE);
+                        }
+                        devcombox.Clear();
+                        if (!Dev.IsNull(state)) state.SetData(cdate);
+                    }
+                }
+            });
+        }
+        function initDataGrid() {
+            if (Dev.IsNull(dataGrid)) {
+                $("#gridDiv").empty();
+                var columns = [
+                    { field: "CROPTYPE", width: 180, align: 'center', title: '作物类型', sortable: false, styler: function (value, row, index) { return 'border:1'; } },
+        { field: "sum", width: 150, align: 'center', title: '面积(亩)', sortable: false, formatter: function (value, row, index) { return MetersToMu(value) }, styler: function (value, row, index) { return 'border:1'; } },
+        {
+            field: "_oprate",
+            width: 120,
+            align: 'center',
+            title: '操作',
+            sortable: false,
+            styler: function (value, row, index) { return 'border:1'; },
+            formatter: function (value, row, index) {
+                return '<a href="javascript:void(0)" id="a' + index + '" onclick="check(\'' + index + '\',\'' + row.CROPTYPE + '\')" title="显示"><img src="../../image/agri/viewclose.png"/></a>';
+            }
+        },
+                ];
+                dataGrid = new UCDataGrid(Dev, {
+                    IsPage: false, RowNumbers: false, ID: "pestGrid", pagequery: false
+                });
+                $("#gridDiv").append(dataGrid.Target);
+                dataGrid.Layout(columns);
+                $(".datagrid-header-row", dataGrid.Target).css({ 'height': '40px', 'border': '1px solid #DCDCDC', 'background': 'rgba( 245,245,245,0.8)' });
+            }
+        }
+        function MetersToMu(croptypexnum) {
+            return Dev.SqrtMetersToMu(croptypexnum, 1);
+        };
+        function check(index, CROP) {
+            if ($('#a' + index).attr("title") == "显示") {
+                $('#a' + index).attr("title", "隐藏");
+                $('#a' + index + '> img').attr("src", "../../image/agri/view.png");
+                listcror.push("'" + CROP + "'");
+
+            }
+            else {
+                $('#a' + index).attr("title", "显示");
+                $('#a' + index + '> img').attr("src", "../../image/agri/viewclose.png");
+                var index = listcror.indexOf("'" + CROP + "'");
+                listcror.splice(index, 1);
+            }
+            if (Dev.IsNull(listcror)) {
+                Dev.MapUtils.RemoveLayer("CROPID", Dev.App.Map);
+                return;
+            }
+
+            var fatherlayer = Enumerable.From(layerconfig[1].Child).Where('s=>s.Type!=undefined && s.Type!=null && s.Type.indexOf("fine")>=0').ToArray();
+            if (!Dev.IsNull(fatherlayer) && fatherlayer.length > 0 && !Dev.IsNull(fatherlayer[0].Child) && !Dev.IsNull(fatherlayer[0].Child.Child) && !Dev.IsNull(fatherlayer[0].Child.Child.Child)) {
+                var sldlegend = Enumerable.From(fatherlayer[0].Child.Child.Child).Where('s=>s.Type!=undefined && s.Type!=null && s.Type.indexOf("newcropl")>=0').ToArray();
+                if (!Dev.IsNull(sldlegend[0]) && !Dev.IsNull(sldlegend[0].Child) && sldlegend[0].Child.length > 0)
+                    var legend = sldlegend[0].Child[0].SldLegend;
+            }
+            var layer = {
+                ID: "CROPID",
+                Url: "GeoServiceWMS",
+                TypeName: "cite:" + tabname,
+                ServerType: "geoserver",
+                Envelop: null,
+                SldLegend: legend
+            };
+            AddWMS(layer, true, listcror);
+        }
+        //添加WMS
+        function AddWMS(layerinfo, visible, CROP) {
+            //判断该图层是否存在
+            Dev.MapUtils.RemoveLayer(layerinfo.ID, Dev.App.Map);
+            var param = {
+                Map: Dev.App.Map,
+                ID: layerinfo.ID,
+                Url: Dev.GetSystemUrlByRelID(layerinfo.Url),
+                Layers: layerinfo.TypeName,
+                Visible: Dev.IsNull(visible) ? false : visible,
+                ServerType: layerinfo.ServerType,
+                //EPSG: 'EPSG:4326',
+                EPSG: Dev.App.Config.SystemMap.DisplayEPSG,
+                CQLFilter: CROP == null ? null : "CROPTYPE in(" + CROP + ")"
+            };
+            if (!Dev.IsNull(layerinfo.SldLegend)) {
+                param.Sldbody = Dev.GetSLDString(layerinfo.TypeName, Dev.LegendToRule(layerinfo.SldLegend));
+            }
+            if (!Dev.IsNull(layerinfo.Envelop)) {
+                var arry = layerinfo.Envelop.split(',');
+                param.Extent = [parseFloat(arry[0]), parseFloat(arry[1]), parseFloat(arry[2]), parseFloat(arry[3])];
+                //var mapproj = Dev.App.Map.getView().getProjection();
+                //if (mapproj.getCode() != Dev.App.Config.SystemMap.DataEPSG) {
+                //    param.Extent = Dev.proj.transformExtent(param.Extent, Dev.App.Config.SystemMap.DataEPSG, mapproj.getCode());
+                //}
+            }
+            Dev.MapLoad.AddWMSLayer(param);
+            var mapproj = Dev.App.Map.getView().getProjection();
+            var extent = param.Extent;
+            if (mapproj.getCode() != Dev.App.Config.SystemMap.DataEPSG && !Dev.IsNull(extent)) extent = Dev.proj.transformExtent(extent, Dev.App.Config.SystemMap.DataEPSG, mapproj.getCode());
+            if (!Dev.IsNull(param.Extent)) Dev.App.Map.getView().fit(extent, Dev.App.Map.getSize());
+        }
+        //辅助函数
+        function resize() {
+            var height = $(window).outerHeight();
+            var gridheight = "100%";
+            var gridwidth = "100%";
+            $("#content").height(height);
+            if (!Dev.IsNull(dataGrid)) dataGrid.Resize(gridwidth, gridheight);
+        }
+        function getlayertreebyType(type) {
+            var layertree = [];
+            if (Dev.IsNull(layerconfig)) return null;
+            if (Dev.IsNull(layerconfig.length)) layertree = [Dev.ObjClone(layerconfig)];
+            else layertree = layerconfig.clone();
+            //首先找到根级节点为该类型的
+            layertree = Enumerable.From(layertree).Where('s=>s.Type.indexOf("' + type + '")>=0').ToArray();
+            getnodebytype(layertree, type);
+            return layertree;
+        }
+        function getnodebytype(nodes, type) {
+            if (Dev.IsNull(nodes) || Dev.IsNull(type)) return;
+            for (var i = 0; i < nodes.length; i++) {
+                if (Dev.IsNull(nodes[i].Child)) continue;
+                if (Dev.IsNull(nodes[i].Child.length)) nodes[i].Child = [nodes[i].Child];
+                var child = Enumerable.From(nodes[i].Child).Where('s=>s.Type!=undefined && s.Type!=null && s.Type.indexOf("managechild")>=0').ToArray();
+                if (!Dev.IsNull(child) && child.length > 0) {
+                    Children.push({ "CountyCode": child[0].CountyCode, "Children": child });
+                }
+                nodes[i].Child = Enumerable.From(nodes[i].Child).Where('s=>s.Type!=undefined && s.Type!=null && s.Type.indexOf("' + type + '")>=0').ToArray();
+                if (!Dev.IsNull(nodes[i].Child) && nodes[i].Child.length > 0) {
+                    getnodebytype(nodes[i].Child, type);
+                }
+            }
+        }
+        function hchart(chartdata) {
+            var seriesdata = [];
+            for (var i = 0; i < chartdata.length; i++) {
+                var code = Enumerable.From(growthlayer[0].SldLegend).Where('s=>s.ID=="' + chartdata[i].gridcode + '"').ToArray();
+                if (!Dev.IsNull(code) && code.length > 0) {
+                    seriesdata.push({ name: code[0].Text, y: parseFloat(Dev.SqrtMetersToMu(chartdata[i].area * 1000000, 1)), color: code[0].Fill.Color });
+                }
+            }
+            var hightc1 = {
+                chart: {
+                    borderWidth: 1,
+                    backgroundColor: 'rgba(4,155,199,0)',
+                    type: 'pie',
+                    zoomType: 'xy',
+                    style: {
+                        color: "#ffffff"
+                    },
+                },
+                title: {
+                    text: titel + "等级面积(亩)",
+                    style: { "color": "#000000" }
+                },
+                plotOptions: {
+                    pie: {
+                        allowPointSelect: true,
+                        cursor: 'pointer',
+                        dataLabels: {
+                            enabled: true,
+                            color: "#000000",
+                            format: '<b>{point.name}</b>: {point.percentage:.1f} %',
+                        },
+                        showInLegend: false,
+                    }
+                },
+                series: [{ data: seriesdata, name: "面积(亩)" }],
+                credits: { enabled: false },
+            };
+            $("#chart").highcharts(hightc1);
+        }
+
+        //清除统计图以及图层
+        function clearchart() {
+
+            if (!Dev.IsNull(selectc)) {
+                Dev.MapUtils.RemoveLayer(selectc.ID, Dev.App.Map);
+            }
+            if (!Dev.IsNull(polygonkey)) {
+                Dev.MapUtils.removePointKey(polygonkeyid, Dev.App.Map);
+                polygonkey = null;
+            }
+            Dev.MapUtils.RemoveLayer("CROPID", Dev.App.Map);
+        }
+    </script>
+</head>
+<body>
+    <div id="content" class="content" style="height: 100%; width: 100%;">
+        <div id="data1" style="width: 100%; height: 15%; min-width: 420px; min-height: 100px; float: left; background: rgba(236,252,224,1); border: 0">
+            <div id="searchType" class="SearchDiv">
+                <div style="width: 75px; line-height: 40px; text-align: right; display: inline-block; float: left;">
+                    <div class="machine-carnum"
+                        style="height: 16px; width: 16px; display: inline-block; float: left; margin-left: 6px; margin-top: 12px;">
+                    </div>
+                    <span style="width: 49px; float: right; margin-top: 2px;">选择地块</span>
+                </div>
+                <div style="line-height: 30px; display: inline-block; margin: 6px;">
+                    <div id="treecomboDiv" style="z-index: 2; width: 330px; margin-top: 2px;"></div>
+                </div>
+            </div>
+            <div class="SearchDiv">
+                <div style="width: 75px; height: 40px; line-height: 40px; text-align: right; display: inline-block; float: left;">
+                    <div class="machine-carnum"
+                        style="height: 16px; width: 16px; display: inline-block; float: left; margin-left: 5px; margin-top: 11px;">
+                    </div>
+                    <span style="height: 40px; line-height: 40px; width: 49px; float: right;">监测日期</span>
+                </div>
+                <div style="width: 120px; height: 40px; line-height: 40px; display: inline-block; margin: 6px;">
+                    <div id="timestage" class="dev-combobox" style="z-index: 2; width: 330px; margin-top: 2px;" opt='{"TipInfo":"请选择","IsOverShow":true,"Padding":"0px 5px","TextAlign":"left","BodyCSS": { "background-color": "transparent"}}'></div>
+                </div>
+            </div>
+            <div class="Button" tag="reset" style="float: right; margin-right: 10px;">
+                <div class="machine-query"
+                    style="height: 16px; width: 16px; margin-top: 4px; margin-left: 4px; display: inline-block; float: left;">
+                </div>
+                <span style="line-height: 26px; color: #fcfcfc;">重&nbsp;置</span>
+            </div>
+            <div class="Button" tag="search" style="float: right; margin-right: 10px;">
+                <div class="machine-query"
+                    style="height: 16px; width: 16px; margin-top: 4px; margin-left: 4px; display: inline-block; float: left;">
+                </div>
+                <span style="line-height: 26px; color: #fcfcfc;">查&nbsp;询</span>
+            </div>
+        </div>
+        <div id="data2" style="width: 100%; height: 40%; float: left; background-color: rgba(255,255,255,1); border: 0">
+            <div id="gridDiv" style="border-left: 1px solid #ddd; border-top: 1px solid #ddd; width: 100%; height: 100%"></div>
+        </div>
+        <div id="data3" style="overflow-x: hidden; overflow-y: hidden; width: 100%; height: 42%; float: left; background-color: rgba(250,248,244,1); border-radius: 5px;">
+            <div id="chart" style="width: 100%; height: 100%;"></div>
+        </div>
+    </div>
+</body>
+</html>

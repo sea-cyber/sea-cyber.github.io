@@ -1,0 +1,1057 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>气象</title>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../../theme/default/easyui.css" />
+    <link rel="stylesheet" type="text/css" href="../../theme/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/app.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/dev.css" />
+    <script type="text/javascript" src="../../js/jquery.min.js"></script>
+    <script type="text/javascript" src="../../js/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="../../js/easyui-lang-zh_CN.js"></script>
+    <script type="text/javascript" src="../../js/linq.min.js"></script>
+    <script type="text/javascript" src="../../js/data.util.js"></script>
+    <script type="text/javascript" src="../../js/dev.ui.js"></script>
+    <script type="text/javascript" src="../../js/highcharts.js"></script>
+    <script type="text/javascript" src="../../js/highcharts-3d.js"></script>
+</head>
+<body style="background-color: #EFEFF2; margin: 0px; padding: 0px;">
+    <!--行政区化-->
+    <div id="weatherXzqtree" style="width: 150px; position: absolute; left: 5px; top: 15px; z-index: 10005; cursor: default">
+    </div>
+    <!--天气按扭-->
+    <div id="weathercontain" class="fruit-container" style="z-index: 100;">
+
+        <input id="sugar1" class="sugar1-block" type="checkbox" style="position: absolute; top: 50px; display: none" />
+        <div class="peach-container">
+            <div class="peach-block" tag="freeairtemperature">温度</div>
+            <div class="peach-block" tag="freeairhumidity">湿度</div>
+            <div class="peach-block" tag="winddirection">风向</div>
+            <div class="peach-block" tag="windspeed">风速</div>
+            <div class="peach-block" tag="soiltemperature1">土壤温度</div>
+        </div>
+        <input id="sugar2" class="sugar2-block" type="checkbox" style="position: absolute; top: 70px; display: none;" />
+        <div class="tomato-container">
+            <div class="tomato-block" tag="soilhumidity1">土壤湿度</div>
+            <div class="tomato-block" tag="rain">雨量</div>
+            <div class="tomato-block" tag="phvalue">PH值</div>
+            <div class="tomato-block" tag="effectiveradiation">有效辐射</div>
+            <div class="tomato-block" tag="freeairpressure">大气压</div>
+        </div>
+
+        <div class="more-block"></div>
+
+        <div class="exchange-container">
+            <div class="exchange-block" tag="色斑">色斑</div>
+            <div class="exchange-block" tag="站点">站点</div>
+        </div>
+    </div>
+    <!--右上角气象详情-->
+    <div id="weatherDetail" style="z-index: 99;">
+        <div class="plate-container">
+            <input id="suger5" class="sugar5-block" type="checkbox" style="position: absolute; top: 500px; display: none;" />
+        </div>
+        <input id="suger6" class="sugar6-block" type="checkbox" style="position: absolute; top: 520px; display: none;" />
+        <!--<div class="packup3 packup-botton" style="right: 625px;top: 65px;"></div>-->
+    </div>
+    <!--历史气象统计-->
+    <div id="weatherHchart" style="">
+        <input id="suger3" class="sugar3-block" type="checkbox" style="position: absolute; top: 500px; display: none;" />
+        <div class="watermelon-container">
+            <div class="watermelon-exchange">
+                <div class="watermelon-button" tag="freeairtemperature" style="border-top-left-radius: 4px; border-bottom-left-radius: 4px">温度</div>
+                <div class="watermelon-button" tag="freeairhumidity">湿度</div>
+                <div class="watermelon-button" tag="winddirection">风向</div>
+                <div class="watermelon-button" tag="windspeed">风速</div>
+                <div class="watermelon-button" tag="soiltemperature1">土壤温度</div>
+                <div class="watermelon-button" tag="soilhumidity1">土壤湿度</div>
+                <div class="watermelon-button" tag="rain">雨量</div>
+                <div class="watermelon-button" tag="phvalue">PH值</div>
+                <div class="watermelon-button" tag="effectiveradiation">有效辐射</div>
+                <div class="watermelon-button" tag="freeairpressure" style="border-top-right-radius: 4px; border-bottom-right-radius: 4px">大气压</div>
+            </div>
+            <div class="watermelon-content" name="hchart"></div>
+        </div>
+        <div class="packup1 packup-botton" style="left: 15px; top: 190px;"></div>
+    </div>
+    <!-- // TODO: dataset以及对应的dev.css扩展了变换背景色的功能 -->
+    <!--未来天气-->
+    <div id="weatherforecast">
+        <input id="suger4" class="sugar4-block" type="checkbox" style="position: absolute; top: 500px; display: none;" />
+        <div class="magic-container" style="">
+            <div data-weather="rain" class="magic-block">
+                <div>
+                    <span name="week" style="margin-right: 10%;">周x</span>
+                    <span name="forecastdate" style="">xx月xx日</span>
+                </div>
+                <div name="bgimage" style="width: 60px; height: 60px; background-image: url(./image/weather/ico/cloudy.png); background-size: contain"></div>
+                <div>
+                    <span name="temperature" style="font-size: 30px">x</span>
+                    <span style="display: inline-block;">
+                        <span style="display: block;">℃</span>
+                    </span>
+                </div>
+                <div name="winddir" style="margin-left: 10px;">x风x级</div>
+                <div name="weather" style=""></div>
+
+                <!--<div class="air-quality air-quality-good" style=""></div>-->
+            </div>
+            <div data-weather="rain" class="magic-block">
+                <div>
+                    <span name="week" style="margin-right: 10%;">周x</span>
+                    <span name="forecastdate" style="">xx月xx日</span>
+                </div>
+                <div name="bgimage" style="width: 60px; height: 60px; background-image: url(./image/weather/ico/cloudy.png); background-size: contain"></div>
+                <div>
+                    <span name="temperature" style="font-size: 30px">x</span>
+                    <span style="display: inline-block;">
+                        <span style="display: block;">℃</span>
+                    </span>
+                </div>
+                <div name="winddir" style="margin-left: 10px;">x风x级</div>
+                <div name="weather" style=""></div>
+
+                <!--<div class="air-quality air-quality-good" style=""></div>-->
+            </div>
+            <div data-weather="rain" class="magic-block">
+                <div>
+                    <span name="week" style="margin-right: 10%;">周x</span>
+                    <span name="forecastdate" style="">xx月xx日</span>
+                </div>
+                <div name="bgimage" style="width: 60px; height: 60px; background-image: url(./image/weather/ico/cloudy.png); background-size: contain"></div>
+                <div>
+                    <span name="temperature" style="font-size: 30px">x</span>
+                    <span style="display: inline-block;">
+                        <span style="display: block;">℃</span>
+                    </span>
+                </div>
+                <div name="winddir" style="margin-left: 10px;">x风x级</div>
+                <div name="weather" style=""></div>
+
+                <!--<div class="air-quality air-quality-good" style=""></div>-->
+            </div>
+            <div data-weather="rain" class="magic-block">
+                <div>
+                    <span name="week" style="margin-right: 10%;">周x</span>
+                    <span name="forecastdate" style="">xx月xx日</span>
+                </div>
+                <div name="bgimage" style="width: 60px; height: 60px; background-image: url(./image/weather/ico/cloudy.png); background-size: contain"></div>
+                <div>
+                    <span name="temperature" style="font-size: 30px">x</span>
+                    <span style="display: inline-block;">
+                        <span style="display: block;">℃</span>
+                    </span>
+                </div>
+                <div name="winddir" style="margin-left: 10px;">x风x级</div>
+                <div name="weather" style=""></div>
+
+                <!--<div class="air-quality air-quality-good" style=""></div>-->
+            </div>
+            <div data-weather="rain" class="magic-block">
+                <div>
+                    <span name="week" style="margin-right: 10%;">周x</span>
+                    <span name="forecastdate" style="">xx月xx日</span>
+                </div>
+                <div name="bgimage" style="width: 60px; height: 60px; background-image: url(./image/weather/ico/cloudy.png); background-size: contain"></div>
+                <div>
+                    <span name="temperature" style="font-size: 30px">x</span>
+                    <span style="display: inline-block;">
+                        <span style="display: block;">℃</span>
+                    </span>
+                </div>
+                <div name="winddir" style="margin-left: 10px;">x风x级</div>
+                <div name="weather" style=""></div>
+
+                <!--<div class="air-quality air-quality-good" style=""></div>-->
+            </div>
+            <div data-weather="rain" class="magic-block">
+                <div>
+                    <span name="week" style="margin-right: 10%;">周x</span>
+                    <span name="forecastdate" style="">xx月xx日</span>
+                </div>
+                <div name="bgimage" style="width: 60px; height: 60px; background-image: url(./image/weather/ico/cloudy.png); background-size: contain"></div>
+                <div>
+                    <span name="temperature" style="font-size: 30px">x</span>
+                    <span style="display: inline-block;">
+                        <span style="display: block;">℃</span>
+                    </span>
+                </div>
+                <div name="winddir" style="margin-left: 10px;">x风x级</div>
+                <div name="weather" style=""></div>
+
+                <!--<div class="air-quality air-quality-good" style=""></div>-->
+            </div>
+            <div data-weather="rain" class="magic-block">
+                <div>
+                    <span name="week" style="margin-right: 10%;">周x</span>
+                    <span name="forecastdate" style="">xx月xx日</span>
+                </div>
+                <div name="bgimage" style="width: 60px; height: 60px; background-image: url(./image/weather/ico/cloudy.png); background-size: contain"></div>
+                <div>
+                    <span name="temperature" style="font-size: 30px">x</span>
+                    <span style="display: inline-block;">
+                        <span style="display: block;">℃</span>
+                    </span>
+                </div>
+                <div name="winddir" style="margin-left: 10px;">x风x级</div>
+                <div name="weather" style=""></div>
+                <!--<div class="air-quality air-quality-good" style=""></div>-->
+            </div>
+        </div>
+        <div id="packup2" class="packup2 packup-botton" style="left: 4px; bottom: 238px;"></div>
+    </div>
+
+    <script type="text/javascript">
+        var Dev = window.top.window.dev;
+        var parent;
+        var heatSource;
+        var stationSource;
+        var xzqControl;
+        var queryType = "站点";
+        var queryWeather = "freeairtemperature";
+        var legends, legendcontrol;
+        var currentResolution, maxFeatureCount, livesource, pointskey = [];//聚合
+        var weatherconfig = Dev.App.Config.Extend.StaticInfo.Weather;
+        var hchart;
+        var curEvent;
+        var historyData;//历史气象数据全局储存，后面多次调用避免了反复请求
+        var selectSingleClick, SingleMapclick;
+        var amsData = [];
+        var pointkey_map, selectpoint;
+        var mapproj;
+        function WidgetCommunication(s) {//部件通讯
+            parent = s.parent;
+            Dev.App.globalquery.SetVisible(false);
+            Dev.App.MapPanel.MapDOM.append($("#weathercontain"));
+            Dev.App.MapPanel.MapDOM.append($("#weatherXzqtree"));
+            mapproj = Dev.App.Map.getView().getProjection();
+            initxzqtree();
+            initButtom();
+            intiMapLayer();
+            showLegend();
+            /*      Dev.App.Map.on("singleclick", function (even) {
+                      var temp = Dev.App.Map.getPixelFromCoordinate(even.coordinate);
+                      var f = Dev.App.Map.forEachFeatureAtPixel(temp, function (feature) {
+                          var k = "";
+                      });
+                      console.log(temp.toString());
+                  });*/
+            Dev.App.FillPanel.bind("onResize", function () { resize(); });
+            parent.one("onClosing", function () {
+                Dev.App.MapPanel.Target.unbind("onMapRefresh");
+                Dev.App.globalquery.SetVisible(true);
+                if (!Dev.IsNull(pointkey_map)) { Dev.App.Map.unByKey(pointkey_map); pointkey_map = null; }
+                clearmapdata();
+                if (!Dev.IsNull(SingleMapclick)) { Dev.App.Map.unByKey(SingleMapclick); SingleMapclick = null; }
+                Dev.MapUtils.ClearFeature("tempGraphicLayer", Dev.App.Map);
+                Dev.App.MapPanel.MapDOM.find("#weathercontain").remove();
+                if (!Dev.IsNull(xzqControl)) xzqControl.unbind("onSelectChanged");
+                Dev.App.MapPanel.MapDOM.find("#weatherXzqtree").remove();
+                Dev.App.FillPanel.unbind("onResize");
+                clearAll();
+                clearMapSource();
+            });
+
+            /*查询色斑图就初始化站点按钮的颜色，反之初始化色斑的按钮*/
+            $("[tag='freeairtemperature']", $("#weathercontain", Dev.App.MapPanel.MapDOM)).css({
+                "background-color": "rgba(65, 94, 230, 0.5)",
+                "color": "#FFFFFF"
+            });
+            initmapClick();
+            //querydata();
+            Dev.App.MapPanel.Target.bind("onMapRefresh", function () {
+                mapproj = Dev.App.Map.getView().getProjection();
+                intiMapLayer();
+                //判断当前是
+                if (queryType == "站点") setTimeout(initlayer, 2000);
+                if (queryType == "色斑") showHeatMap();
+            });
+        }
+
+        /**
+         * 初始化
+         */
+        //初始化热力图图层、站点图层
+        function intiMapLayer() {
+            //初始化热力图图层
+            Dev.MapUtils.RemoveLayer("weatherheatmap", Dev.App.Map);
+            heatSource = new Dev.source.Vector({});
+            var vector = new Dev.layer.Heatmap({
+                id: "weatherheatmap",
+                source: heatSource,
+                blur: 8,
+                radius: 9,
+                gradient: ['#FDCDB7', '#FF9176', '#E7624F', "#881011"]
+
+            });
+            Dev.App.Map.addLayer(vector);
+
+            //初始化站点图层
+            stationSource = new Dev.source.Vector();
+            var layer = new Dev.layer.Vector({
+                source: stationSource,
+                type: "TempVector"
+            });
+            Dev.App.Map.addLayer(layer);
+        }
+
+        //为了避免重复查询，现在点击地图上的站点才执行该查询请求，查询的数据包含所有气象信息
+        function initHchart(msg) {
+            //重新点击站点时，给收起按钮绑定事件
+            $("#weatherHchart").clone().appendTo(Dev.App.MapPanel.MapDOM);
+            var buttons = $(".watermelon-button", $(".watermelon-exchange", Dev.App.MapPanel.MapDOM));
+            buttons.click(function () {
+                var tag = $(this).attr("tag");
+                showHchart(tag);
+            });
+            var packup1 = $(".packup1", $("#weatherHchart", Dev.App.MapPanel.MapDOM));
+            var $sugar3 = $(".sugar3-block", $("#weatherHchart", Dev.App.MapPanel.MapDOM));
+            packup1.unbind("click");
+            packup1.bind("click", function () {
+                $sugar3[0].checked = $sugar3[0].checked ? false : true;
+            });
+            queryHisWeather(msg);
+        }
+        //初始化按钮
+        function initButtom() {
+            //天气选项按钮（十种天气）
+            var weatherbuttoms = $(".peach-block,.tomato-block", $("#weathercontain", Dev.App.MapPanel.MapDOM));
+            weatherbuttoms.each(function (index, element) {
+                var tag = $(element).attr("tag");
+                $(element).click(function () {
+                    clearMapSource();
+                    clearAll();
+                    changeButtonColor($(this), queryWeather);
+                    queryWeather = tag;
+                    if (queryType === "色斑") {
+                        showLegend();
+                        showHeatMap();
+                    }
+                    if (queryType === "站点") {
+                        showAmStation();
+                        initlayer();
+                    }
+                });
+            });
+            //查询方法按钮（色斑OR站点）
+            var querybuttoms = $(".exchange-block", $("#weathercontain", Dev.App.MapPanel.MapDOM));
+            querybuttoms.each(function (index, element) {
+                var tag = $(element).attr("tag");
+                $(element).click(function () {
+                    clearMapSource();
+                    changeButtonColor($(this), queryType);
+                    queryType = tag;
+                    if (tag === "站点") {
+                        clearLegend();
+                        showAmStation();
+                        initlayer();
+                    }
+                    if (tag === "色斑") {
+                        clearmapdata();
+                        Dev.MapUtils.ClearFeature("tempGraphicLayer", Dev.App.Map);
+                        clearAll();
+                        clearMapSource();
+                        showLegend();
+                        showHeatMap();
+                    }
+                });
+            });
+            //更多按钮
+            var moreblock = $(".more-block", $("#weathercontain", Dev.App.MapPanel.MapDOM));
+            var $sugar1 = $("#sugar1", $("#weathercontain", Dev.App.MapPanel.MapDOM));
+            var $sugar2 = $("#sugar2", $("#weathercontain", Dev.App.MapPanel.MapDOM));
+            moreblock.click(function () {
+                $sugar1[0].checked = $sugar1[0].checked ? false : true;
+                $sugar2[0].checked = $sugar2[0].checked ? false : true;
+            });
+        }
+        //获取组织机构树
+        var orgids = [];
+        function initxzqtree() {
+            xzqControl = new Dev.Combotree({
+                ValueField: "id",
+                TextField: "name",
+                ChildrenField: "child",
+                Height: 30,
+                Width: 155,
+                PopupHeight: 250
+            });
+            $("#weatherXzqtree", Dev.App.MapPanel.MapDOM).append(xzqControl.Target);
+            // xzqControl = $(".dev-combotree", $("#weatherXzqtree", Dev.App.MapPanel.MapDOM)).prop("$this");
+            xzqControl.bind("onSelectChanged", function (s, e) {
+                clearmapdata();
+                Dev.MapUtils.ClearFeature("tempGraphicLayer", Dev.App.Map);
+                querydata();
+            });
+            var orgid = Dev.cookie.user.orgid;
+            $.ajax({
+                url: Dev.GetSystemUrlByRelID("Service") + "organize/gettreebyid/" + orgid + "?" + new Date().getTime(),
+                type: "Get",
+                contentType: 'application/json',
+                dataType: 'json',
+                success: function (result) {
+                    treedata = Dev.ConvertTreeData(result.data, orgid);
+                    xzqControl.SetData(treedata);
+                }
+            });
+        }
+        //查询数据
+        function querydata() {
+            amsData = [];
+            //获取类型
+            var selectvalue = xzqControl.GetValue();
+            if (Dev.IsNull(selectvalue)) selectvalue = Dev.cookie.user.orgid;
+            $.ajax({
+                url: Dev.GetSystemUrlByRelID("Service") + "meteorYtjData/findRealTimeDataByAllioneOrgId",
+                type: "POST",
+                dataType: 'json',
+                data: { orgId: selectvalue },
+                success: function (result) {
+                    if (Object.keys(result).length == 0 || result.amsList.statusCode != 200 || result.data.statusCode != 200) {
+                        return;
+                    } else {
+                        var amsArr = result.amsList.data;
+                        var realtimedata = result.data.data;
+                        //过滤掉站点没有的数据
+                        for (var i = 0; i < realtimedata.length; i++) {
+                            var val = realtimedata[i];
+                            var ams = Enumerable.From(amsArr).Where('s=> s.serialnumber ==="' + val.meteorsernum + '"').FirstOrDefault();//排除“有检测数据但是没有站点”的情况（生产环境中应该没有，但是测试时有）
+                            if (Dev.IsNull(ams)) { continue; }
+                            val.latitude = ams.latitude;
+                            val.longitude = ams.longitude;
+                            val.serialnumber = ams.serialnumber;
+                            val.indepeid = ams.indepeid;
+                            amsData.push(val);
+                        }
+                        //  initlayer();
+                    }
+
+                    //重新查询
+                    $(".exchange-block[tag='" + queryType + "']", $("#weathercontain", Dev.App.MapPanel.MapDOM)).click();
+                }
+            });
+        }
+        /*
+         * 查询站点未来天气和查询金今天气象的平均值
+         *  参数: 一体机序列号和监测站序列号
+         */
+        function queryDetail(msg) {
+            $.ajax({
+                url: Dev.GetSystemUrlByRelID("Service") + "meteorYtjData/findAmsDataByMeteorSer",
+                type: "POST",
+                dataType: 'json',
+                data: {
+                    allinoneSer: msg.indepeid,
+                    amsSerialNumber: msg.serialnumber
+                },
+                success: function (result) {
+                    if (Dev.IsNull(result.weather) || Dev.IsNull(result.dataDetail)) return;//没有数据时直接不显示
+                    showForecast(result.weather);
+                    showDetail(result.dataDetail[0]);
+                }
+            });
+        }
+        //查询站点的历史数据
+        function queryHisWeather(msg) {
+            var date = new Date();
+            date.setDate(date.getDate() - 7);
+            var time = dateToStr(date);
+            time += " 23:59:59";
+            var url = Dev.GetSystemUrlByRelID("Service") + "meteorYtjData/queryAmsDataByMDH";
+            $.ajax({
+                url: url,
+                type: "POST",
+                dataType: 'json',
+                data: {
+                    allinoneSer: msg.indepeid,
+                    meteorSerNum: msg.serialnumber,
+                    dateType: "D",
+                    where: "\"UPLOADDATE\" > '" + time + "'"
+                },
+                success: function (result) {
+                    historyData = [];//置空全局变量
+                    if (Dev.IsNull(result.result) || result.result.length == 0) {
+                        return;
+                    }
+                    // TODO: 该接口 1、是按时间排序返回我的 2、时间段内有的日期没有数据前端需要自己填充 3、没有返回状态码
+                    // 所以此处要整理数据
+                    var today = new Date();
+                    for (var i = 0; i < 7; i++) {
+                        var ndate = new Date();
+                        ndate.setDate(today.getDate() - i);
+                        var timeStr = dateToStr(ndate);
+                        var obj = Enumerable.From(result.result).Where("s=> s.to_char === '" + timeStr + "'").FirstOrDefault();
+                        if (Dev.IsNull(obj)) { obj = { to_char: timeStr } }
+                        historyData.push(obj);
+                    }
+                    historyData.reverse();
+                    showHchart(queryWeather);
+                }
+            });
+        }
+        function dateToStr(date) {
+            var time = date.getFullYear() + "-";
+            if (date.getMonth() + 1 < 10) {
+                time += "0" + (date.getMonth() + 1) + "-";
+            } else {
+                time += (date.getMonth() + 1) + "-";
+            }
+            if (date.getDate() < 10) {
+                time += "0" + date.getDate();
+            } else {
+                time += date.getDate();
+            }
+            return time;
+        }
+        /**
+         * 地图展示各种图
+         */
+        //往图层添加热力图
+        function showHeatMap() {
+            var featureArr = [];
+            //先清空再添加
+            heatSource.clear();
+            if (Dev.IsNull(amsData) || amsData.length == 0) { return; }
+            for (var i = 0; i < amsData.length; i++) {
+                var val = amsData[i];
+                if (Dev.IsNull(val[queryWeather])) { continue; }//过滤没有当前查询气象的站点
+                //创建feature
+                var point = [parseFloat(val.longitude), parseFloat(val.latitude)];
+                var mapproj = Dev.App.Map.getView().getProjection();
+                if (mapproj.getCode() != Dev.App.Config.SystemMap.DataEPSG) point = Dev.proj.transform(point, Dev.App.Config.SystemMap.DataEPSG, mapproj.getCode());
+                var feature = new Dev.Feature(new Dev.geom.Point(point));
+                var weight = findWeightFromConfig(val[queryWeather]);
+                feature.set('weight', parseFloat(weight));
+                featureArr.push(feature);
+            }
+            heatSource.addFeatures(featureArr);
+        }
+        //从查询到全局站点数据amsData中拿到当前气象queryweather的站点
+        function showAmStation() {
+            if (Dev.IsNull(amsData) || amsData.length == 0) {
+                clearMapSource();
+                return;
+            }
+
+            var featureArr = [];
+            for (var i = 0; i < amsData.length; i++) {
+                var val = amsData[i];
+                if (Dev.IsNull(val[queryWeather])) { continue; }//过滤没有当前查询气象的站点
+                // 根据预警值给图标
+                var warning = Enumerable.From(weatherconfig)
+                    .Where("s=> s.Type === '" + queryWeather + "'")
+                    .FirstOrDefault().Warning;
+                var feature = new Dev.Feature({
+                    geometry: new Dev.geom.Point([parseFloat(val.longitude), parseFloat(val.latitude)])
+                });
+                featureArr.push(feature);
+            }
+            //stationSource.addFeatures(featureArr);
+            var extent = Dev.getExtentByFeatures(featureArr);
+            if (mapproj.getCode() != Dev.App.Config.SystemMap.DataEPSG) extent = Dev.proj.transformExtent(extent, Dev.App.Config.SystemMap.DataEPSG, mapproj.getCode());
+            Dev.App.Map.getView().fit(extent, Dev.App.Map.getSize());
+        }
+
+        //地图单击事件
+        function initmapClick() {
+            SingleMapclick = Dev.App.Map.on("singleclick", function (e) {
+                var pixel = this.getPixelFromCoordinate(e.coordinate);
+                var feature_detail;
+                Dev.App.Map.forEachFeatureAtPixel(pixel, function (feature) {
+                    var orgrif = feature.get("features");
+                    if (!orgrif) return;
+                    var size = orgrif.length;
+                    if (size == 1) feature_detail = orgrif[0];
+                });
+                if (Dev.IsNull(feature_detail)) return;
+                var msg = feature_detail.getProperties();
+                Dev.App.Map.getView().setCenter(feature_detail.getGeometry().getCoordinates());
+                selectpoint = feature_detail;
+                clearAll();
+                queryDetail(msg);
+                initHchart(msg);
+            });
+        }
+
+        //显示未来7天天气
+        function showForecast(weatherArr) {
+            //更新数据
+            var orderArr = Enumerable.From(weatherArr).OrderBy("s=> s.forecastdate").ToArray();
+            //整理数据
+            var resultData = orderArr.map(function (val) {
+                var date = new Date(val.forecastdate);
+                var month = date.getMonth() + 1;
+                if (month < 10) { month = "0" + month; }
+                var day = date.getDate();
+                if (day < 10) { day = "0" + day; }
+                val.forecastdate = month + "月" + day + "日";
+                val.temperature = val.temperature.replace(/℃/g, "");
+                return val;
+            });
+            //放到地图上
+            var $weatherforecast = $('#weatherforecast').clone().appendTo(Dev.App.MapPanel.MapDOM).end();
+
+
+            $(".magic-block", $weatherforecast).each(function (index, dom) {
+
+                if (resultData.length == 0) {
+                    return false;
+                }
+                $('[name="week"]', $(this)).text(resultData[index].week);
+                $('[name="forecastdate"]', $(this)).text(resultData[index].forecastdate);
+                $('[name="temperature"]', $(this)).text(resultData[index].temperature);
+                $('[name="weather"]', $(this)).text(resultData[index].weather);
+                $('[name="winddir"]', $(this)).text(resultData[index].winddir);
+                //预报天气的图标
+                var win = resultData[index].weatherfa;
+                // TODO: 缺图标，先用仅有的图片用数组对应上
+                var enumNum = ["00", "01", "02", "03", "04", "07", "08", "14"];
+                var boolean = enumNum.some(function (value) {
+                    return win === value;
+                });
+                if (!boolean) { win = "x"; }
+                $('[name="bgimage"]', $(this)).css({ "background-image": "url(./image/weather/ico/weather" + win + ".png)" });
+
+                var weather = dom.dataset.weather;
+                $(dom).hover(function () {
+                    $(dom).addClass("block-" + weather);
+                }, function () {
+                    $(dom).removeClass("block-" + weather);
+                });
+                /*  $(dom).click(function (index, cu) {
+                      $(dom).parent().attr("class", "magic-container").addClass("weather-" + weather)
+                  })*/
+            })
+
+            //收起按钮
+            var packup2 = $(".packup2", $("#weatherforecast", Dev.App.MapPanel.MapDOM));
+            var $sugar4 = $(".sugar4-block", $("#weatherforecast", Dev.App.MapPanel.MapDOM));
+            packup2.click(function () {
+                $sugar4[0].checked = $sugar4[0].checked ? false : true;
+            });
+
+        }
+        //按类型查询历史数据
+        function showHchart(type) {
+            var obj = Enumerable.From(weatherconfig).Where("s=> s.Type ==='" + type + "'").FirstOrDefault();
+            var yData = historyData.map(function (val) {
+                if (Dev.IsNull(val[type])) { return null; }  //防止没改气象的值(实际上接口使用where查询，不存在有空值，中间缺几天的不会传过来。只不过以防改动)
+                return val[type];
+            });
+            var categories = historyData.map(function (val) {
+                var arr = val.to_char.split("-");
+                var time = arr[1] + "月" + arr[2] + "日";
+                return time;
+            });
+            var series = [{
+                marker: {
+                    symbol: 'square'
+                },
+                name: obj.TypeName,
+                data: yData,
+                color: '#ffffff'
+                // color: 'rgba(192,0,0,0.5)'
+            }];
+            var yText = obj.TypeName;
+            var title = {
+                text: "过去一周" + obj.TypeName + "统计",
+                style: {
+                    color: "#ffffff"
+                }
+            };
+
+            var chartDiv = $("[name='hchart']", $("#weatherHchart", Dev.App.MapPanel.MapDOM));
+            chartDiv.highcharts({
+                chart: {
+                    borderWidth: 1,
+                    backgroundColor: 'rgba(65,94,230,0.5)',
+                    type: 'spline',
+                    style: {
+                        color: "#ffffff"
+                    },
+                    // showAxes:false
+                },
+                subtitle: {
+                    text: null
+                },
+                xAxis: {
+                    labels: {
+                        style: {
+                            color: '#FFFFFF'
+                        }
+                    },
+                    lineColor: '#b4b4b4'
+                },
+                yAxis: {
+                    title: {
+                        text: yText,
+                        style: '#FFFFFF'
+                    },
+                    labels: {
+                        formatter: function () {
+                            return this.value;
+                            // return this.value + '°';
+                        },
+                        style: {
+                            color: '#FFFFFF'
+                        }
+                    },
+                    gridLineWidth: 0,
+                    gridLineColor: '#c40000',
+                    // lineColor:'#FFFFFF'
+                    // gridLineWidth:'0px' //去掉横线
+                    plotLines: [{
+                        color: 'white',
+                        dashStyle: 'longdashdot',//标示线的样式，默认是solid（实线），这里定义为长虚线
+                        value: obj.Warning,
+                        width: 1,              //标示线的宽度，2px
+                        label: {
+                            text: '预警值',
+                            align: 'left',                //标签的水平位置，水平居左,默认是水平居中center
+                            x: 5,                         //标签相对于被定位的位置水平偏移的像素，重新定位，水平居左10px
+                            y: 11,
+                            style: {
+                                fontSize: '11px',
+                                fontWeight: 'normal'
+                            }
+                        },
+                    }]
+                },
+                tooltip: {
+                    crosshairs: true,
+                    shared: true,
+                    pointFormatter: function (s) {
+                        return '<span style="color:' + this.color + '">\u25CF</span> ' + this.series.name + ': <b>' + this.y.toFixed(2) + '</b><br/>'
+                    }
+                },
+                plotOptions: {
+                    spline: {
+                        marker: {
+                            radius: 4,
+                            lineColor: '#666666',
+                            lineWidth: 1
+                        }
+                    }
+                },
+                series: series,
+                credits: {
+                    enabled: false
+                },
+                legend: {
+                    enabled: false
+                }
+            }, function (c) {
+                hchart = c;
+            });
+            hchart.xAxis[0].setCategories(categories);
+            hchart.setTitle(title);
+        }
+        //显示右上角的站点详情
+        function showDetail(dataDetail) {
+            Dev.App.MapPanel.MapDOM.append($("#weatherDetail").clone());
+            var count = 4;//最多显示四个面板
+            for (var i = 0; i < 10; i++) {
+                if (count == 0) { break; }
+                var obj = Enumerable.From(weatherconfig).Where("s=> s.Order === '" + i + "'").FirstOrDefault();//显示顺序根据配置来
+                var name = obj.Type;
+                if (Dev.IsNull(dataDetail[name])) { continue; }
+                count--;
+                var div = $('<div class="plate-block" tag="' + name + '">' +
+                    ' <div style="width: 29px;height: 20px;background-size: contain;background-repeat: no-repeat;background-image: url(./image/weather/little/' + name + '.png)"></div>' +
+                    ' <div style="margin-right: 9px">' + obj.TypeName + '</div><div>' + dataDetail[name] + obj.Unit + '</div></div>');
+                $(".plate-container", $("#weatherDetail", Dev.App.MapPanel.MapDOM)).append(div);
+            }
+
+            //收起按钮
+            var packup3 = $(".packup3", $("#weatherDetail", Dev.App.MapPanel.MapDOM));
+            var $sugar5 = $(".sugar5-block", $("#weatherDetail", Dev.App.MapPanel.MapDOM));
+            var $sugar6 = $(".sugar6-block", $("#weatherDetail", Dev.App.MapPanel.MapDOM));
+            packup3.click(function () {
+                $sugar5[0].checked = $sugar5[0].checked ? false : true;
+                $sugar6[0].checked = $sugar6[0].checked ? false : true;
+            });
+
+            //3月26号需求：点击面板弹出历史气象
+            var $sugar3 = $(".sugar3-block", $("#weatherHchart", Dev.App.MapPanel.MapDOM));
+            var $plateBlock = $(".plate-block", $("#weatherDetail", Dev.App.MapPanel.MapDOM));
+            $plateBlock.each(function (index, dom) {
+                $(dom).click(function () {
+                    var tag = $(dom).attr("tag");
+                    if (!Dev.IsNull(historyData) && historyData.length != 0) {
+                        showHchart(tag);
+                    }
+                    // $sugar3[0].checked = $sugar3[0].checked ? false : true;
+                    $sugar3[0].checked = true;
+                })
+            });
+            resize();
+
+        }
+        //初始化图例
+        function showLegend() {
+            if (Dev.IsNull(legendcontrol)) {
+                legendcontrol = new Dev.UCLegend({ Left: 5, Bottom: 10, IsPointStyle: true });
+            }
+            if (!Dev.IsNull(weatherconfig)) {
+                var curWeatherConfig = weatherconfig.filter(function (val) {
+                    return val.Type === queryWeather;
+                });
+                if (Dev.IsNull(curWeatherConfig.length)) legends = [Dev.ObjClone(curWeatherConfig)];
+                else legends = curWeatherConfig.clone();
+            }
+            legendcontrol.SetData(legends);
+            legendcontrol.SetTitle(legends[0].TypeName);
+            legendcontrol.SetVisible(true);
+        }
+
+        /*
+        *聚合
+        */
+        function initlayer() {
+            var data = amsData;
+            if (Dev.IsNull(data) || data.length == 0) return;
+            clearCluster();
+            var distance = 15;
+            var count = data.count;
+            var features = new Array(count);
+            for (var i = 0; i < data.length; i++) {
+                var c_p = [parseFloat(data[i].longitude), parseFloat(data[i].latitude)];
+                if (mapproj.getCode() != Dev.App.Config.SystemMap.DataEPSG) c_p = Dev.proj.transform(c_p, Dev.App.Config.SystemMap.DataEPSG, mapproj.getCode());
+                var currf = new Dev.Feature(new Dev.geom.Point(c_p));
+                currf.setProperties(data[i]);
+                currf.setId(data[i].id);
+                features[i] = currf;
+            }
+            livesource = new Dev.source.Vector({ features: features });
+            var clusterSource = new Dev.source.Cluster({ distance: distance, source: livesource });
+            var clusters = new Dev.layer.Vector({ id: "clusterlayer", source: clusterSource, style: styleFunction, zIndex: 10005, type: "TempClusterVector" });
+            Dev.App.Map.addLayer(clusters);
+        }
+
+        //设置聚合的样式
+        function styleFunction(feature, resolution) {
+            if (resolution != currentResolution) {
+                calculateClusterInfo(resolution);
+                currentResolution = resolution;
+            }
+            var style;
+            var size = feature.get("features").length;
+            if (size > 1) {
+                var color = "rgba(255,0,0,0.5)";
+                var fillcolor = [255, 0, 0, Math.min(0.8, 0.4 + (size / maxFeatureCount))]
+                if (size > 100 && size < 200) {
+                    color = "rgba(255, 204, 0, 0.6)";
+                    fillcolor = [255, 153, 0, Math.min(0.8, 0.4 + (size / maxFeatureCount))]
+                }
+                if (size >= 200) {
+                    color = "rgba(0,255, 0, 0.6)";
+                    fillcolor = [0, 255, 0, Math.min(0.8, 0.4 + (size / maxFeatureCount))]
+                }
+                var features = feature.get("features");
+                for (var i = 0; i < features.length; i++) {
+                    var key = features[i].getProperties().id;
+                    var pointkey = Enumerable.From(pointskey).Where('s=>s.key=="' + key + '"').FirstOrDefault();
+                    if (!Dev.IsNull(pointkey)) {
+                        Dev.MapUtils.removePointKey(key);
+                    }
+                    pointkey = null;
+                    pointskey = Enumerable.From(pointskey).Where('s=>s.key!="' + key + '"').ToArray();
+                }
+
+                style = new Dev.style.Style({
+                    image: new Dev.style.Circle({
+                        fill: new Dev.style.Fill({ color: fillcolor }),
+                        stroke: new Dev.style.Stroke({ color: color, width: 1 }),
+                        radius: feature.get('radius'),
+                        points: 4
+                    }),
+                    text: new Dev.style.Text({
+                        text: size.toString(),
+                        fill: new Dev.style.Fill({ color: "#fff" }),
+                        stroke: new Dev.style.Stroke({ color: 'rgba(0, 0, 0, 0.6)', width: 3 })
+                    })
+                });
+            } else {
+                var warning = Enumerable.From(weatherconfig)
+                 .Where("s=> s.Type === '" + queryWeather + "'")
+                 .FirstOrDefault().Warning;
+                var icoColor = "blue";
+                var color = "rgba(63,85,225,1)";
+                var fillcolor = "rgba(63,85,225,0.5)";
+                var originalFeature = feature.get('features')[0];
+                var key = originalFeature.getProperties().id;
+                var pointkey = Enumerable.From(pointskey).Where('s=>s.key=="' + key + '"').FirstOrDefault();
+                if (!Dev.IsNull(pointkey)) {
+                    Dev.MapUtils.removePointKey(key);
+                }
+                pointkey = null;
+                pointskey = Enumerable.From(pointskey).Where('s=>s.key!="' + key + '"').ToArray();
+                if (Dev.IsNull(originalFeature.getProperties()[queryWeather])) { }
+                else if (parseFloat(originalFeature.getProperties()[queryWeather]) >= parseFloat(warning)) {
+                    icoColor = "red";
+                }
+                style = new Dev.style.Style({
+                    image: new Dev.style.Icon({
+                        src: './image/weather/zhandian/' + queryWeather + "-" + icoColor + '.png',
+                        anchor: [0.5, 0.5]
+                    }),
+                    text: new Dev.style.Text({
+                        text: Dev.IsNull(originalFeature.getProperties()[queryWeather]) ? "0" : originalFeature.getProperties()[queryWeather],
+                        fill: new Dev.style.Fill({
+                            color: '#c40000'
+                        }),
+                        font: "bold 15px sans-serif",
+                        offsetX: 10,
+                        offsetY: -12
+                    })
+                });
+                if (!Dev.IsNull(selectpoint) && selectpoint.getProperties().id == key) {
+                    color = "rgba(0, 21, 42, 1)";
+                    fillcolor = "rgba(0,21,42,0.5)";
+                }
+                var pointKey = Dev.MapUtils.PointSymbolStyle1(originalFeature, 1, color, fillcolor, 30, Dev.App.Map, false);
+                pointskey.push({ key: originalFeature.getProperties().id, pointKey: pointKey });
+
+            }
+            return style;
+        }
+
+        function calculateClusterInfo() {
+            maxFeatureCount = 0;
+            var currlayer = Dev.MapUtils.GetLayer("clusterlayer", Dev.App.Map);
+            var features = currlayer.getSource().getFeatures();
+            var feature, radius;
+            for (var i = features.length - 1; i >= 0; i--) {
+                feature = features[i];
+                var originalFeatures = feature.get('features');
+                var extent = Dev.extent.createEmpty();
+                for (var j = 0; j < originalFeatures.length; j++) Dev.extent.extend(extent, originalFeatures[j].getGeometry().getExtent());
+                maxFeatureCount = Math.max(maxFeatureCount, originalFeatures.length);
+                feature.set('radius', 15);
+            }
+        }
+
+        function clearCluster() {
+            currentResolution = undefined;
+            maxFeatureCount = undefined;
+            clearmapdata();
+            var haslayer = Dev.MapUtils.GetLayer("clusterlayer", Dev.App.Map);
+            if (!Dev.IsNull(haslayer)) Dev.MapUtils.RemoveLayer("clusterlayer");
+        }
+
+        function clearmapdata() {
+            for (var i = 0; i < pointskey.length; i++) {
+                Dev.MapUtils.removePointKey(pointskey[i].key);
+                //  Dev.App.Map.unByKey(pointskey[i].pointKey);
+                pointskey[i].pointKey = null
+                pointskey[i] = null;
+            }
+            pointskey = [];
+            if (!Dev.IsNull(livesource)) livesource.clear();
+        }
+
+        /**
+         * 工具
+         */
+        function clearAll() {
+            clearHchart();
+            clearForecast();
+            clearDetail();
+            clearLegend();
+        }
+        function clearHchart() {
+            if (Dev.App.MapPanel.MapDOM.find("#weatherHchart").length > 0) {
+                // Highcharts.charts[0].destroy();
+                // Highcharts.charts.pop();
+                if (!Dev.IsNull(hchart)) {
+                    hchart.destroy();
+                    hchart = null;
+                }
+                $(".packup1", $("#weatherHchart", Dev.App.MapPanel.MapDOM)).unbind("click");
+                Dev.App.MapPanel.MapDOM.find("#weatherHchart").remove();
+            }
+        }
+
+        function clearForecast() {
+            if (Dev.App.MapPanel.MapDOM.find("#weatherforecast")) {
+                Dev.App.MapPanel.MapDOM.find("#weatherforecast").remove();
+            }
+        }
+
+        function clearDetail() {
+            if (Dev.App.MapPanel.MapDOM.find("#weatherDetail")) {
+                Dev.App.MapPanel.MapDOM.find("#weatherDetail").remove();
+            }
+        }
+        function clearMapSource() {
+            if (!Dev.IsNull(heatSource)) { heatSource.clear(); }
+            if (!Dev.IsNull(stationSource)) {
+                stationSource.clear();
+            }
+        }
+        function clearLegend() {
+            if (!Dev.IsNull(legendcontrol)) {
+                legendcontrol.SetVisible(false);
+                legendcontrol.Target.remove();
+                legendcontrol = null;
+            }
+        }
+        //从配置文件找到对应的的权重
+        function findWeightFromConfig(curValue) {
+            var weight = weatherconfig.filter(function (val1) {
+                return val1.Type === queryWeather;
+            }).filter(function (val2, index, arr) {
+                if (Dev.IsNull(val2.MinValue) && parseFloat(curValue) <= parseFloat(val2.MaxValue)) {
+                    return true;
+                }
+                if (Dev.IsNull(val2.MaxValue) && parseFloat(curValue) > parseFloat(val2.MinValue)) {
+                    return true;
+                }
+                if (parseFloat(curValue) <= parseFloat(val2.MaxValue) && parseFloat(curValue) >= parseFloat(val2.MinValue)) {
+                    return true;
+                }
+                return false;
+            })[0].Weight;
+            return weight;
+        }
+        //改变按钮颜色
+        function changeButtonColor($this, type) {
+            $("[tag='" + type + "']", $("#weathercontain", Dev.App.MapPanel.MapDOM)).css({
+                "background-color": "rgba(255, 255, 255, 0.65)",
+                "color": "#007da0"
+            });
+            $this.css({
+                "background-color": "rgba(65, 94, 230, 0.5)",
+                "color": "#FFFFFF"
+            });
+        }
+        //自适应
+        function resize() {//290
+            var width = Dev.App.FillPanel.Target.width();
+            var $platecontainer = $(".plate-container", Dev.App.MapPanel.MapDOM);
+            if ($platecontainer.length == 0) { return; }
+            if (width >= 1572) {
+                $platecontainer.width(555);
+                $platecontainer[0].style.right = "295px";
+                $platecontainer[0].style.top = "15px";
+            }
+            else if (width < 1572 && width > 1305) {
+                $platecontainer.width(290);
+                $platecontainer[0].style.right = "295px";
+                $platecontainer[0].style.top = "15px";
+            }
+            else if (width <= 1305) {//放在右侧
+                $platecontainer.width(140);
+                $platecontainer[0].style.right = "70px";
+                $platecontainer[0].style.top = "70px";
+            }
+        }
+    </script>
+
+</body>
+</html>

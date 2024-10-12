@@ -1,0 +1,450 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>无人机作业</title>
+    <link rel="stylesheet" href="../../theme/default/easyui.css" />
+    <link rel="stylesheet" type="text/css" href="../../theme/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/app.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/icon.css" />
+    <link type="text/css" href="../../css/dev.css" rel="stylesheet" />
+    <script type="text/javascript" src="../../js/jquery.min.js"></script>
+    <script type="text/javascript" src="../../js/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="../../js/easyui-lang-zh_CN.js"></script>
+    <script type="text/javascript" src="../../js/linq.min.js"></script>
+    <script type="text/javascript" src="../../js/data.util.js"></script>
+    <script type="text/javascript" src="../../js/jquery.dev.control.js"></script>
+    <script type="text/javascript" src="../../js/dev.ui.js"></script>
+    <script type="text/javascript" src="../../js/jquery.dev.js"></script>
+    <script type="text/javascript" src="../../js/guid.js"></script>
+    <script type="text/javascript">
+        var Dev = window.top.window.dev;
+        var parent, dataGrid, pageIndex = 1, pageSize = 5;
+        var treecontrol, orgFilter;
+        var updateId;
+        var dialog, flashDialog;
+        var isc;
+        function WidgetCommunication(s) { // 部件通讯
+            parent = s.parent;
+            Dev.App.BottomPanel.Header.css({ "background": "#14cdad", "color": "#fcfcfc", "font-weight": "bold" });
+            Dev.App.BottomPanel.SetIconCls("data-folder");
+            //初始化地图范围
+           // var initExtent = [parseFloat(Dev.App.Config.SystemMap.Extent.XMin), parseFloat(Dev.App.Config.SystemMap.Extent.YMin), parseFloat(Dev.App.Config.SystemMap.Extent.XMax), parseFloat(Dev.App.Config.SystemMap.Extent.YMax)];
+           // Dev.App.Map.getView().fit(initExtent, Dev.App.Map.getSize());
+            $(window).resize(function () {
+                resize();
+            });
+            init();
+            dialog = new Dev.Messager({ AutoShow: false, Type: "question" });
+            flashDialog = new Dev.Messager({ Height: 95, Width: 190, AutoShow: false, Type: "question", Timeout: 1500, ButtonVisible: false, AutoVisible: true, Effect: "normal" });
+            parent.one("onClosing", function () {
+                Dev.App.BottomPanel.SetHeight(262);
+                if (!Dev.IsNull(editWin)) {
+                    isc = true;
+                    editWin.unbind("onClosing");
+                    editWin.Close();
+                    editWin.Destroy();
+                    editWin = null;
+                }
+                if (!Dev.IsNull(dataGrid)) {
+                    dataGrid.Target.unbind("onSelectPage");
+                    dataGrid.Target.unbind("onClickRow");
+                    dataGrid.Target.unbind("onPageSizeChange");
+                    dataGrid = null;
+                }
+                if (!Dev.IsNull(treeControl)) {
+                    treeControl.unbind("onSelectChanged");
+                    treeControl = null;
+                }
+                if (!Dev.IsNull(detailWin)) {
+                    detailWin.Close();
+                    detailWin.Destroy();
+                    detailWin = null;
+                }
+                Dev.MapUtils.ClearFeature("tempGraphicLayer");
+            });
+        }
+        function init() {
+            var uavtasktype = Dev.GetDicData(["uavTaskType"]);
+            uavtasktype.splice(0, 0, { data: "不限" });
+            $("#tasktype").prop("$this").SetData(uavtasktype);
+            initGrid();
+            inittree();
+            $(".Button").click(function () {
+                var tag = $(this).attr("tag");
+                if (tag == "search") { queryData(); }
+                if (tag == "clear") { searchclear(); queryData(); }
+                if (tag == "add") { add(); }
+            });
+        }
+        function initGrid() {
+            if (!Dev.IsNull(dataGrid)) return;
+            $("#gridDiv").empty();
+            var columns = [
+                { field: "name", width: 80, align: 'center', title: '任务名称', sortable: false },
+                { field: "type", width: 60, align: 'center', title: '任务类型', sortable: false },
+                { field: "no", width: 80, align: 'center', title: '无人机编号', sortable: false },
+                { field: "flyspeed", width: 80, align: 'center', title: '飞行速度（km/h）', sortable: false },
+                { field: "flyaltitude", width: 80, align: 'center', title: '飞行高度(m)', sortable: false },
+                { field: "state", width: 80, align: 'center', title: '任务状态', sortable: false },
+                {
+                    field: "starttime", width: 80, align: 'center', title: '任务开始时间', sortable: false, formatter: function (value, row, index) {
+                        // return (row.state == "待接收" ? "" : Dev.GetDateString(value));
+                        return Dev.GetDateString(value);
+                    }
+                },
+                {
+                    field: "endtime", width: 80, align: 'center', title: '任务结束时间', sortable: false, formatter: function (value, row, index) {
+                        return Dev.GetDateString(value);
+                    }
+                },
+                {
+                    field: "_oprate", width: 50, align: 'center', title: '操作', sortable: false, formatter: function (value, row, index) {
+                        var str = "";
+                        if (row.state == "待接收") str += '<a href="javascript:void(0)"  title="修改" style="color:blue;" onclick="update(\'' + row.id + '\',\'' + index + '\')"><img src="../../image/agri/update.png"/></a>&nbsp;';
+                        else str += '<a href="javascript:void(0)"  title="不可修改" style="color:blue;"><img src="../../image/agri/unupdate.png"/></a>&nbsp;';
+                        str += '<a href="javascript:void(0)" style="color:blue;margin-left:6px;" onclick="showdetail(\'' + index + '\')" title="详细信息"><img src="../../image/agri/cartype.png"/>&nbsp;';
+                        if (row.state == "待接收" || row.state == "已完成") str += '<a href="javascript:void(0)" title="删除" style="color:blue;margin-left:6px;" onclick="deleteinfo(\'' + row.id + '\')"><img src="../../image/agri/delete.png"/></a>';
+                        else str += '<a href="javascript:void(0)" title="不可删除" style="color:blue;margin-left:6px;"><img src="../../image/agri/undelete.png"/></a>';
+                        return str;
+                    }
+                }
+            ];
+            dataGrid = new UCDataGrid(Dev, {
+                PageIndex: pageIndex, PageSize: pageSize, RowNumbers: false, ID: "trackGrid", pagequery: false, IsSizeSelect: true
+            });
+            $("#gridDiv").append(dataGrid.Target);
+            dataGrid.Layout(columns);
+            dataGrid.Target.bind("onSelectPage", function (s, e) {
+                pageIndex = e.index;
+                queryData();
+            });
+            dataGrid.Target.bind("onClickRow", function (s, e) {
+                Dev.MapUtils.ClearFeature("tempGraphicLayer");
+                var row = e.Row;
+                var fishnetps = e.Row.fishnet.split(' ');
+                var routeps = e.Row.route.split(' ');
+                var fishnetpoints = [], linepoints = [];
+                for (var i = 0; i < fishnetps.length; i += 2) fishnetpoints.push([parseFloat(fishnetps[i]), parseFloat(fishnetps[i + 1])]);
+                var fishnetpolygon = new Dev.Feature(new Dev.geom.Polygon([fishnetpoints]));
+                fishnetpolygon.setStyle(new Dev.style.Style({
+                    fill: new Dev.style.Fill({ color: "rgba(255,0,0,0.2)" }),
+                    stroke: new Dev.style.Stroke({ color: "rgba(255,0,0,1)", width: 1 })
+                }));
+                Dev.MapUtils.AddFeature(fishnetpolygon, "tempGraphicLayer", Dev.App.Map);
+                for (var i = 0; i < routeps.length; i += 2) linepoints.push([parseFloat(routeps[i]), parseFloat(routeps[i + 1])]);
+                var f = new Dev.Feature(new Dev.geom.LineString(linepoints));
+                Dev.MapUtils.AddFeature(f, "tempGraphicLayer", Dev.App.Map);
+                var rowcenter = [(f.getGeometry().getExtent()[0] + f.getGeometry().getExtent()[2]) / 2, (f.getGeometry().getExtent()[1] + f.getGeometry().getExtent()[3]) / 2];
+                Dev.App.Map.getView().setCenter(rowcenter);
+                Dev.App.Map.getView().fit(f.getGeometry().getExtent(), Dev.App.Map.getSize());
+                Dev.App.Map.getView().setZoom(16);
+            });
+            dataGrid.Target.bind("onPageSizeChange", function (s, e) {
+                if (Dev.IsNull(e)) return;
+                pageIndex = 1;
+                pageSize = e;
+                queryData();
+            });
+        }//初始化datagrid
+        var updateclick;
+        function inittree() {
+            treeControl = $('.dev-tree').prop("$this");
+            treeControl.bind("onSelectChanged", function (s, e) {
+                searchclear();
+                var treenode = e;
+                var isleaf = treeControl.IsLeaf(treenode);
+                orgFilter = " \"ORGID\" IN ('" + e.id + "',";
+                if (!isleaf) {
+                    var allchilds = treeControl.GetAllChildren(treenode);
+                    for (var i = 0; i < allchilds.length; i++) orgFilter += "'" + allchilds[i].id + "',";
+                }
+                orgFilter = orgFilter.substr(0, orgFilter.length - 1);
+                orgFilter += ")";
+                if (!Dev.IsNull(dataGrid)) queryData();
+            });
+            var orgid = Dev.cookie.user.orgid;
+            $.ajax({
+                url: Dev.GetSystemUrlByRelID("Service") + "organize/gettreebyid/" + orgid + "?" + new Date().getTime(),
+                type: "GET",
+                contentType: 'application/json',
+                dataType: 'json',
+                async: false,
+                success: function (result) {
+                    var treedata = Dev.ConvertTreeData(result.data, orgid);
+                    treeControl.LoadData(treedata);
+                    if (treedata.length > 0) treeControl.SetSelectNode(treeControl.GetRoots()[0]);
+                }
+            });
+        }//初始化组织树
+        function queryData() {
+            var con = getcondition();
+            con += " ORDER BY \"CREATEDATE\" DESC";
+            $.ajax({
+                url: Dev.GetSystemUrlByRelID("Service") + "uav/getbyfilter/" + pageIndex + "/" + pageSize,
+                type: "POST",
+                contentType: 'application/json',
+                dataType: 'json',
+                data: con,
+                success: function (result) {
+                    if (result.statusCode != 200 || Dev.IsNull(result.data)) { return; }
+                    dataGrid.Load(result.data.dataSource, result.data.pageInfo);
+                    resize();
+                }
+            });
+        }//查询无人机作业任务
+        function add() {
+            initWin(true);
+        }//作业新增
+        function update(id, index) {
+            updateclick = true;
+            dataGrid.DataGrid.datagrid("selectRow", index);
+            var row = dataGrid.DataGrid.datagrid("getSelected");
+            updateId = row.id;
+            if (!Dev.IsNull(updateId)) initWin(false, row);
+        }
+        var editWin;
+        function initWin(isadd, row) {
+            //绑定数据
+            var selectNode = treeControl.GetSelectNode();
+            var title = "无人机作业新增";
+            if (!isadd) title = "无人机作业编辑";
+            editWin = new Dev.Window({
+                ID: "uavworkWin",
+                IconCls: 'icon-featureupdate',
+                Title: title,
+                Parent: Dev.App.MapPanel.Target,
+                Maximizable: false,
+                Modal: false,
+                Draggable: true,
+                HAlign: 'center',
+                VAlign: 'center',
+                Resizable: false,
+                Url: Dev.App.Root + "html/dev/uavworkedit.html",
+                Height: 492,
+                Width: 730,
+                Parameters: { orglist: treeControl.GetSelectNode()[0].$this, orgFilter: orgFilter, updateId: updateId, row: row }
+            });
+            editWin.one("onClosing", function () {
+                Dev.MapUtils.ClearFeature("tempDrawLayer");
+                Dev.MapUtils.ClearFeature("tempGraphicLayer");
+                Dev.App.EventObject.unbind("onUAVLineChange");
+                editWin.clear();
+                if (!isc) queryData();
+            });
+            Dev.MapUtils.ClearFeature("tempGraphicLayer");
+        }
+        function deleteinfo(id) {
+            dialog.Confirm('确定删除所选记录吗？', function (r) {
+                if (!r) { return; }
+                var url = Dev.GetSystemUrlByRelID("Service") + "uav/deleteUavTaskById/" + id;
+                $.ajax({
+                    url: url,
+                    type: "GET",
+                    contentType: 'application/json',
+                    dataType: 'json',
+                    success: function (result) {
+                        if (result.statusCode != 200) return;
+                        flashDialog.Alert("&nbsp;&nbsp;删除成功", "info");
+                        Dev.MapUtils.ClearFeature("tempGraphicLayer", Dev.App.Map);
+                        queryData();
+                    },
+                    error: function () {
+                        flashDialog.Alert("网络异常，请重试！", "error");
+                    }
+                });
+            }, "question");
+        }
+
+
+        //详细信息
+        var detailWin;
+        function showdetail(index) {
+            dataGrid.DataGrid.datagrid("selectRow", index);
+            var selectRowData = dataGrid.DataGrid.datagrid("getSelected");
+            if (Dev.IsNull(selectRowData)) return;
+            if (!Dev.IsNull(detailWin)) { detailWin.Close(); detailWin.Destroy(); detailWin = null; }
+            detailWin = new Dev.Window({
+                ID: "detailcommon",
+                IconCls: 'machine-trackedit',
+                Title: "详细信息",
+                Parent: Dev.App.FillPanel.Target,
+                Maximizable: false,
+                Modal: true,
+                Draggable: true,
+                HAlign: 'center',
+                VAlign: 'center',
+                Resizable: false,
+                Url: Dev.App.Root + "html/detailinfo/uavworkdetail.html",
+                Height: 375,
+                Width: 520,
+                Parameters: { showdata: selectRowData }
+            });
+        }
+
+        //辅助函数
+        function getcondition() {
+            var con = "1=1";
+            var machinenum = $("#machineNum").prop("$this").GetValue();
+            if (!Dev.IsNull(machinenum)) con += " AND ( \"NO\"  LIKE '%" + $.trim(machinenum) + "%'" + " OR " + "UPPER( \"NO\" )  LIKE " + "UPPER('%" + $.trim(machinenum) + "%')" + " OR " + "LOWER( \"NO\" )  LIKE " + "LOWER('%" + $.trim(machinenum) + "%'))";
+            var tasktype = $("#tasktype").prop("$this").GetValue();
+            if (!Dev.IsNull(tasktype) && tasktype != "不限") con += " AND \"TYPE\"='" + tasktype + "'";
+            var time1 = $("#tasktime1").datebox("getValue");
+            var time2 = $("#tasktime2").datebox("getValue");
+            if (!Dev.IsNull(time1) && !Dev.IsNull(time2)) {
+                if ((new Date(time1.replace(/-/g, "/")).getTime()) > (new Date(time2.replace(/-/g, "/")).getTime())) {
+                    var temp = time1; time1 = time2; time2 = temp;
+                }
+            }
+            if (!Dev.IsNull(time1)) con += " AND \"BEGINTIME\" >= '" + time1 + " 00:00:00'";
+            if (!Dev.IsNull(time2)) con += " AND \"BEGINTIME\" <= '" + time2 + " 23:59:59'";
+            if (!Dev.IsNull(orgFilter) && orgFilter.length > 0) con += " AND " + orgFilter;
+            return con;
+        }
+        function resize() {
+            var height = $(window).outerHeight();
+            var gridheight = height - 40;
+            var gridwidth = $(window).outerWidth() * 0.80 - 2;
+            if (gridwidth < 1100) {
+                gridwidth = 1100;
+                gridheight = parseFloat(gridheight) - 16;
+            }
+            $("#searchDiv").width(gridwidth);
+            $("#gridDiv").height(gridheight).width(gridwidth);
+            if (!Dev.IsNull(dataGrid)) dataGrid.Resize(gridwidth, gridheight);
+            $("#treediv").height(height - 26);
+        }
+        function searchclear() {
+            pageIndex = 1;
+            var machinecontrol = $("#machineNum").prop("$this");
+            var statecontrol = $("#tasktype").prop("$this");
+            if (!Dev.IsNull(machinecontrol)) machinecontrol.Clear();
+            if (!Dev.IsNull(statecontrol)) statecontrol.SetValue("");
+            $("#tasktime1").datebox("setValue", "");
+            $("#tasktime2").datebox("setValue", "");
+        }
+    </script>
+    <style type="text/css">
+        .content {
+            height: 100%;
+            width: 100%;
+            position: relative;
+        }
+
+            .content .Title {
+                width: 75px;
+                text-align: right;
+                line-height: 40px;
+                height: 40px;
+                display: inline-block;
+                float: left;
+            }
+
+                .content .Title .Icon {
+                    width: 16px;
+                    height: 16px;
+                    display: inline-block;
+                    float: left;
+                    margin-left: 2px;
+                    margin-top: 11px;
+                }
+
+                .content .Title .Text {
+                    display: inline-block;
+                    text-align: left;
+                    margin-left: 0px;
+                    width: 51px;
+                }
+
+            .content .Button {
+                width: 70px;
+                height: 26px;
+                float: left;
+                margin-top: 5px;
+                background-color: #16dbbb;
+                text-align: center;
+                border: 1px solid #16dbbbSSSS;
+                display: inline-block;
+            }
+
+                .content .Button:hover {
+                    background-color: #5227de;
+                    border: 1px solid #5227de;
+                    cursor: pointer;
+                }
+
+                .content .Button:active {
+                    background-color: #210097;
+                    cursor: pointer;
+                }
+
+        .datagrid-row {
+            height: 28px;
+        }
+    </style>
+</head>
+<body>
+    <div id="shade" style="width: 100%; height: 100%; position: absolute; z-index: 10; display: none; background: rgba(255,255,255,0.3)"></div>
+    <div id="content" class="content">
+        <div style="height: 100%; width: 20%; position: absolute;">
+            <!--<div style="height: 26px; line-height: 26px; width: 100%; background-color: #ddd;"><span style="margin-left: 15px; color: #0099cc; line-height: 26px; letter-spacing: 3px; font-size: 12px;">组织机构</span></div>-->
+            <div id="treediv" style="width: 100%; height: 100%;">
+                <div class="dev-tree" opt='{"ValueField":"id","TextField":"name","ChildrenField":"child","Height":220}'></div>
+            </div>
+        </div>
+        <div style="height: 100%; width: 80%; position: absolute; left: 20%; overflow: auto; overflow-y: hidden">
+            <div id="searchDiv" style="height: 38px; border-left: 1px solid #ddd; position: relative; min-width: 1100px;">
+                <div style="height: 100%; width: 210px; margin-left: 10px; display: inline-block;">
+                    <div class="Title" style="width: 85px;">
+                        <div class="Icon icon-element"></div>
+                        <span class="Text" style="width: 61px;">无人机编号</span>
+                    </div>
+                    <div style="width: 120px; height: 40px; line-height: 38px; float: left; margin-left: 5px;">
+                        <div id="machineNum" class="dev-textbox" style="z-index: 2; width: 120px; margin-top: 8px;" opt='{"TipInfo":"","IsOverShow":true,"Padding":"0px 5px","TextAlign":"left","BodyCSS": { "background-color": "transparent" }}'></div>
+                    </div>
+                </div>
+                <div style="height: 100%; width: 200px; margin-left: 4px; display: inline-block;">
+                    <div class="Title">
+                        <div class="Icon icon-element"></div>
+                        <span class="Text">任务类型</span>
+                    </div>
+                    <div style="width: 120px; height: 40px; line-height: 38px; float: left; margin-left: 5px;">
+                        <div id="tasktype" class="dev-combobox" style="z-index: 2; width: 120px; margin-top: 8px;" opt='{"ValueField":"data","TextField":"data", "TipInfo":"请选择","IsOverShow":true,"Padding":"0px 5px","TextAlign":"left","BodyCSS": { "background-color": "transparent" }}'></div>
+                    </div>
+                </div>
+                <div style="height: 100%; width: 220px; margin-left: 4px; display: inline-block;">
+                    <div class="Title" style="width: 95px">
+                        <div class="Icon icon-calendar"></div>
+                        <span class="Text" style="width: 75px">任务开始时间</span>
+                    </div>
+                    <div style="width: 120px; height: 40px; line-height: 38px; display: inline-block; float: left; margin-left: 5px;">
+                        <input id="tasktime1" class="easyui-datebox" data-options="width:120,height:24,editable:false" />
+                    </div>
+                </div>
+                <div style="height: 100%; width: 146px; margin-left: 4px; display: inline-block;">
+                    <div style="width: 12px; height: 40px; display: inline-block; line-height: 38px; text-align: center; float: left; margin-left: 2px;">至</div>
+                    <div style="width: 120px; height: 40px; line-height: 38px; display: inline-block; margin-left: 12px; float: left;">
+                        <input id="tasktime2" class="easyui-datebox" data-options="width:120,height:24,editable:false,validType:'equaldDate[\'#tasktime1\']'" />
+                    </div>
+                </div>
+                <div style="width: 240px; height: 100%; float: right; margin-right: 12px; display: inline-block;">
+                    <div class="Button" tag="search" style="margin-left: 10px;">
+                        <div class="machine-query" style="height: 16px; width: 16px; margin-top: 5px; margin-left: 5px; display: inline-block; float: left;"></div>
+                        <span style="line-height: 28px; color: #fcfcfc; width: 40px; text-align: center; margin-left: 3px;">查&nbsp;询</span>
+                    </div>
+                    <div class="Button" tag="clear" style="margin-left: 4px;">
+                        <div class="machine-query" style="height: 16px; width: 16px; margin-top: 5px; margin-left: 5px; display: inline-block; float: left;"></div>
+                        <span style="line-height: 28px; color: #fcfcfc; width: 40px; text-align: center; margin-left: 3px;">重&nbsp;置</span>
+                    </div>
+                    <div class="Button" tag="add" style="margin-left: 4px;">
+                        <div class="machine-add" style="height: 16px; width: 16px; margin-top: 5px; margin-left: 5px; display: inline-block; float: left;"></div>
+                        <span style="line-height: 28px; color: #fcfcfc; width: 40px; text-align: center; margin-left: 3px;">新&nbsp;增</span>
+                    </div>
+                </div>
+            </div>
+            <div id="gridDiv" style="border-left: 1px solid #ddd; border-top: 1px solid #ddd;"></div>
+        </div>
+    </div>
+</body>
+</html>

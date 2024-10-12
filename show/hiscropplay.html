@@ -1,0 +1,733 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>农业大数据研究与管理平台</title>
+    <link rel="stylesheet" href="../theme/default/easyui.css" />
+    <link rel="stylesheet" type="text/css" href="../css/app.css" />
+    <link rel="stylesheet" type="text/css" href="../css/main.css" />
+    <link type="text/css" href="../css/dev.css" rel="stylesheet" />
+    <script type="text/javascript" src="../js/jquery.min.js"></script>
+    <script type="text/javascript" src="../js/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="../js/dev.ui.js"></script>
+    <script type="text/javascript" src="../js/data.util.js"></script>
+    <script type="text/javascript" src="../js/ol.min.3.2.1.js"></script>
+    <script type="text/javascript" src="js/show.gis.js"></script>
+    <script type="text/javascript" src="../js/linq.min.js"></script>
+    <script type="text/javascript" src="../js/guid.js"></script>
+    <script type="text/javascript" src="../js/jquery.dev.js"></script>
+    <script type="text/javascript" src="../cesium/Cesium.js"></script>
+    <script type="text/javascript" src="../js/measure3D.js"></script>
+    <script type="text/javascript" src="../cesium/viewerNavigation.js"></script>
+    <script type="text/javascript" src="js/highcharts.js"></script>
+    <script type="text/javascript" src="../js/jquery.dev.control.js"></script>
+    <link rel="icon" type="image/x-icon" href="../image/logo.ico" />
+    <style type="text/css">
+        .content {
+            width: 100%;
+            height: calc(100% - 33px);
+            background: url(showimg/logo.png) no-repeat top,-webkit-radial-gradient(#000c09 30%,#000c09 70%);
+            background: url(showimg/logo.png) no-repeat top,-o-radial-gradient(#000c09 30%,#000c09 70%);
+            background: url(showimg/logo.png) no-repeat top,-moz-radial-gradient(#000c09 30%,#000c09 70%);
+            background: url(showimg/logo.png) no-repeat top,radial-gradient(#000c09 30%,#000c09 70%);
+        }
+
+        .title {
+            float: left;
+            width: 97%;
+            height: 33px;
+            background: url(showimg/t-bg.png) no-repeat center/100% 100%;
+            margin-left: 0.6%;
+            margin-top: 0.6%;
+            color: white;
+            padding-left: 1%;
+            font-size: 14px;
+            line-height: 33px;
+        }
+
+        .content > .mappanel {
+            float: left;
+            width: 98%;
+            height: calc(55% - 60px);
+            margin-left: 1%;
+            margin-top: 60px;
+            border: 1.5px solid rgba(10,43,79,1);
+        }
+
+        .mappaneldom {
+            float: left;
+            width: 100%;
+            height: 100%;
+            display: inline-block;
+        }
+
+        .leftpanel1, .rightpanel2 {
+            float: left;
+            width: 55%;
+            background: url(showimg/topl.png),url(showimg/topr.png),url(showimg/bottoml.png),url(showimg/bottomr.png),url(showimg/divbg.png) no-repeat center/100% 100%;
+            background-repeat: no-repeat,no-repeat,no-repeat,no-repeat;
+            background-position: top left,top right,bottom left,bottom right;
+            margin-left: 1%;
+            margin-top: 0.6%;
+            height: calc(42% - 60px);
+        }
+
+        .columdiv1 {
+            float: left;
+            width: 98%;
+            margin-left: 1%;
+            margin-top: 2%;
+            height: calc(92% - 40px);
+            background: url(showimg/Statistic.png) no-repeat center/100% 100%,url(showimg/stbg.png) no-repeat top/100%;
+        }
+
+        .croptable {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #06728D;
+            margin: auto;
+        }
+
+            .croptable th {
+                height: 28px;
+                color: #fcfcfc;
+                border: 2px solid rgba(10,43,79,0.6);
+                background-color: rgba(240,248,255,0.2);
+            }
+
+                .croptable th:first-child {
+                    width: 15%;
+                }
+
+            .croptable td {
+                height: 28px;
+                color: #fcfcfc;
+                border: 2px solid rgba(10,43,79,0.6);
+                text-align: center;
+            }
+
+                .croptable td:first-child {
+                    width: 10%;
+                }
+
+            .croptable tr:nth-child(even) {
+                border: 2px solid rgba(100,149,237,0.6);
+                background-color: rgba(30,144,255,0.2);
+            }
+
+            .croptable tr:hover {
+                background-color: rgba(30,144,255,0.5);
+            }
+        /* 底部样式 */
+        footer {
+            background-color: #363636;
+            font-size: 14px;
+            color: #fff;
+            line-height: 33px;
+            position: relative;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
+            height: 33px;
+            text-align: center;
+        }
+    </style>
+    <script type="text/javascript">
+        var Config, exMap, layer, cropl;
+        var linetimecontrol, selectlayerinfo, timlinedata;
+        var thislayer, servicename, name;
+        var box, tableh, layerplaybtn;
+        var layerconfig;
+        $(window).ready(function () {
+            servicename = getUrlParam("prodata");
+            var layerdata = getUrlParam("layerdata");
+            name = getUrlParam("name");
+            var index = getUrlParam("index");
+            dev.App.MapPanel = $(".mappanel");
+            dev.App.MapPanel.Target = $(".mappanel");
+            dev.App.MapPanel.MapDOM = $(".mappaneldom");
+            if (dev.IsNull(Config)) {
+                var config = null;
+                $.ajax({
+                    url: "../config/app.xml",
+                    dataType: 'xml',
+                    type: 'GET',
+                    cache: false,
+                    timeout: 2000,
+                    async: false,
+                    error: function (xml) {
+                        alert("加载系统配置文件出错！");
+                    },
+                    success: function (xml) {
+                        config = $.xml2json(xml);
+                    }
+                });
+                dev.App.Config = Config = config;
+                layerconfig = Config.Extend.LayerForTree.LayerRoot[1].Child;
+            }
+            initMap();
+            dev.App.Map = exMap;
+            dev.App.Root = GetRootPath();
+            dev.App.TempStyle = dev.CreateTempStyle();
+            dev.App.InitMapMenu();
+            dev.projTransf({ "top": "180px", "crstoolpanel_top": "207px" });
+            dev.App.EventObject = $(dev);
+            initlineTime();
+            $('#infobtn').click(function () {
+                window.open(GetRootPath() + "show/index.html", "_self");
+            });
+            box = new dev.Box({
+                Width: '100%', Height: '100%',
+                HasBorder: false,
+                HorScroll: "auto",
+                VerScroll: "auto"
+            });
+            $("#Div2").append(box.Target);
+            var childl = getlayertreebyType("fine");
+            if (!dev.IsNull(childl[index].Child[0].Child[0]) && !dev.IsNull(childl[index].Child[0].Child[0].Child)) {
+                layer = childl[index].Child[0].Child[0].Child;
+            }
+            if (dev.IsNull(layer)) {
+                layerplaybtn.css("display", "none");
+                return;
+            }
+            if (!dev.IsNull(layerdata)) {
+                if (servicename == "crop") {
+                    var cl = Enumerable.From(layer).Where('s=>s.Type.indexOf("newcropl")>=0').ToArray();
+                    if (!dev.IsNull(cl)) {
+                        thislayer = cl[0].Child;
+                    }
+                }
+                else
+                    thislayer = Enumerable.From(layer).Where('s=>s.Type.indexOf("' + layerdata + '")>=0').ToArray();
+                if (dev.IsNull(thislayer) || thislayer.length < 1) {
+                    layerplaybtn.css("display", "none");
+                    return;
+                }
+                linetimecontrol.Target.css("display", "block");
+                linetimecontrol.LoadData(thislayer);
+                linetimecontrol.SetSelect(0);
+                linetimecontrol.SetTipFont({ "font-size": "14px", "top": "0px" });
+                selectlayerinfo = thislayer[0];
+                timlinedata = thislayer;
+                if (dev.IsNull(timlinedata) || timlinedata.length < 1)
+                    layerplaybtn.css("display", "none");
+                AddWMS(selectlayerinfo, true);
+            }
+            if (!dev.IsNull(name)) {
+                $("#ttrend").text(name + "面积");
+                $("#Div1").text("历史" + name + "面积");
+            }
+            if (!dev.IsNull(servicename)) {
+                if (servicename == "crop") {
+                    cropdata(servicename);
+                }
+                else {
+                    $.ajax({
+                        data: { region: selectlayerinfo.CountyCode },
+                        url: dev.MapLoad.GetUrlByRelID("Service") + "/" + servicename + "/findHistoryArea",
+                        type: "POST",
+                        dataType: 'json',
+                        success: function (result) {
+                            if (result.data.length == 0) return;
+                            var hiscorp = Enumerable.From(result.data).OrderBy('s=>s.CROPDATE').GroupBy('s=>s.CROPDATE').ToArray();
+                            var table = $('<table class="croptable"></table>');
+                            var tr = $('<tr></tr>').appendTo(table);
+                            $("<th>时间</th>").appendTo(tr);
+                            var heard = Enumerable.From(selectlayerinfo.SldLegend).Where('s=>s.Text!="非监控区"').ToArray();;
+                            for (var i = 0; i < heard.length; i++) {
+                                $('<th>' + heard[i].Text + '</th>').appendTo(tr);
+                            }
+                            //var grid = Enumerable.From(hiscorp[0].source).OrderBy('s=>s.GRIDCODE').ToArray();
+                            //for (var k = 0; k < grid.length; k++) {
+                            //    var code = Enumerable.From(selectlayerinfo.SldLegend).Where('s=>s.ID=="' + grid[k].GRIDCODE + '"').ToArray();
+                            //    if (code.length > 0) {
+                            //        $('<th>' + code[0].Text + '</th>').appendTo(tr);
+                            //    }
+                            //}
+                            for (var i = 0; i < hiscorp.length; i++) {
+                                var tr1 = $("<tr></tr>").appendTo(table);
+                                $('<td>' + hiscorp[i].source[0].CROPDATE + '</td>').appendTo(tr1);
+                                var grid = Enumerable.From(hiscorp[i].source).OrderBy('s=>s.GRIDCODE').ToArray();
+                                for (var j = 0; j < heard.length; j++) {
+                                    var id = Enumerable.From(grid).Where('s=>s.GRIDCODE=="' + heard[j].ID + '"').ToArray();
+                                    if (id.length > 0) {
+                                        var num = dev.SqrtMetersToMu(id[0].AREA * 1000000);
+                                        $('<td>' + parseFloat(num).toFixed(1) + '亩</td>').appendTo(tr1);
+                                    }
+                                    else
+                                        $('<td></td>').appendTo(tr1);
+                                }
+                            }
+                            box.SetContent(table);
+                            tableh = table.height();
+                        }
+                    });
+                    chartdata(servicename);
+                }
+            }
+            resize();
+        });
+        $(window).resize(function () {
+            resize();
+        });
+        $(window).unload(function () {
+            $(this).remove();
+        });
+        function resize() {
+            if ($('.content').height() <= 810) {
+                $('#flow').css("overflow-y", "auto");
+            }
+            if ($('.content').width() <= 1260) {
+                $('#flow').css("overflow-x", "auto");
+            }
+            if (!dev.IsNull(box)) {
+                box.SetSize({ Width: '100%', Height: '100%' });
+                box.Target.css({ "background-color": "transparent", "margin-top": 'calc(2% + 33px)' });
+            }
+            $(".linetimediv", $('#mapdiv')).css("width", "calc(95% - 24px)");
+            linetimecontrol.Resize();
+            $("#Div2").css("margin-top", "35px");
+            $('footer').css("width", $('.content').width());
+        }
+        //初始化地图
+        function initMap() {
+            var initconfig = Config.SystemMap;
+            var resolutions;
+            if (!dev.IsNull(initconfig.LevelInfo) && !dev.IsNull(initconfig.LevelInfo.IsVisibleLevel)
+                && initconfig.LevelInfo.IsVisibleLevel == "true") {
+                resolutions = [];
+                if (dev.IsNull(initconfig.DisplayEPSG)) initconfig.DisplayEPSG = "EPSG:4326";
+                for (var i = 0; i < initconfig.LevelInfo.Levels.length; i++)
+                    if (dev.IsNull(initconfig.DisplayEPSG) || initconfig.DisplayEPSG == "EPSG:4326") resolutions.push(parseFloat(initconfig.LevelInfo.Levels[i].Resolution));
+                    else resolutions.push(parseFloat(initconfig.LevelInfo.Levels[i].Resolution3857));
+            }
+
+            exMap = new ol.Map({
+                controls: new ol.control.defaults({ zoom: false, rotate: false, attribution: false }),
+                interactions: ol.interaction.defaults().extend([new ol.interaction.DragRotateAndZoom()]),
+                target: $(".mappaneldom")[0],
+                logo: false
+            });
+            var minZoom = parseInt(initconfig.LevelInfo.MinZoom);
+            var proj = ol.proj.get(initconfig.DisplayEPSG);
+            exMap.setView(new ol.View({
+                projection: proj,
+                resolutions: resolutions,
+                minZoom: minZoom,
+                minResolution: resolutions[resolutions.length - 1],
+                maxZoom: resolutions.length + minZoom - 1,
+                maxResolution: resolutions[0]
+            }));
+            dev.App.Map = exMap;
+            dev.MapLoad.InitMap($.extend({ Map: exMap }, initconfig), true);
+        }
+        //显示时间轴
+        function initlineTime() {
+            if (dev.IsNull(linetimecontrol)) {
+                var lineDiv = $('<div class="linetimediv" style="position:relative;top:-99%;left:2%;height:65px;"></div>').appendTo($('#mapdiv')[0]);
+                lineDiv.css("width", "calc(95% - 24px)");
+                linetimecontrol = new TimeLineX(dev, { Height: 60 });
+                lineDiv.append(linetimecontrol.Target);
+                linetimecontrol.Layout();
+                linetimecontrol.bind("onSelectNode", function (s, e) {
+                    selectlayerinfo = e;
+                    SetWMSVisible(e);
+                    if (servicename == "crop") {
+                        cropdata(servicename);
+                    }
+                    else
+                        chartdata(servicename);
+                });
+                //添加播放器
+                layerplaybtn = $('<div  tag="play" style="position:relative;top:calc(-100% - 45px);height:24px;width:24px;left:96%; border: 1px solid #6BC30D;background: rgba(0,0,0,0.8);display:block;cursor:pointer"><div  class="icon timeline-imageplay"></div></div>').appendTo($('#mapdiv'));
+                layerplaybtn.click(function () {
+                    var tag = $(this).attr("tag");
+                    if (tag == "play") {
+                        if (!dev.IsNull(selectlayerinfo)) {
+                            selectlayerinfo.Filter = leverlegend_filter = undefined;
+                        }
+                        $(".icon", $(this)).removeClass("timeline-imageplay").addClass("timeline-imagestop");
+                        $(this).attr("tag", "stop");
+                        timetick = setInterval("layerplay()", 3000);
+                    }
+                    else if (tag == "stop") {
+                        $(".icon", $(this)).removeClass("timeline-imagestop").addClass("timeline-imageplay");
+                        $(this).attr("tag", "play");
+                        if (!dev.IsNull(timetick)) { clearInterval(timetick); timetick = null; }
+                    }
+                });
+
+            }
+        }
+        function chartdata(sname) {
+            $("#ttrend").text(name + "面积");
+            $.ajax({
+                url: dev.MapLoad.GetUrlByRelID("Service") + "/" + sname + "/findStatisticsDate",
+                type: "POST",
+                data: { tableName: selectlayerinfo.TypeName.split(':')[1] },
+                success: function (result) {
+                    if (!dev.IsNull(result.error) || dev.IsNull(result.data2) || result.data2.length == 0) return;
+                    if (sname == "yield") {
+                        yieldChart(result.data2);
+                    }
+                    else
+                        corpchart(result.data2);
+                }
+            });
+        }
+        //种植历史信息
+        function cropdata(sname) {
+            //$("#Div2").empty();
+            $("#ttrend").text(name + "面积");
+            $.ajax({
+                url: dev.MapLoad.GetUrlByRelID("Service") + "/" + sname + "/findCropInfoByType",
+                type: "POST",
+                data: { tableName: selectlayerinfo.TypeName.split(':')[1] },
+                dataType: 'json',
+                success: function (result) {
+                    if (result.data.length == 0) return;
+                    var table = $('<table class="croptable"></table>');
+                    var tr = $('<tr></tr>').appendTo(table);
+                    $("<th>种植作物</th><th>种植面积</th><th>占比</th>").appendTo(tr);
+                    var area = Enumerable.From(result.data).Sum('s=>s.CROPAREA');
+                    var mj = dev.SqrtMetersToMu(area);
+                    for (var k = 0; k < result.data.length; k++) {
+                        var tr1 = $('<tr></tr>').appendTo(table);
+                        //$('<td>' + selectlayerinfo.Value.replace("CropLayer", "") + '</td>').appendTo(tr1);
+                        $('<td>' + result.data[k].CROPTYPE + '</td>').appendTo(tr1);
+                        $('<td>' + dev.SqrtMetersToMu(result.data[k].CROPAREA) + '</td>').appendTo(tr1);
+                        $('<td>' + (dev.SqrtMetersToMu(result.data[k].CROPAREA) / mj).toFixed(3) + '</td>').appendTo(tr1);
+                    }
+                    box.SetContent(table);
+                    tableh = table.height();
+                    cropChart(result.data);
+                }
+            });
+        }
+        //统计图
+        function corpchart(data) {
+            var croptypex = [];
+            var seriesct = [];
+            var croptypes = selectlayerinfo.CropTypes.CropType;
+            var seriesdata = Enumerable.From(data).OrderBy('s=>s.gridcode').GroupBy('s=>s.gridcode').ToArray();
+            var SldLegend = Enumerable.From(selectlayerinfo.SldLegend).Where('s=>s.Text!="非监控区"').ToArray();
+            for (var i = 0; i < seriesdata.length; i++) {
+                var codearr = Enumerable.From(SldLegend).Where('s=>s.ID=="' + seriesdata[i].source[0].gridcode + '"').ToArray();
+                if (codearr.length <= 0) {
+                    continue;
+                }
+                var gridcode = codearr[0].Text;
+                var currseries = { name: gridcode, data: [], color: codearr[0].Fill.Color };
+                var croptypelist = Enumerable.From(seriesdata[i]).GroupBy('s=>s.croptype').ToArray();
+                for (var j = 0; j < croptypes.length; j++) {
+                    croptypex.push(croptypes[j].Text);
+                    var cropname = Enumerable.From(croptypelist).Where('s=>s.source[0].croptype=="' + croptypes[j].Text + '"').ToArray();
+                    if (cropname.length > 0) {
+                        var croptypexnum = Enumerable.From(cropname).Sum('s=>s.source[0].area');
+                        currseries.data[j] = { name: croptypes[j].Text, y: parseFloat(dev.SqrtMetersToMu(croptypexnum * 1000000, 1)) };
+                    }
+                    else {
+                        currseries.data[j] = { name: croptypes[j].Text, y: 0 };
+                    }
+                }
+                seriesct.push(currseries);
+            }
+            var hightc = {
+                chart: {
+                    borderWidth: 1,
+                    backgroundColor: 'rgba(4,155,199,0)',
+                    type: 'column',
+                    style: {
+                        color: "#ffffff",
+                    }
+                },
+                title: {
+                    text: "",
+                },
+                xAxis: [{
+                    type: 'category',
+                    labels: {
+                        style: {
+                            color: '#FFFFFF'
+                        }
+                    },
+                    lineColor: '#b4b4b4',
+                    categories: croptypex,
+                    crosshair: true
+                }],
+                yAxis: [{
+                    min: 0,
+                    title: {
+                        text: '面积（亩）',
+                        style: {
+                            color: "#FFFFFF",
+                        }
+                    },
+                    labels: {
+                        style: {
+                            color: '#FFFFFF'
+                        }
+                    },
+                    gridLineWidth: 0,
+                    gridLineColor: '#c40000',
+                    lineColor: '#F5F5F5',
+                    lineWidth: 0.8,
+                    tickAmount: 5
+                }],
+                legend: { itemStyle: { color: '#FFFFFF' }, padding: 2, margin: 1, itemMarginBottom: -10 },
+                tooltip: {
+                    headerFormat: '<span style="font-size:10px">{point.key}</span><table>',
+                    pointFormat: '<tr><td style="color:{series.color};padding:0">{series.name}: </td>' +
+                    '<td style="padding:0"><b>{point.y:.1f} 亩</b></td></tr>',
+                    footerFormat: '</table>',
+                    shared: true,
+                    useHTML: true
+                },
+                plotOptions: {
+                    column: {
+                        borderWidth: 0,
+                        cursor: 'pointer'
+                    }
+
+                },
+                series: seriesct,
+                credits: { enabled: false }
+            }
+            $("#colum3").highcharts(hightc);
+        }
+        //产量统计图
+        function yieldChart(data) {
+            var series4 = [{ name: "农作物产量", data: [], type: 'column', color: "#6495ED", yAxis: 1, tooltip: { valueSuffix: 'kg' } },
+                { name: "农作物面积", data: [], type: 'spline', color: "#00FF7F", tooltip: { valueSuffix: '亩' } }
+            ];
+            for (var i = 0; i < data.length; i++) {
+                series4[0].data.push({ name: data[i].croptype, y: data[i].average });
+                series4[1].data.push({ name: data[i].croptype, y: parseFloat(dev.SqrtMetersToMu(data[i].area * 1000000, 1)) });
+            }
+            $("#colum3").highcharts({
+                chart: {
+                    borderWidth: 1,
+                    backgroundColor: 'rgba(4,155,199,0)',
+                    type: 'column',
+                    style: {
+                        color: "#ffffff"
+                    },
+                    zoomType: 'xy'
+                },
+                title: { text: null },
+                xAxis: [{
+                    type: 'category',
+                    labels: {
+                        style: {
+                            color: '#FFFFFF'
+                        }
+                    },
+                    lineColor: '#F5F5F5',
+                    crosshair: true
+                }],
+                yAxis: [{
+                    labels: {
+                        format: '{value}',
+                        style: {
+                            color: '#00FF7F'
+                        }
+                    },
+                    title: {
+                        text: '亩',
+                        style: {
+                            color: '#00FF7F'
+                        }
+                    },
+                    lineColor: '#F5F5F5',
+                    lineWidth: 0.8,
+                    gridLineWidth: 0,
+                }, {
+                    title: {
+                        text: '产量(kg)',
+                        style: {
+                            color: Highcharts.getOptions().colors[0]
+                        }
+                    },
+                    labels: {
+                        format: '{value}kg',
+                        style: {
+                            color: Highcharts.getOptions().colors[0]
+                        }
+                    },
+                    gridLineWidth: 0,
+                    lineColor: '#F5F5F5',
+                    lineWidth: 0.8,
+                    opposite: true
+                }],
+                legend: { itemStyle: { color: '#FFFFFF' }, padding: 2, margin: 1, itemMarginBottom: -10 },
+                tooltip: {
+                    shared: true
+                },
+                series: series4,
+                credits: { enabled: false },
+            });
+        }
+        //农作物历史种植统计图
+        function cropChart(data) {
+            var series1 = [{ name: "农作物面积", data: [], type: 'column', color: "#6495ED", tooltip: { valueSuffix: '亩' } }];
+            for (var i = 0; i < data.length; i++) {
+                series1[0].data.push({ name: data[i].CROPTYPE, y: parseFloat(dev.SqrtMetersToMu(data[i].CROPAREA)) });
+            }
+            $("#colum3").highcharts({
+                chart: {
+                    borderWidth: 1,
+                    backgroundColor: 'rgba(4,155,199,0)',
+                    type: 'column',
+                    style: {
+                        color: "#ffffff"
+                    }
+                },
+                title: {
+                    text: "",
+                },
+                xAxis: [{
+                    type: 'category',
+                    labels: {
+                        style: {
+                            color: '#FFFFFF'
+                        }
+                    },
+                    lineColor: '#b4b4b4',
+                    crosshair: true
+                }],
+                yAxis: [{
+                    min: 0,
+                    title: {
+                        text: '面积（亩）',
+                        style: {
+                            color: "#FFFFFF",
+                        }
+                    },
+                    labels: {
+                        style: {
+                            color: '#FFFFFF'
+                        }
+                    },
+                    gridLineWidth: 0,
+                    gridLineColor: '#c40000',
+                    lineColor: '#F5F5F5',
+                    lineWidth: 0.8,
+                    tickAmount: 5
+                }],
+                legend: { itemStyle: { color: '#FFFFFF' }, padding: 2, margin: 1, itemMarginBottom: -10 },
+                tooltip: {
+                    headerFormat: '<span style="font-size:10px">{point.key}</span><table>',
+                    pointFormat: '<tr><td style="color:{series.color};padding:0">{series.name}: </td>' +
+                    '<td style="padding:0"><b>{point.y:.1f} 亩</b></td></tr>',
+                    footerFormat: '</table>',
+                    shared: true,
+                    useHTML: true
+                },
+                plotOptions: {
+                    column: {
+                        borderWidth: 0,
+                        cursor: 'pointer'
+                    }
+
+                },
+                series: series1,
+                credits: { enabled: false }
+            });
+        }
+        function SetWMSVisible(layerinfo) {
+            for (var i = 0; i < timlinedata.length; i++) {
+                dev.MapUtils.RemoveLayer(timlinedata[i].Value, exMap);
+            }
+            AddWMS(layerinfo, true);
+        }
+        //添加WMS
+        function AddWMS(layerinfo, visible) {
+            //判断该图层是否存在
+            dev.MapUtils.RemoveLayer(layerinfo.Value, dev.App.Map);
+            var param = {
+                Map: dev.App.Map,
+                ID: layerinfo.Value,
+                Url: dev.MapLoad.GetUrlByRelID(layerinfo.Url),
+                Layers: layerinfo.TypeName,
+                Visible: dev.IsNull(visible) ? false : visible,
+                ServerType: layerinfo.ServerType,
+                EPSG: dev.App.Map.getView().getProjection().getCode()
+            };
+            if (!dev.IsNull(layerinfo.SldLegend)) {
+                if (dev.IsNull(layerinfo.SldLegend.length)) layerinfo.SldLegend = [layerinfo.SldLegend];
+                param.Sldbody = dev.MapLoad.GetSLDString(layerinfo.TypeName, dev.LegendToRule(layerinfo.SldLegend));
+            }
+            if (!dev.IsNull(layerinfo.Envelop)) {
+                var arry = layerinfo.Envelop.split(',');
+                param.Extent = [parseFloat(arry[0]), parseFloat(arry[1]), parseFloat(arry[2]), parseFloat(arry[3])];
+            }
+            dev.MapLoad.AddWMSLayer(param);
+            var initExtent = param.Extent;
+            if (dev.App.Config.SystemMap.DataEPSG != dev.App.Config.SystemMap.DisplayEPSG) initExtent = ol.proj.transformExtent(initExtent, dev.App.Config.SystemMap.DataEPSG, dev.App.Config.SystemMap.DisplayEPSG);
+            dev.App.Map.getView().fit(initExtent, dev.App.Map.getSize());
+            dev.App.Map.getView().setZoom(parseInt(Config.SystemMap.Zoom));
+        }
+        function getUrlParam(value) {
+            var reg = new RegExp("(^|&)" + value + "=([^&]*)(&|$)"); //构造一个含有目标参数的正则表达式对象
+            var r = window.location.search.substr(1).match(reg);  //匹配目标参数
+            if (r != null) return unescape(decodeURIComponent(r[2])); return null; //返回参数值
+        }
+        //轮播
+        function layerplay() {
+            if (dev.IsNull(linetimecontrol)) return;
+            var datas = linetimecontrol.Data;
+            var index = linetimecontrol.GetSelectIndex();
+            if (index >= datas.length - 1) index = 0;
+            else index = index + 1;
+            linetimecontrol.SetSelect(index);
+            var playnode = datas[index];
+            selectlayerinfo = playnode;
+            SetWMSVisible(playnode);
+            if (servicename == "crop") {
+                cropdata(servicename);
+            }
+            else
+                chartdata(servicename);
+        }
+        function getlayertreebyType(type) {
+            var layertree = [];
+            if (dev.IsNull(layerconfig)) return null;
+            if (dev.IsNull(layerconfig.length)) layertree = [dev.ObjClone(layerconfig)];
+            else layertree = layerconfig.clone();
+            //首先找到根级节点为该类型的
+            layertree = Enumerable.From(layertree).Where('s=>s.Type.indexOf("' + type + '")>=0').ToArray();
+            getnodebytype(layertree, type);
+            return layertree;
+        }
+        function getnodebytype(nodes, type) {
+            if (dev.IsNull(nodes) || dev.IsNull(type)) return;
+            for (var i = 0; i < nodes.length; i++) {
+                if (dev.IsNull(nodes[i].Child)) continue;
+                if (dev.IsNull(nodes[i].Child.length)) nodes[i].Child = [nodes[i].Child];
+                if (!dev.IsNull(nodes[i].Child) && nodes[i].Child.length > 0) getnodebytype(nodes[i].Child, type);
+            }
+        }
+    </script>
+</head>
+<body id="flow">
+    <div class="content" style="min-height: 810px; min-width: 1260px;">
+        <div id="infobtn" style="position: relative; float: none; width: 134px; height: 50px; top: 60px; left: 0.5%; cursor: pointer; background: url(showimg/backhome.png) no-repeat center/100% 100%;"></div>
+        <div class="mappanel">
+            <div id="mapdiv" class="mappaneldom"></div>
+        </div>
+        <div class="leftpanel1">
+            <div id="Div1" class="title">历史种植信息</div>
+            <div id="Div2" style="width: 92%; height: calc(90% - 33px); margin: 0 auto;"></div>
+        </div>
+        <div class="rightpanel2" style="width: calc(42% + 3px);">
+            <div id="ttrend" class="title">农作物长势等级面积</div>
+            <div id="colum3" class="columdiv1"></div>
+        </div>
+    </div>
+    <footer>
+        Copyright&nbsp;©&nbsp;2017-2020&nbsp;&nbsp;北京禾壮慧农科技发展有限公司&nbsp;&nbsp;版权所有
+    </footer>
+</body>
+</html>

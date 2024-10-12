@@ -1,0 +1,809 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>详细信息</title>
+    <link rel="stylesheet" href="../../theme/default/easyui.css" />
+    <link rel="stylesheet" type="text/css" href="../../theme/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/app.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/icon.css" />
+    <link type="text/css" href="../../css/dev.css" rel="stylesheet" />
+    <script type="text/javascript" src="../../js/jquery.min.js"></script>
+    <script type="text/javascript" src="../../js/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="../../js/easyui-lang-zh_CN.js"></script>
+    <script type="text/javascript" src="../../js/linq.min.js"></script>
+    <script type="text/javascript" src="../../js/data.util.js"></script>
+    <script type="text/javascript" src="../../js/jquery.dev.control.js"></script>
+    <style type="text/css">
+        .rotations {
+            width: 100%;
+            height: 100%;
+        }
+
+        .content .Button {
+            width: 70px;
+            height: 26px;
+            float: left;
+            margin-top: 7px;
+            background-color: #03afD9;
+            text-align: center;
+            border: 1px solid #03afD9;
+            display: inline-block;
+            margin-left: 5px;
+        }
+    </style>
+    <script type="text/javascript">
+        var Dev = window.top.window.dev;
+        var parent;
+        var picList3 = [];
+
+
+        function WidgetCommunication(s) {//部件通讯
+            parent = s.parent;
+            var inspectid = s.param.inspectid;
+            var showdata = s.param.showdata;
+            //初始化信息选项卡
+            initTab(inspectid, showdata);
+            parent.one("onClosing", function () {
+                //进行释放
+            });
+        }
+
+        //初始化所有详细信息选项卡
+        function initTab(inspectid, showdata) {
+            $(".rotations").empty();
+            var name = "";
+            if (showdata.type == "核实任务")name = "核实任务基本信息";
+            if (showdata.type == "核查任务") name = "核查任务基本信息";
+            var items = [{ ID: "inspecttab1", Name: name, Content: $("#inspectTab"), Width: $(window).width() - 2, Height: $(window).height() - 26 },
+                { ID: "inspecttab2", Name: "反馈信息", Content: $("#feedbackTab"), Width: $(window).width() - 2, Height: $(window).height() - 26 },
+                { ID: "inspecttab4", Name: "轮作休耕信息", Content: $("#rotationfallowTab"), Width: $(window).width() - 2, Height: $(window).height() - 26 },
+                { ID: "inspecttab5", Name: "地块信息", Content: $("#massifTab"), Width: $(window).width() - 2, Height: $(window).height() - 26 }];
+            var showItems = [];
+            var state = showdata.state;
+            for (var i = 0; i < items.length; i++) {
+                if (state == "0" && i == 1) continue;
+                showItems.push(items[i]);
+            }
+            var tabControl = new Dev.Tab({
+                ID: "inspecttab",
+                Width: $(window).width(),
+                Height: $(window).height(),
+                TabNormalCls: "liveNormalTabCls",
+                TabSelectedCls: "liveSelectedTabCls",
+                Items: showItems
+            });
+            $(".rotations").append(tabControl.Target);
+            tabControl.Layout();
+            buildShowdata(showdata);
+            loadReviewData(showdata);
+            buildFeedBackData(showdata.id);
+            buildRFData(showdata.rotationfallowid);
+            buildMassif(showdata.massifid);
+            //图片区绑定事件
+            initimg1();
+            initimg2();
+            initimg3();
+        }
+
+        //重新构建任务详情数据showdata
+        function buildShowdata(showdata) {
+            var _address = getAddr(showdata);//地址
+            showdata._address = _address;
+            if (showdata.type == "核实任务" && showdata.state == "0") { showdata.stateValue = "待核实"; }
+            else if (showdata.type == "核查任务" && showdata.state == "0") { showdata.stateValue = "待核查"; }
+            else if (showdata.state == "1") { showdata.stateValue = "待审批"; }
+            else if (showdata.state == "2") { showdata.stateValue = "审批已通过"; }
+            else if (showdata.state == "3") { showdata.stateValue = "审批未通过"; }
+            //组织名
+            var url = Dev.GetSystemUrlByRelID("Service") + "organize/getbyid/" + showdata.orgid;
+            $.ajax({
+                url: url,
+                type: "GET",
+                async: false,
+                dataType: 'json',
+                success: function (result) {
+                    if (result.statusCode != 200 || Dev.IsNull(result.data)) return;
+                    var name = result.data.name;
+                    showdata._organizename = name;//添加组织机构名
+                }
+            });
+            loadInspectTabData(showdata);
+        }
+        //加载任务详情tab的数据
+        function loadInspectTabData(showdata) {
+            var inspectDivs = $(".inspectTab");
+            for (var i = 0; i < inspectDivs.length; i++) {
+                var curName = $(inspectDivs[i]).attr("name");
+                var value = showdata[curName];
+                if (Dev.IsNull(value)) { value = ""; }
+                else if (["createdate", "updatedate", "completeterm", "completetime"].indexOf(curName) > -1) { value = Dev.GetDateString(value); }
+                if (curName == "content") { $(inspectDivs[i]).attr("title", value); }
+                if (curName == "_organizename") { $(inspectDivs[i]).attr("title", value); }
+                $(inspectDivs[i]).text(value);
+            }
+        }
+        //构建反馈数据
+        function buildFeedBackData(inspectid) {
+            var url = Dev.GetSystemUrlByRelID("Service") + "feedback/findFeedBackAndFile/" + inspectid;
+            $.ajax({
+                url: url,
+                type: "GET",
+                async: false,
+                contentType: 'application/json',
+                dataType: 'json',
+                success: function (result) {
+                    if (result.statusCode != 200 || Dev.IsNull(result.data)) return;
+                    loadFeedbackData(result.data);
+                    piclist1 = result.data.fileList;
+                    loadFeedbackPic(piclist1);
+                }
+            });
+        }
+        //加载反馈数据
+        function loadFeedbackData(data) {
+            var feedbackData = data.feedBackEntity;
+            var feedbackDivs = $(".feedbackTab");
+            for (var i = 0; i < feedbackDivs.length; i++) {
+                var curName = $(feedbackDivs[i]).attr("name");
+                var value = feedbackData[curName]
+                if (curName == "time") { value = Dev.GetDateString(value); }
+                if (curName == "fkder") {
+                    if (Dev.IsNull(data.trueName)) value = "未知";
+                    value = data.trueName;
+                }
+                $(feedbackDivs[i]).text(value);
+            }
+        }
+        //构建审批数据
+        function loadReviewData(showdata) {
+            var reviewDivs = $(".reviewTab");
+            for (var i = 0; i < reviewDivs.length; i++) {
+                var curName = $(reviewDivs[i]).attr("name");
+                var value = showdata[curName];
+                if (Dev.IsNull(value)) { value = ""; }
+                else if (curName == "reviewtime") { value = Dev.GetDateString(value); }
+                if (curName == "reviewcontent") { $(reviewDivs[i]).attr("title", value); }
+                $(reviewDivs[i]).text(value);
+            }
+        }
+        //构建休耕轮作信息
+        function buildRFData(rotationfallowid) {
+            var url = Dev.GetSystemUrlByRelID("Service") + "rotationfalloview/getbyid/" + rotationfallowid;
+            $.ajax({
+                url: url,
+                type: "GET",
+                contentType: 'application/json',
+                dataType: 'json',
+                success: function (result) {
+                    if (result.statusCode != 200 || Dev.IsNull(result.data)) {
+                        //此处防止关联的休耕轮作被删除
+                        $("#rotationfallowTab").empty();
+                        $("#rotationfallowTab").html('<div style="width: 100%;height: 100%;line-height: 324px;text-align: center;"><p style="font-family:arial;font-size:15px;">关联的轮作休耕已被删除！</p></div>');
+                        return;
+                    }
+                    var rfData = result.data;
+                    loadRFData(rfData);
+                    loadRFPic(rfData.attid);
+                }
+            });
+        }
+        //加载休耕轮作信息
+        function loadRFData(rfData) {
+            //地址
+            var rfAddr = getAddr(rfData);
+            rfData._rfAddr = rfAddr;
+            var rotationfallowDivs = $(".rotationfallowTab");
+            for (var i = 0; i < rotationfallowDivs.length; i++) {
+                var curName = $(rotationfallowDivs[i]).attr("name");
+                var value = rfData[curName];
+                if (["contractstarttime", "contractendtime"].indexOf(curName) > -1) { value = Dev.GetDateString(value).replace("00:00:00", "") }
+                if (curName == "fallowarea") { value =value + "（亩）"; }
+                if (curName == "subsidy") { value = value + "（元）"; }
+                if (curName == "_rfAddr") { $(rotationfallowDivs[i]).attr("title", value); }
+                $(rotationfallowDivs[i]).text(value);
+            }
+        }
+        //构建地块信息
+        function buildMassif(massifid) {
+            var url = Dev.GetSystemUrlByRelID("Service") + "massif/query/" + massifid;
+            $.ajax({
+                url: url,
+                type: "GET",
+                contentType: 'application/json',
+                dataType: 'json',
+                success: function (result) {
+                    if (result.statusCode != 200 || Dev.IsNull(result.data)) {
+                        //此处防止关联的地块被删除
+                        $("#massifTab").empty();
+                        $("#massifTab").html('<div style="width: 100%;height: 100%;line-height: 280px;text-align: center;"><p style="font-family:arial;font-size:15px;">关联的地块已被删除！</p></div>');
+                        return;
+                    }
+                    loadMassifData(result.data);
+                    loadMassifPic(result.data.attid);
+                }
+            });
+        }
+        //加载地块信息
+        function loadMassifData(massifData) {
+            var massifAddr = getAddr(massifData);
+            massifData._massifAddr = massifAddr;
+            var massifDivs = $(".massifTab");
+            for (var i = 0; i < massifDivs.length; i++) {
+                var curName = $(massifDivs[i]).attr("name");
+                var value = massifData[curName];
+                if (curName == "farmlandarea") { value = Dev.SqrtMetersToMu(value, 3) + "（亩）"; }
+                if (curName == "ownershipname") { $(massifDivs[i]).attr("title", value) }
+                if (curName == "farmlandtype") { $(massifDivs[i]).attr("title", value) }
+                $(massifDivs[i]).text(value);
+            }
+        }
+        //行政区拼接为地址
+        function getAddr(showdata) {
+            var _address = "";
+            if (!Dev.IsNullAll(showdata.province)) { _address += showdata.province; }
+            if (!Dev.IsNullAll(showdata.city)) { _address += showdata.city; }
+            if (!Dev.IsNullAll(showdata.county)) { _address += showdata.county; }
+            if (!Dev.IsNullAll(showdata.town)) { _address += showdata.town; }
+            if (!Dev.IsNullAll(showdata.village)) { _address += showdata.village; }
+            return _address;
+        }
+
+        //加载反馈图片
+        function loadFeedbackPic(piclist) {
+            if (Dev.IsNull(piclist) || piclist.length == 0) {
+                $(".feedbackTab[name=_picture]").empty();
+                $(".feedbackTab[name=_picture]").html('<div style="height: 100%;width: 100%;text-align: center;line-height: 244px;">未上传附件</div>');
+                return;
+            }
+            $("[name='pageIndex']", $(".feedbackTab")).text(1 + "/" + piclist.length);
+            $("#picview1", $(".feedbackTab")).css({
+                "background-image": "url(" + piclist[0].path + ")",
+                "background-size": "contain"
+            });
+            $(".imgviewer1", $(".feedbackTab")).prop("bg_file", piclist[0]);
+        }
+        var piclist1 = [];
+        //图片绑定鼠标事件
+        function initimg1() {
+            $('.ImgBtn', $(".feedbackTab")).css("display", "none");
+            $(".imgviewer1", $(".feedbackTab")).mouseover(function () {
+                $('.ImgBtn', $(".feedbackTab")).css("display", "block");
+            }).mouseleave(function () {
+                $('.ImgBtn', $(".feedbackTab")).css("display", "none");
+            });
+            $("#picview1", $(".feedbackTab")).bind("click", function () {
+                if (piclist1.length == 0) return;
+                var previewimg = [];
+                for (var i = 0; i < piclist1.length; i++) previewimg.push(piclist1[i].path);
+                var curfile = $(".imgviewer1", $(".feedbackTab")).prop("bg_file");
+                if (Dev.IsNull(curfile)) { return; }
+                var curIndex = Enumerable.From(piclist1).IndexOf(curfile);
+                Dev.PreViewPics(previewimg, curIndex);
+            });
+            $(".ImgBtn", $(".feedbackTab")).bind("click", function () {
+                if (piclist1.length == 0) return;
+                var currfile = $(".imgviewer1", $(".feedbackTab")).prop("bg_file");
+                if (Dev.IsNull(currfile)) return;
+                //当前图片的数组索引
+                var index = Enumerable.From(piclist1).IndexOf(currfile);
+                if (index < 0) return;
+                // MARK: 更正了切换方式
+                if ($(this).hasClass("PicLeft1")) {
+                    if (index == 0) return;
+                    --index;
+                    $("[name='pageIndex']", $(this).parent()).text(index + 1 + "/" + piclist1.length);
+                }
+                if ($(this).hasClass("PicRight1")) {
+                    if (index >= piclist1.length - 1) return;
+                    ++index;
+                    $("[name='pageIndex']", $(this).parent()).text(index + 1 + "/" + piclist1.length);
+                }
+                $("#picview1", $(".feedbackTab")).css({ "background-image": "url(" + piclist1[index].path + ")" });
+                $(".imgviewer1", $(".feedbackTab")).prop("bg_file", piclist1[index]);
+            });
+        }
+
+        //加载轮耕图片
+        function loadRFPic(attid) {
+            var url = Dev.GetSystemUrlByRelID("Service") + "file/att/" + attid;
+            $.ajax({
+                url: url,
+                type: "GET",
+                dataType: 'json',
+                success: function (result) {
+                    if (result.statusCode != 200 || Dev.IsNull(result.data)) return;
+                    var piclist = result.data;
+                    piclist2 = piclist;
+                    if (Dev.IsNull(piclist) || piclist.length == 0) {
+                        $(".rotationfallowTab[name=_picture]").empty();
+                        $(".rotationfallowTab[name=_picture]").html('<div style="height: 100%;width: 100%;text-align: center;line-height: 244px;">未上传附件</div>');
+                        return;
+                    }
+                    $("[name='pageIndex']", $(".rotationfallowTab")).text(1 + "/" + piclist.length);
+                    $("#picview2", $(".rotationfallowTab")).css({ "background-image": "url(" + piclist[0].path + ")", "background-size": "contain" });
+                    $(".imgviewer2", $(".rotationfallowTab")).prop("bg_file", piclist[0]);
+                }
+            });
+        }
+        var piclist2 = [];
+        //图片绑定鼠标事件
+        function initimg2() {
+            $('.ImgBtn', $(".rotationfallowTab")).css("display", "none");
+            $(".imgviewer2", $(".rotationfallowTab")).mouseover(function () {
+                $('.ImgBtn', $(".rotationfallowTab")).css("display", "block");
+            }).mouseleave(function () {
+                $('.ImgBtn', $(".rotationfallowTab")).css("display", "none");
+            });
+            $("#picview2", $(".rotationfallowTab")).bind("click", function () {
+                if (piclist2.length == 0) return;
+                var previewimg = [];
+                for (var i = 0; i < piclist2.length; i++) previewimg.push(piclist2[i].path);
+                var curfile = $(".imgviewer2", $(".rotationfallowTab")).prop("bg_file");
+                var curIndex = Enumerable.From(piclist2).IndexOf(curfile);
+                Dev.PreViewPics(previewimg, curIndex);
+            });
+            $(".ImgBtn", $(".rotationfallowTab")).bind("click", function () {
+                if (piclist2.length == 0) return;
+                var currfile = $(".imgviewer2", $(".rotationfallowTab")).prop("bg_file");
+                if (Dev.IsNull(currfile)) return;
+                var index = Enumerable.From(piclist2).IndexOf(currfile);
+                if (index < 0) return;
+                if ($(this).hasClass("PicLeft2")) {
+                    if (index == 0) return;
+                    --index;
+                    $("[name='pageIndex']", $(this).parent()).text(index + 1 + "/" + piclist2.length);
+                }
+                if ($(this).hasClass("PicRight2")) {
+                    if (index >= piclist2.length - 1) return;
+                    ++index;
+                    $("[name='pageIndex']", $(this).parent()).text(index + 1 + "/" + piclist2.length);
+                }
+
+                $("#picview2", $(".rotationfallowTab")).css({ "background-image": "url(" + piclist2[index].path + ")" });
+                $(".imgviewer2", $(".rotationfallowTab")).prop("bg_file", piclist2[index]);
+            });
+        }
+
+
+        //加载地块图片
+        function loadMassifPic(attid) {
+            var url = Dev.GetSystemUrlByRelID("Service") + "file/att/" + attid;
+            $.ajax({
+                url: url,
+                type: "GET",
+                contentType: 'application/json',
+                success: function (result) {
+                    if (result.statusCode != 200 || Dev.IsNull(result.data)) return;
+                    var piclist = result.data;
+                    piclist3 = piclist;
+                    if (Dev.IsNull(piclist) || piclist.length == 0) {
+                        $(".massifTab[name=_picture]").empty();
+                        $(".massifTab[name=_picture]").html('<div style="height: 100%;width: 100%;text-align: center;line-height: 244px;">未上传附件</div>');
+                        return;
+                    }
+                    $("[name='pageIndex']", $(".massifTab")).text(1 + "/" + piclist.length);
+                    $("#picview3", $(".massifTab")).css({ "background-image": "url(" + piclist[0].path + ")", "background-size": "contain" });
+                    $(".imgviewer3", $(".massifTab")).prop("bg_file", piclist[0]);
+
+                }
+            });
+        }
+        //图片绑定鼠标事件
+        function initimg3() {
+            $('.ImgBtn', $(".massifTab")).css("display", "none");
+            $(".imgviewer3", $(".massifTab")).mouseover(function () {
+                $('.ImgBtn', $(".massifTab")).css("display", "block");
+            }).mouseleave(function () {
+                $('.ImgBtn', $(".massifTab")).css("display", "none");
+            });
+            $("#picview3", $(".massifTab")).bind("click", function () {
+                if (piclist3.length == 0) return;
+                var previewimg = [];
+                for (var i = 0; i < piclist3.length; i++) previewimg.push(piclist3[i].path);
+                var curfile = $(".imgviewer3", $(".massifTab")).prop("bg_file");
+                var curIndex = Enumerable.From(piclist3).IndexOf(curfile);
+                Dev.PreViewPics(previewimg, curIndex);
+            });
+            $(".ImgBtn", $(".massifTab")).bind("click", function () {
+                if (piclist3.length == 0) return;
+                var currfile = $(".imgviewer3", $(".massifTab")).prop("bg_file");
+                if (Dev.IsNull(currfile)) return;
+                var index = Enumerable.From(piclist3).IndexOf(currfile);
+                if (index < 0) return;
+                if ($(this).hasClass("PicLeft3")) {
+                    if (index == 0) return;
+                    --index;
+                    $("[name='pageIndex']", $(this).parent()).text(index + 1 + "/" + piclist3.length);
+                }
+                if ($(this).hasClass("PicRight3")) {
+                    if (index >= piclist3.length - 1) return;
+                    ++index;
+                    $("[name='pageIndex']", $(this).parent()).text(index + 1 + "/" + piclist3.length);
+                }
+                $("#picview3", $(".massifTab")).css({ "background-image": "url(" + piclist3[index].path + ")" });
+                $(".imgviewer3", $(".massifTab")).prop("bg_file", piclist3[index]);
+            });
+        }
+
+
+
+
+    </script>
+</head>
+<body style="height: 100%; width: 100%">
+    <div class="rotations"></div>
+    <!--任务信息-->
+    <div id="inspectTab" style="height: 100%; width: 100%;">
+        <div style="height: 34px; width: 100%; border-bottom: 1px solid #ddd;">
+            <div style="height: 100%; display: inline-block; float: left; position: relative;">
+                <div style="width: 80px; text-align: right; padding-right: 5px; display: inline-block; border-right: 1px solid #ddd; border-left: 1px solid #ddd; border-left: 1px solid #ddd; line-height: 34px; float: left;">
+                    任务类别
+                </div>
+                <div class="inspectTab" name="category"
+                    style="width: 218px; height: 100%; text-align: left; padding-left: 5px; display: inline-block; line-height: 34px; float: left;">
+                </div>
+            </div>
+            <div style="height: 100%;display: inline-block; float: left; position: relative;">
+                <div style="width: 80px; text-align: right; padding-right: 5px; display: inline-block; border-right: 1px solid #ddd; border-left: 1px solid #ddd; line-height: 34px; float: left;">
+                    任务状态
+                </div>
+                <div class="inspectTab" name="stateValue"
+                    style="width: 198px; height: 100%; text-align: left; padding-left: 5px; display: inline-block; line-height: 34px; float: left;">
+                </div>
+            </div>
+        </div>
+      <div style="height: 34px; width: 100%; border-bottom: 1px solid #ddd;">
+            <div style="height: 100%; display: inline-block; float: left; position: relative;">
+                <div style="width: 80px; text-align: right; padding-right: 5px; display: inline-block; border-right: 1px solid #ddd; border-left: 1px solid #ddd; line-height: 34px; float: left;">
+                    组织机构
+                </div>
+                <div class="inspectTab" name="_organizename"
+                    style="width: 218px; height: 100%; text-align: left; padding-left: 5px; display: inline-block; line-height: 34px;white-space: nowrap; overflow: hidden; text-overflow: ellipsis; float: left;">
+                </div>
+            </div>
+            <div style="height: 100%; display: inline-block; float: left; position: relative;">
+                <div style="width: 80px; text-align: right; padding-right: 5px; display: inline-block; border-right: 1px solid #ddd; border-left: 1px solid #ddd; line-height: 34px; float: left;">
+                    接收人
+                </div>
+                <div class="inspectTab" name="username"
+                    style="width: 198px; height: 100%; text-align: left; padding-left: 5px; display: inline-block; line-height: 34px; float: left;">
+                </div>
+            </div>
+        </div>
+        <div style="height: 34px; width: 100%; border-bottom: 1px solid #ddd;">
+            <div style="height: 100%;display: inline-block; float: left; position: relative;">
+                <div style="width: 80px; text-align: right; padding-right: 5px; display: inline-block; border-right: 1px solid #ddd; border-left: 1px solid #ddd; line-height: 34px; float: left;">
+                    详细地址
+                </div>
+                <div class="inspectTab" name="_address" style="width: 507px; height: 100%; text-align: left; padding-left: 5px; display: inline-block; line-height: 34px; float: left;">
+                </div>
+            </div>
+        </div>
+        <div style="height: 69px; width: 100%; border-bottom: 1px solid #ddd;">
+            <div style="height: 100%; width: 100%; display: inline-block; float: left; position: relative;">
+                <div style="width: 80px; text-align: right; padding-right: 5px; display: inline-block; border-right: 1px solid #ddd; border-left: 1px solid #ddd; line-height: 69px; float: left;">
+                    任务内容
+                </div>
+                <div class="inspectTab" name="content"
+                    style="width: 513px; height: 100%; text-align: left; padding: 5px; display: inline-block; line-height: 22px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; float: left; text-indent: 2em; box-sizing: border-box">
+                </div>
+            </div>
+        </div>
+        <div style="height: 69px; width: 100%; border-bottom: 1px solid #ddd;">
+            <div style="height: 100%; width: 100%; display: inline-block; float: left; position: relative;">
+                <div style="width: 80px; text-align: right; padding-right: 5px; display: inline-block; border-right: 1px solid #ddd; border-left: 1px solid #ddd; line-height: 69px; float: left;">
+                    审批内容
+                </div>
+                <div class="reviewTab" name="reviewcontent"
+                    style="width: 513px; height: 100%; text-align: left; padding: 5px; display: inline-block; line-height: 22px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; float: left; text-indent: 2em; box-sizing: border-box">
+                </div>
+            </div>
+        </div>
+        <div style="height: 34px; width: 100%; border-bottom: 1px solid #ddd;">
+            <div style="height: 100%; display: inline-block; float: left; position: relative;">
+                <div style="width: 80px; text-align: right; padding-right: 5px; display: inline-block; border-right: 1px solid #ddd; border-left: 1px solid #ddd; line-height: 34px; float: left;">
+                    完成期限
+                </div>
+                <div class="inspectTab" name="completeterm"
+                    style="width: 218px; height: 100%; text-align: left; padding-left: 5px; display: inline-block; line-height: 34px; float: left;">
+                </div>
+            </div>
+            <div style="height: 100%;display: inline-block; float: left; position: relative;">
+                <div style="width: 80px; text-align: right; padding-right: 5px; display: inline-block; border-right: 1px solid #ddd; border-left: 1px solid #ddd; line-height: 34px; float: left;">
+                    完成时间
+                </div>
+                <div class="inspectTab" name="completetime"
+                    style="width: 198px; height: 100%; text-align: left; padding-left: 5px; display: inline-block; line-height: 34px; float: left;">
+                </div>
+            </div>
+        </div>
+        <div style="height: 69px; width: 100%; border-bottom: 1px solid #ddd;">
+            <div style="width: 80px; text-align: right; padding-right: 5px; display: inline-block; border-right: 1px solid #ddd; border-left: 1px solid #ddd; line-height: 69px; float: left;">
+                备注
+            </div>
+            <div class="inspectTab" name="remark"  style="width: 513px; height: 100%; text-align: left; padding: 5px; display: inline-block; line-height: 22px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; float: left; text-indent: 2em; word-break:break-all;box-sizing: border-box">
+            </div>
+        </div>
+    </div>
+    <!--反馈信息-->
+    <div id="feedbackTab" style="height: 100%; width: 100%;">
+        <div style="height: 34px; width: 50%; border-bottom: 1px solid #ddd; letter-spacing: 3px; line-height: 34px; padding-left: 10px; box-sizing: border-box; text-align: center; float: left;">
+            反馈内容
+        </div>
+        <div style="height: 244px; width: 299px; border-bottom: 1px solid #ddd; border-left: 1px solid #ddd; float: right;">
+            <div style="height: 100%; width: 100%; display: inline-block; float: left; position: relative;">
+                <div class="feedbackTab" name="_picture"
+                    style="width: 100%; height: 100%; display: inline-block; float: left;">
+                    <div class="imgviewer1"
+                        style="width: 100%; height: 100%; position: relative; background-repeat: no-repeat; background-position: center; background-size: 423px 159px;">
+                        <div name="pageIndex" style="width: 100%; height: 40px; line-height: 40px; text-align: center"></div>
+                        <div id="picview1"
+                            style="cursor: pointer; width: 70%; height: 70%; left: 15%; top: 15%; position: absolute; background-repeat: no-repeat; background-position: center;"
+                            title="点击预览">
+                        </div>
+                        <div class="PicLeft1 ImgBtn"
+                            style="background-image: url('../../image/agri/leftbtn.png'); background-repeat: no-repeat; background-position: center; width: 24px; height: 24px; position: absolute; left: 10px; top: 110px; background-size: cover;">
+                        </div>
+                        <div class="PicRight1 ImgBtn"
+                            style="background-image: url('../../image/agri/rightbtn.png'); background-repeat: no-repeat; background-position: center; width: 24px; height: 24px; position: absolute; right: 10px; top: 110px; background-size: cover;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div style="height: 211px; width: 50%; border-bottom: 1px solid #ddd; padding-top: 5px; padding-left: 5px; box-sizing: border-box; float: left;">
+            <div style="height: 100%; width: 100%; display: inline-block; float: left; position: relative;">
+                <div class="feedbackTab" name="content"
+                    style="width: 290px; height: 100%; text-align: left; padding-left: 5px; display: inline-block; line-height: 25px; box-sizing: border-box; text-indent: 2em;word-break:break-all; float: left;">
+                </div>
+            </div>
+        </div>
+        <div style="height: 34px; width: 100%; border-bottom: 1px solid #ddd;float:left;">
+            <div style="height: 100%; width: 50%; display: inline-block; float: left; position: relative;">
+                <div style="width: 80px; text-align: right; padding-right: 5px; display: inline-block; border-right: 1px solid #ddd; border-left: 1px solid #ddd; border-left: 1px solid #ddd; line-height: 34px; float: left;">
+                    反馈人
+                </div>
+                <div class="feedbackTab" name="fkder"
+                    style="width: 208px; height: 100%; text-align: left; padding-left: 5px; display: inline-block; line-height: 34px; float: left;">
+                </div>
+            </div>
+            <div style="height: 100%; width: 50%; display: inline-block; float: left; position: relative;">
+                <div style="width: 80px; text-align: right; padding-right: 5px; display: inline-block; border-right: 1px solid #ddd; border-left: 1px solid #ddd; line-height: 34px; float: left;">
+                    反馈时间
+                </div>
+                <div class="feedbackTab" name="time"
+                    style="width: 208px; height: 100%; text-align: left; padding-left: 5px; display: inline-block; line-height: 34px; float: left;">
+                </div>
+            </div>
+        </div>
+        <div style="height:65px;width:100%;float:left;">
+             <div style="width: 80px; text-align: right; padding-right: 5px; display: inline-block; border-right: 1px solid #ddd; border-left: 1px solid #ddd; line-height: 65px; float: left;">
+                备注
+            </div>
+             <div class="feedbackTab" name="remark"  style="width: 513px; height: 100%; text-align: left; padding: 5px; display: inline-block; line-height: 22px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; float: left; text-indent: 2em;word-break:break-all; box-sizing: border-box">
+            </div>
+        </div>
+    </div>
+    <!--休耕轮作信息-->
+    <div id="rotationfallowTab" style="height: 100%; width: 100%;">
+        <div style="height: 34px; width: 50%; border-bottom: 1px solid #ddd; float: left;">
+            <div style="height: 100%; width: 100%; display: inline-block; float: left; position: relative;">
+                <div style="width: 80px; text-align: right; padding-right: 5px; display: inline-block; border-right: 1px solid #ddd; border-left: 1px solid #ddd; border-left: 1px solid #ddd; line-height: 34px; float: left;">
+                    农户姓名
+                </div>
+                <div class="rotationfallowTab" name="name"
+                    style="width: 208px; height: 100%; text-align: left; padding-left: 5px; display: inline-block; line-height: 34px; float: left;">
+                </div>
+            </div>
+        </div>
+        <div style="height: 244px; width: 299px; border-bottom: 1px solid #ddd; border-left: 1px solid #ddd; float: right; float: top">
+            <div style="height: 100%; width: 100%; display: inline-block; float: left; position: relative;">
+                <div class="rotationfallowTab" name="_picture"
+                    style="width: 100%; height: 100%; display: inline-block; float: left;">
+                    <div class="imgviewer2"
+                        style="width: 100%; height: 100%; position: relative; background-repeat: no-repeat; background-position: center; background-size: 423px 159px;">
+                        <div name="pageIndex" style="width: 100%; height: 40px; line-height: 40px; text-align: center"></div>
+                        <div id="picview2"
+                            style="cursor: pointer; width: 70%; height: 70%; left: 15%; top: 15%; position: absolute; background-repeat: no-repeat; background-position: center;"
+                            title="点击预览">
+                        </div>
+                        <div class="PicLeft2 ImgBtn"
+                            style="background-image: url('../../image/agri/leftbtn.png'); background-repeat: no-repeat; background-position: center; width: 24px; height: 24px; position: absolute; left: 10px; top: 110px; background-size: cover;">
+                        </div>
+                        <div class="PicRight2 ImgBtn"
+                            style="background-image: url('../../image/agri/rightbtn.png'); background-repeat: no-repeat; background-position: center; width: 24px; height: 24px; position: absolute; right: 10px; top: 110px; background-size: cover;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div style="height: 34px; width: 50%; border-bottom: 1px solid #ddd; float: left;">
+            <div style="height: 100%; width: 100%; display: inline-block; float: left; position: relative;">
+                <div style="width: 80px; text-align: right; padding-right: 5px; display: inline-block; border-right: 1px solid #ddd; border-left: 1px solid #ddd; border-left: 1px solid #ddd; line-height: 34px; float: left;">
+                    身份证号
+                </div>
+                <div class="rotationfallowTab" name="cardid"
+                    style="width: 208px; height: 100%; text-align: left; padding-left: 5px; display: inline-block; line-height: 34px; float: left;">
+                </div>
+            </div>
+        </div>
+        <div style="height: 34px; width: 50%; border-bottom: 1px solid #ddd; float: left;">
+            <div style="height: 100%; width: 100%; display: inline-block; float: left; position: relative;">
+                <div style="width: 80px; text-align: right; padding-right: 5px; display: inline-block; border-right: 1px solid #ddd; border-left: 1px solid #ddd; line-height: 34px; float: left;">
+                    联系方式
+                </div>
+                <div class="rotationfallowTab" name="mobilephone"
+                    style="width: 208px; height: 100%; text-align: left; padding-left: 5px; display: inline-block; line-height: 34px; float: left;">
+                </div>
+            </div>
+        </div>
+        <div style="height: 34px; width: 50%; border-bottom: 1px solid #ddd; float: left;">
+            <div style="height: 100%; width: 100%; display: inline-block; float: left; position: relative;">
+                <div style="width: 80px; text-align: right; padding-right: 5px; display: inline-block; border-right: 1px solid #ddd; border-left: 1px solid #ddd; line-height: 34px; float: left;">
+                    银行卡号
+                </div>
+                <div class="rotationfallowTab" name="bankcard"
+                    style="width: 208px; height: 100%; text-align: left; padding-left: 5px; display: inline-block; line-height: 34px; float: left;">
+                </div>
+            </div>
+        </div>
+
+        <div style="height: 34px; width: 50%; border-bottom: 1px solid #ddd; float: left;">
+            <div style="height: 100%; width: 100%; display: inline-block; float: left; position: relative;">
+                <div style="width: 80px; text-align: right; padding-right: 5px; display: inline-block; border-right: 1px solid #ddd; border-left: 1px solid #ddd; line-height: 34px; float: left;">
+                    总面积
+                </div>
+                <div class="rotationfallowTab" name="fallowarea"
+                    style="width: 208px; height: 100%; text-align: left; padding-left: 5px; display: inline-block; line-height: 34px; float: left;">
+                </div>
+            </div>
+        </div>
+        <div style="height: 34px; width: 50%; border-bottom: 1px solid #ddd; float: left;">
+            <div style="height: 100%; width: 100%; display: inline-block; float: left; position: relative;">
+                <div style="width: 80px; text-align: right; padding-right: 5px; display: inline-block; border-right: 1px solid #ddd; border-left: 1px solid #ddd; line-height: 34px; float: left;">
+                    补贴总金额
+                </div>
+                <div class="rotationfallowTab" name="subsidy"
+                    style="width: 208px; height: 100%; text-align: left; padding-left: 5px; display: inline-block; line-height: 34px; float: left;">
+                </div>
+            </div>
+        </div>
+        <div style="height: 34px; width: 50%; border-bottom: 1px solid #ddd; float: left;">
+            <div style="height: 100%; width: 100%; display: inline-block; float: left; position: relative;">
+                <div style="width: 80px; text-align: right; padding-right: 5px; display: inline-block; border-right: 1px solid #ddd; border-left: 1px solid #ddd; line-height: 34px; float: left;">
+                    地区
+                </div>
+                <div class="rotationfallowTab" name="_rfAddr"
+                    style="width: 208px; height: 100%; text-align: left; padding-left: 5px; display: inline-block; line-height: 34px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; float: left;">
+                </div>
+            </div>
+        </div>
+        <div style="height: 34px; width: 100%; border-bottom: 1px solid #ddd; float: left;">
+            <div style="height: 100%; width: 50%; display: inline-block; float: left; position: relative;">
+                <div style="width: 80px; text-align: right; padding-right: 5px; display: inline-block; border-right: 1px solid #ddd; border-left: 1px solid #ddd; line-height: 34px; float: left;">
+                    合同签约日期
+                </div>
+                <div class="rotationfallowTab" name="contractstarttime"
+                    style="width: 208px; height: 100%; text-align: left; padding-left: 5px; display: inline-block; line-height: 34px; float: left;">
+                </div>
+            </div>
+            <div style="height: 100%; width: 50%; display: inline-block; float: left; position: relative;">
+                <div style="width: 80px; text-align: right; padding-right: 5px; display: inline-block; border-right: 1px solid #ddd; border-left: 1px solid #ddd; line-height: 34px; float: left;">
+                    合同截止日期
+                </div>
+                <div class="rotationfallowTab" name="contractendtime"
+                    style="width: 208px; height: 100%; text-align: left; padding-left: 5px; display: inline-block; line-height: 34px; float: left;">
+                </div>
+            </div>
+        </div>
+
+    </div>
+    <!--地块信息-->
+    <div id="massifTab" style="height: 100%; width: 100%;">
+        <div style="height: 34px; width: 50%; border-bottom: 1px solid #ddd; float: left;">
+            <div style="height: 100%; width: 100%; display: inline-block; float: left; position: relative;">
+                <div style="width: 80px; text-align: right; padding-right: 5px; display: inline-block; border-right: 1px solid #ddd; border-left: 1px solid #ddd; border-left: 1px solid #ddd; line-height: 34px; float: left;">
+                    地块编号
+                </div>
+                <div class="massifTab" name="massifid"
+                    style="width: 208px; height: 100%; text-align: left; padding-left: 5px; display: inline-block; line-height: 34px; float: left;">
+                </div>
+            </div>
+        </div>
+        <div style="height: 244px; width: 299px; border-bottom: 1px solid #ddd; border-left: 1px solid #ddd; float: right; float: top">
+            <div style="height: 100%; width: 100%; display: inline-block; float: left; position: relative;">
+                <div class="massifTab" name="_picture"
+                    style="width: 100%; height: 100%; display: inline-block; float: left;">
+                    <div class="imgviewer3"
+                        style="cursor: pointer; width: 100%; height: 100%; position: relative; background-repeat: no-repeat; background-position: center; background-size: 423px 159px;">
+                        <div name="pageIndex" style="width: 100%; height: 40px; line-height: 40px; text-align: center"></div>
+                        <div id="picview3"
+                            style="width: 70%; height: 70%; left: 15%; top: 15%; position: absolute; background-repeat: no-repeat; background-position: center;"
+                            title="点击预览">
+                        </div>
+                        <div class="PicLeft3 ImgBtn"
+                            style="background-image: url('../../image/agri/leftbtn.png'); background-repeat: no-repeat; background-position: center; width: 24px; height: 24px; position: absolute; left: 10px; top: 110px; background-size: cover;">
+                        </div>
+                        <div class="PicRight3 ImgBtn"
+                            style="background-image: url('../../image/agri/rightbtn.png'); background-repeat: no-repeat; background-position: center; width: 24px; height: 24px; position: absolute; right: 10px; top: 110px; background-size: cover;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div style="height: 34px; width: 50%; border-bottom: 1px solid #ddd; float: left;">
+            <div style="height: 100%; width: 100%; display: inline-block; float: left; position: relative;">
+                <div style="width: 80px; text-align: right; padding-right: 5px; display: inline-block; border-right: 1px solid #ddd; border-left: 1px solid #ddd; line-height: 34px; float: left;">
+                    农户姓名
+                </div>
+                <div class="massifTab" name="farmername"
+                    style="width: 208px; height: 100%; text-align: left; padding-left: 5px; display: inline-block; line-height: 34px; float: left;">
+                </div>
+            </div>
+        </div>
+        <div style="height: 34px; width: 50%; border-bottom: 1px solid #ddd; float: left;">
+            <div style="height: 100%; width: 100%; display: inline-block; float: left; position: relative;">
+                <div style="width: 80px; text-align: right; padding-right: 5px; display: inline-block; border-right: 1px solid #ddd; border-left: 1px solid #ddd; line-height: 34px; float: left;">
+                    地类名称
+                </div>
+                <div class="massifTab" name="classname"
+                    style="width: 208px; height: 100%; text-align: left; padding-left: 5px; display: inline-block; line-height: 34px; float: left;">
+                </div>
+            </div>
+        </div>
+        <div style="height: 34px; width: 50%; border-bottom: 1px solid #ddd; float: left;">
+            <div style="height: 100%; width: 100%; display: inline-block; float: left; position: relative;">
+                <div style="width: 80px; text-align: right; padding-right: 5px; display: inline-block; border-right: 1px solid #ddd; border-left: 1px solid #ddd; line-height: 34px; float: left;">
+                    权属性质
+                </div>
+                <div class="massifTab" name="ownership"
+                    style="width: 208px; height: 100%; text-align: left; padding-left: 5px; display: inline-block; line-height: 34px; float: left;">
+                </div>
+            </div>
+        </div>
+        <div style="height: 34px; width: 50%; border-bottom: 1px solid #ddd; float: left;">
+            <div style="height: 100%; width: 100%; display: inline-block; float: left; position: relative;">
+                <div style="width: 80px; text-align: right; padding-right: 5px; display: inline-block; border-right: 1px solid #ddd; border-left: 1px solid #ddd; line-height: 34px; float: left;">
+                    权属单位
+                </div>
+                <div class="massifTab" name="ownershipname"
+                    style="width: 208px; height: 100%; text-align: left; padding-left: 5px; display: inline-block; line-height: 34px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; float: left;">
+                </div>
+            </div>
+        </div>
+        <div style="height: 34px; width: 50%; border-bottom: 1px solid #ddd; float: left;">
+            <div style="height: 100%; width: 100%; display: inline-block; float: left; position: relative;">
+                <div style="width: 80px; text-align: right; padding-right: 5px; display: inline-block; border-right: 1px solid #ddd; border-left: 1px solid #ddd; line-height: 34px; float: left;">
+                    基本农田类型
+                </div>
+                <div class="massifTab" name="farmlandtype"
+                    style="width: 190px; height: 100%; text-align: left; padding-left: 5px; display: inline-block; line-height: 34px;white-space: nowrap; overflow: hidden; text-overflow: ellipsis; float: left;">
+                </div>
+            </div>
+        </div>
+        <div style="height: 34px; width: 50%; border-bottom: 1px solid #ddd; float: left;">
+            <div style="height: 100%; width: 100%; display: inline-block; float: left; position: relative;">
+                <div style="width: 80px; text-align: right; padding-right: 5px; display: inline-block; border-right: 1px solid #ddd; border-left: 1px solid #ddd; line-height: 34px; float: left;">
+                    基本农田面积
+                </div>
+                <div class="massifTab" name="farmlandarea"
+                    style="width: 188px; height: 100%; text-align: left; padding-left: 5px; display: inline-block; line-height: 34px; float: left;">
+                </div>
+            </div>
+        </div>
+        <div style="height: 34px; width: 100%; border-bottom: 1px solid #ddd; float: left;">
+            <div style="height: 100%; width: 100%; display: inline-block; float: left; position: relative;">
+                <div style="width: 80px; text-align: right; padding-right: 5px; display: inline-block; border-right: 1px solid #ddd; border-left: 1px solid #ddd; line-height: 34px; float: left;">
+                    详细地址
+                </div>
+                <div class="massifTab" name="_massifAddr"
+                    style="width: 208px; height: 100%; text-align: left; padding-left: 5px; display: inline-block; line-height: 34px; float: left;">
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+</body>
+</html>

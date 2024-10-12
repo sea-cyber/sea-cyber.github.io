@@ -1,0 +1,651 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>作业统计</title>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+    <link rel="stylesheet" href="../../theme/default/easyui.css" />
+    <link rel="stylesheet" type="text/css" href="../../theme/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/app.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/dev.css" />
+    <script type="text/javascript" src="../../js/jquery.min.js"></script>
+    <script type="text/javascript" src="../../js/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="../../js/easyui-lang-zh_CN.js"></script>
+    <script type="text/javascript" src="../../js/linq.min.js"></script>
+    <script type="text/javascript" src="../../js/data.util.js"></script>
+    <script type="text/javascript" src="../../js/highcharts.js"></script>
+    <script type="text/javascript" src="../../js/highcharts-more.js"></script>
+    <script type="text/javascript" src="../../js/solid-gauge.js"></script>
+    <script type="text/javascript" src="../../js/dev.ui.js"></script>
+    <script type="text/javascript" src="../../js/drilldown.js"></script>
+    <script type="text/javascript" src="../../js/highcharts-zh_CN.js"></script>
+    <style type="text/css">
+        .content {
+            height: 100%;
+            width: 100%;
+            position: relative;
+        }
+
+            .content .row {
+                width: 100%;
+                height: 35px;
+            }
+
+                .content .row .title {
+                    width: 70px;
+                    height: 35px;
+                    line-height: 35px;
+                    display: inline-block;
+                    float: left;
+                    text-align: right;
+                    padding-right: 5px;
+                }
+
+                .content .row .control {
+                    width: 210px;
+                    padding-left: 5px;
+                    display: inline-block;
+                    height: 35px;
+                    min-width: 60px;
+                }
+
+                .content .row .Button {
+                    width: 60px;
+                    height: 26px;
+                    margin-top: 7px;
+                    background-color: #16dbbb;
+                    /*border-radius: 5px;*/
+                    text-align: center;
+                    border: 1px solid #16dbbb;
+                    display: inline-block;
+                    margin-left: 5px;
+                }
+
+                    .content .row .Button:hover {
+                        background-color: #5227de;
+                        border: 1px solid #5227de;
+                        cursor: pointer;
+                    }
+
+                    .content .row .Button:active {
+                        background-color: #210097;
+                        border: 1px solid #210097;
+                        cursor: pointer;
+                    }
+    </style>
+    <script type="text/javascript">
+        var Dev = window.top.window.dev, orgId = Dev.cookie.user.orgid;
+        var parent;
+        var statmethodc, taskcategory, tasktype;
+        var box;
+        var method;
+        var urlc = "task";
+        var viewChangedKey;
+        var statData;
+        var districtconfig = Dev.App.Config.Extend.StaticInfo.District;
+        var districts;
+        var legendsconfig = Dev.App.Config.Extend.StaticInfo.Legend;
+        var legends, legendcontrol;
+        var statWin;
+        var oldlever;
+        var condition;
+        var flashDialog;
+        var paramType;
+        var taskTypeArr = [];
+
+        function WidgetCommunication(s) {//部件通讯
+            parent = s.parent;
+            if (!Dev.IsNull(s.param) && !Dev.IsNull(s.param.DeviceType)) paramType = s.param.DeviceType;
+            if (paramType == "无人机") urlc = "uav";
+            statmethodc = $("#statmethod").prop("$this");
+            taskcategory = $("#taskcategory").prop("$this");
+            tasktype = $("#tasktype").prop("$this");
+            $("#devicetype").parent().parent().hide();
+            /*statmethodc.bind("onSelectChanged", function (n, m) {
+                return;
+                if (statmethodc.GetValue() === "NO") {
+                    $("#devicetype").parent().parent().show();
+                }
+                else {
+                    $("#devicetype").parent().parent().hide();
+                    $("#devicetype").prop("$this").SetValue("");
+                }
+            });*/
+            $(".Button").click(function () {
+                if (!Dev.IsNull(legendcontrol)) legendcontrol.SetVisible(false);
+                $("#errorMsg").html("");
+                var tag = $(this).attr("tag");
+                if (tag == "stat") {
+                    method = statmethodc.GetValue();
+                    condition = getCondition();
+                    if (Dev.IsNull(method)) { $("#errorMsg").html("请选择统计方式!"); return; }
+                    $.ajax({
+                        url: Dev.GetSystemUrlByRelID("Service") + urlc + "/countByCondition/" + method+"/"+orgId,
+                        type: "POST",
+                        contentType: 'application/json',
+                        data: condition,
+                        dataType: 'json',
+                        success: function (result) {
+                            if (result.statusCode != 200 || result.data.length == 0) {
+                                $("#errorMsg").html("暂时没有统计数据!");
+                                flashDialog.Alert("暂无统计数据！", "info");
+                                clearbottompanel(); return;
+                            }
+                            if (Dev.IsNull(legendcontrol)) initlegend();
+                            else legendcontrol.SetVisible(true);
+                            statData = result.data.map(function (value) {
+                                if (Dev.IsNull(value.province)) { value.province = "其他" }
+                                if (Dev.IsNull(value.city)) { value.city = "其他" }
+                                if (Dev.IsNull(value.county)) { value.county = "其他" }
+                                if (Dev.IsNull(value.town)) { value.town = "其他" }
+                                return value;
+                            });
+                            initdata(result.data);
+                            var lever = getlever();
+                            if (Dev.IsNull(lever)) lever = "TOWN";
+                            getdata(result.data, lever);
+                            Dev.App.Map.getView().setZoom(4);
+                            var curr_center = [104.2663955688479, 29.93828368186953];
+                            var mapproj = Dev.App.Map.getView().getProjection();
+                            if (mapproj.getCode() != Dev.App.Config.SystemMap.DataEPSG) curr_center = Dev.proj.transform(curr_center, Dev.App.Config.SystemMap.DataEPSG, mapproj.getCode());
+                            Dev.App.Map.getView().setCenter(curr_center, Dev.App.Map.getSize());
+                            //Dev.App.Map.getView().setCenter([104.2663955688479, 29.93828368186953], Dev.App.Map.getSize());
+                        },
+                        error: function (msg) {
+                            flashDialog.Alert("网络异常，请重试！", "error");
+                            statData = null;
+                        }
+                    });
+                }
+                if (tag == "cancel") {
+                    clearbottompanel();
+                    //清空选项框
+                    $("#devicetype").prop("$this").SetValue("");
+                    statmethodc.SetValue("");
+                    taskcategory.SetValue("");
+                    tasktype.SetValue("");
+                    $("#stattime1").datebox("setValue", "");
+                    $("#stattime2").datebox("setValue", "");
+                }
+            });
+            Dev.App.LeftPanel.SetIconCls("icon-statwork");
+            Dev.App.LeftPanel.Header.css("background", "#14cdad");
+            Dev.App.LeftPanel.bind("onResize", function () {
+                var width = Dev.App.LeftPanel.Target.outerWidth();
+                $(".control").css("width", (width - 90) + "px");
+                $(".dev-combobox", $(".content")).each(function (index, curdom) {
+                    $(curdom).prop("$this").SetWidth(width - 90);
+                });
+                var alltimew = (width - 90 - 22);
+                var tempw = alltimew % 2;
+                var time1w = tempw == 0 ? (alltimew / 2) : ((alltimew - tempw) / 2);
+                var time2w = alltimew - time1w;
+                $(".timeDiv").css("width", time1w + "px");
+                var time1 = $("#stattime1").datebox("getValue");
+                var time2 = $("#stattime2").datebox("getValue");
+                $("#stattime1").datebox({ width: (time1w + "px"), value: time1 });
+                $("#stattime2").datebox({ width: (time2w + "px"), value: time2 });
+            });
+            Dev.App.BottomPanel.bind("onResize", function () { resize(); });
+            Dev.App.BottomPanel.bind("onToolClick", function (s, e) {
+                var id = e.ToolItem.ID;
+                if (id === "btnStatist") {
+                    //统计图
+                    if (Dev.IsNull(statData)) return;
+                    //弹出窗体
+                    if (Dev.IsNull(statWin)) {
+                        statWin = new Dev.Window({
+                            ID: "workstat",
+                            IconCls: 'icon-statgraph',
+                            Title: "作业统计图",
+                            Parent: Dev.App.FillPanel.Target,
+                            Maximizable: true,
+                            Modal: true,
+                            Draggable: true,
+                            HAlign: 'center',
+                            VAlign: 'center',
+                            Resizable: false,
+                            Content: initchartData(),
+                            Height: 450,
+                            Width: 600
+                        });
+                        statWin.bind("onResize", function (s, e) {
+                            //改变统计图大小
+                            var winheight = statWin.Height;
+                            var winwidth = statWin.Width;
+                            var chartdiv = $(".chartDiv", statWin.Target);
+                            chartdiv.css({ "width": (winwidth - 2) + "px", "height": (winheight - 32) + "px" });
+                            var chart = $("#chart", chartdiv);
+                            if (Dev.IsNull(chart) || chart.length == 0) return;
+                            if (!Dev.IsNull($(chart[0]).highcharts())) $(chart[0]).highcharts().setSize(winwidth - 2, winheight - 32, false);
+                        });
+                    }
+                    else {
+                        statWin.SetContent(initchartData());
+                        statWin.Open();
+                    }
+                }
+                else if (id === "btnExport") {
+                    Dev.exportExcelByUrl(Dev.GetSystemUrlByRelID("Service") + urlc+"/export/" + method+"/"+orgId, condition);
+                }
+            });
+            //获取统计相关的配置文件
+            if (!Dev.IsNull(districtconfig)) {
+                if (Dev.IsNull(districtconfig.length)) districts = [Dev.ObjClone(districtconfig)];
+                else districts = districtconfig.clone();
+            }
+            if (!Dev.IsNull(legendsconfig)) {
+                if (Dev.IsNull(legendsconfig.length)) legends = [Dev.ObjClone(legendsconfig)];
+                else legends = legendsconfig.clone();
+            }
+            legends = Enumerable.From(legends).Where('s=>s.Type=="work"').ToArray();
+            viewChangedKey = Dev.App.Map.getView().on("change:resolution", function (evt) {
+                //获取当前的比例尺分辨率
+                if (Dev.IsNull(statData)) return;
+                if (Dev.IsNull(districts)) return;
+                var lever = getlever();
+                if (Dev.IsNull(lever) || oldlever == lever) return;
+                oldlever = lever;
+                getdata(statData, lever);
+            });
+            flashDialog = new Dev.Messager({ Height: 95, Width: 200, AutoShow: false, Type: "question", Timeout: 1500, ButtonVisible: false, AutoVisible: true, Effect: "normal" });
+            parent.one("onClosing", function () {
+                Dev.App.BottomPanel.SetHeight(262);
+                Dev.App.LeftPanel.unbind("onResize");
+                Dev.App.BottomPanel.unbind("onResize");
+                Dev.App.BottomPanel.unbind("onToolClick");
+                Dev.App.BottomPanel.ClearTool();
+                Dev.App.BottomPanel.Content.empty();
+                Dev.App.BottomPanel.SetVisible(false);
+                if (!Dev.IsNull(viewChangedKey)) { Dev.App.Map.getView().unByKey(viewChangedKey); viewChangedKey = null; }
+                if (!Dev.IsNull(statWin)) {
+                    statWin.unbind("onResize");
+                    statWin.Close();
+                    statWin.Destroy();
+                    statWin = null;
+                }
+                if (!Dev.IsNull(box)) box = null;
+                if (!Dev.IsNull(statmethodc)) {
+                    statmethodc.unbind("onSelectChanged");
+                    statmethodc = null;
+                }
+                Dev.MapUtils.ClearFeature("tempGraphicLayer");
+                if (!Dev.IsNull(legendcontrol)) { legendcontrol.SetVisible(false); legendcontrol.Target.remove(); legendcontrol = null; }
+                drilldown = [];
+                statData = null;
+            });
+            if (!Dev.IsNull(paramType)) $("#searchType").css("display", "none");
+            if (paramType === "无人机") {
+                getDicData("uavTaskType");
+            } else if (paramType === "农机") {
+                getDicData("TaskSpec")
+            }
+        }
+        //初始化统计列表
+        function initdata(data) {
+            if (Dev.IsNull(data) || data.length == 0) return;
+            if (Dev.App.BottomPanel.Visible != true) {
+                Dev.App.BottomPanel.SetVisible(true);
+                Dev.App.BottomPanel.Header.css({ "background": "#14cdad", "color": "#fcfcfc", "font-weight": "bold" });
+                Dev.App.BottomPanel.SetIconCls("icon-statlist");
+                Dev.App.BottomPanel.SetTitle("作业统计列表");
+                //添加工具
+                Dev.App.BottomPanel.ClearTool();
+                Dev.App.BottomPanel.AddTool([{ ID: 'btnExport', IconCls: 'icon-export-white', TipTitle: '导出' }, { ID: 'btnStatist', IconCls: 'icon-statgraph', TipTitle: '统计图' }]);
+            }
+            Dev.App.BottomPanel.Content.empty();
+            var div = $('<div style="width:100%;height:100%;"></div>');
+            Dev.App.BottomPanel.Add(div);
+            //显示数据
+            box = new Dev.Box({ HasBorder: false });
+            box.Target.css({
+                width: Dev.App.BottomPanel.Target.width() + "px",
+                height: (Dev.App.BottomPanel._Height - 28) + "px"
+            });
+            box.Target.appendTo(div);
+            var devicetype = $("#devicetype").prop("$this").GetValue();
+            var table;
+            if (Dev.IsNull(paramType) && (method.toLowerCase() === "no" && (Dev.IsNull(devicetype) || devicetype === "-不限-"))) {
+                table = $('<table class="statInfo" cellspacing="0" cellpadding="0"><tr><th>省</th><th>市</th><th>县</th><th>乡</th><th>设备类型</th><th>真实姓名</th><th>名称</th><th>面积(亩)</th><th>时长(小时)</th></tr></table>');
+            } else {
+                table = $('<table class="statInfo" cellspacing="0" cellpadding="0"><tr><th>省</th><th>市</th><th>县</th><th>乡</th><th>真实姓名</th><th>名称</th><th>面积(亩)</th><th>时长(小时)</th></tr></table>');
+            }
+            //行数有多少条
+            var provincedata = Enumerable.From(data).GroupBy('s=>s.province').ToArray();
+            var isprorow = false, iscityrow = false, iscountyrow = false, istownrow = false, isdtrow = false;
+            for (var i = 0; i < provincedata.length; i++) {
+                isprorow = true;
+                var provincerowcount = provincedata[i].source.length;
+                var provincename = provincedata[i].source[0].province;
+                var citys = Enumerable.From(provincedata[i].source).GroupBy('s=>s.city').ToArray();
+                for (var j = 0; j < citys.length; j++) {
+                    iscityrow = true;
+                    var cityrowcount = citys[j].source.length;
+                    var cityname = citys[j].source[0].city;
+                    var county = Enumerable.From(citys[j].source).GroupBy('s=>s.county').ToArray();
+                    for (var k = 0; k < county.length; k++) {
+                        iscountyrow = true;
+                        var countyrowcount = county[k].source.length;
+                        var countyname = county[k].source[0].county;
+                        var town = Enumerable.From(county[k].source).GroupBy('s=>s.town').ToArray();
+                        for (var l = 0; l < town.length; l++) {
+                            istownrow = true;
+                            var townrowcount = town[l].source.length;
+                            var townname = town[l].source[0].town;
+                            if (Dev.IsNull(paramType) && (method.toLowerCase() === "no" && (Dev.IsNull(devicetype) || devicetype === "-不限-"))) { //按设备查询
+                                var devicetypes = Enumerable.From(town[l].source).GroupBy('s=>s.devicetype').ToArray();
+                                for (var n = 0; n < devicetypes.length; n++) {
+                                    isdtrow = true;
+                                    var dtrowcount = devicetypes[n].source.length;
+                                    var dtname = devicetypes[n].source[0].devicetype;
+                                    for (var m = 0; m < devicetypes[n].source.length; m++) {
+                                        var tr = $('<tr></tr>').appendTo(table);
+                                        var rowdata = {};
+                                        var data = {};
+                                        if (isprorow) { tr.append($('<td rowspan="' + provincerowcount + '">' + (Dev.IsNull(provincename) ? "-" : provincename) + '</td>')); isprorow = false; }
+                                        if (iscityrow) { tr.append($('<td rowspan="' + cityrowcount + '">' + (Dev.IsNull(cityname) ? "-" : cityname) + '</td>')); iscityrow = false; }
+                                        if (iscountyrow) { tr.append($('<td rowspan="' + countyrowcount + '">' + (Dev.IsNull(countyname) ? "-" : countyname) + '</td>')); iscountyrow = false; }
+                                        if (istownrow) { tr.append($('<td rowspan="' + townrowcount + '">' + (Dev.IsNull(townname) ? "-" : townname) + '</td>')); istownrow = false; }
+                                        if (isdtrow) { tr.append($('<td rowspan="' + dtrowcount + '">' + (Dev.IsNull(dtname) ? "-" : dtname) + '</td>')); isdtrow = false; }
+                                        var name = method.toLowerCase();
+                                        if (name == "orgid") name = "orgname";
+                                        if (name == "userid") name = "username";
+                                        tr.append($('<td>' + (Dev.IsNull(devicetypes[n].source[m].usertruename) ? "—" : devicetypes[n].source[m].usertruename) + '</td>'));
+                                        tr.append($('<td>' + (Dev.IsNull(devicetypes[n].source[m][name]) ? "—" : devicetypes[n].source[m][name]) + '</td>'));
+                                        tr.append($('<td>' + (Dev.IsNull(devicetypes[n].source[m].totalArea) ? "0" : devicetypes[n].source[m].totalArea) + '</td>'));
+                                        tr.append($('<td>' + (Dev.IsNull(devicetypes[n].source[m].totalTime) ? "0" : devicetypes[n].source[m].totalTime) + '</td>'));
+                                    }
+                                }
+                            } else {
+                                for (var m = 0; m < town[l].source.length; m++) {
+                                    var tr = $('<tr></tr>').appendTo(table);
+                                    var rowdata = {};
+                                    var data = {};
+                                    if (isprorow) { tr.append($('<td rowspan="' + provincerowcount + '">' + (Dev.IsNull(provincename) ? "-" : provincename) + '</td>')); isprorow = false; }
+                                    if (iscityrow) { tr.append($('<td rowspan="' + cityrowcount + '">' + (Dev.IsNull(cityname) ? "-" : cityname) + '</td>')); iscityrow = false; }
+                                    if (iscountyrow) { tr.append($('<td rowspan="' + countyrowcount + '">' + (Dev.IsNull(countyname) ? "-" : countyname) + '</td>')); iscountyrow = false; }
+                                    if (istownrow) { tr.append($('<td rowspan="' + townrowcount + '">' + (Dev.IsNull(townname) ? "-" : townname) + '</td>')); istownrow = false; }
+                                    var name = method.toLowerCase();
+                                    if (name == "orgid") name = "orgname";
+                                    if (name == "userid") name = "username";
+                                    tr.append($('<td>' + (Dev.IsNull(town[l].source[m].usertruename) ? "—" : town[l].source[m].usertruename) + '</td>'));
+                                    tr.append($('<td>' + (Dev.IsNull(town[l].source[m][name]) ? "—" : town[l].source[m][name]) + '</td>'));
+                                    tr.append($('<td>' + (Dev.IsNull(town[l].source[m].totalArea) ? "0" : town[l].source[m].totalArea) + '</td>'));
+                                    tr.append($('<td>' + (Dev.IsNull(town[l].source[m].totalTime) ? "0" : town[l].source[m].totalTime) + '</td>'));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            box.SetContent(table);
+
+        }
+        //地图上渲染统计数据
+        function getdata(data, lever) {
+            Dev.MapUtils.ClearFeature("tempGraphicLayer");
+            var newdata = [];
+            for (var i = 0; i < data.length; i++) {
+                var tempdata = null;
+                if (lever.toLowerCase() == "province") tempdata = Enumerable.From(newdata).Where('s=>s.province=="' + data[i].province + '"').FirstOrDefault();
+                if (lever.toLowerCase() == "city") tempdata = Enumerable.From(newdata).Where('s=>s.province=="' + data[i].province + '" && s.city=="' + data[i].city + '"').FirstOrDefault();
+                if (lever.toLowerCase() == "county") tempdata = Enumerable.From(newdata).Where('s=>s.province=="' + data[i].province + '" && s.city=="' + data[i].city + '" && s.county=="' + data[i].county + '"').FirstOrDefault();
+                if (lever.toLowerCase() == "town") tempdata = Enumerable.From(newdata).Where('s=>s.province=="' + data[i].province + '" && s.city=="' + data[i].city + '" && s.county=="' + data[i].county + '" && s.town=="' + data[i].town + '"').FirstOrDefault();
+                if (!Dev.IsNull(tempdata)) {
+                    var index = Enumerable.From(newdata).IndexOf(tempdata);
+                    newdata[index].data.push(data[i]);
+                    continue;
+                }
+                var con = "";
+                if (lever.toLowerCase() == "province") con = "PROVINCE='" + data[i].province + "'";
+                if (lever.toLowerCase() == "city") con = "PROVINCE='" + data[i].province + "' AND CITY='" + data[i].city + "'";
+                if (lever.toLowerCase() == "county") con = "PROVINCE='" + data[i].province + "' AND CITY='" + data[i].city + "' AND COUNTY='" + data[i].county + "'";
+                if (lever.toLowerCase() == "town") con = "PROVINCE='" + data[i].province + "' AND CITY='" + data[i].city + "' AND COUNTY='" + data[i].county + "' AND TOWN='" + data[i].town + "'";
+                var feature = Dev.getfeaturebylever(lever.toLowerCase(), con);
+                if (Dev.IsNull(feature)) continue;
+                newdata.push({ province: data[i].province, city: data[i].city, county: data[i].county, town: data[i].town, data: [data[i]], feature: feature });
+            }
+            if (Dev.IsNull(newdata) || newdata.length == 0) return;
+            var featrues = [];
+            for (var i = 0; i < newdata.length; i++) {
+                var currdatas = newdata[i].data;
+                currdatas = Enumerable.From(currdatas).Where('s=>s.totalArea!=undefined').ToArray();
+                var totalArea = Enumerable.From(currdatas).Sum('s=>s.totalArea');
+                //配置颜色
+                var selectlegend;
+                for (var j = 0; j < legends.length; j++) {
+                    var maxvalue = null, minvalue = null;
+                    if (!Dev.IsNull(legends[j].MinValue)) minvalue = parseFloat(legends[j].MinValue);
+                    if (!Dev.IsNull(legends[j].MaxValue)) maxvalue = parseFloat(legends[j].MaxValue);
+                    if (!Dev.IsNull(maxvalue) && Dev.IsNull(minvalue) && totalArea <= maxvalue) { selectlegend = legends[j]; break; }
+                    if (!Dev.IsNull(minvalue) && Dev.IsNull(maxvalue) && totalArea > minvalue) { selectlegend = legends[j]; break; }
+                    if (!Dev.IsNull(minvalue) && !Dev.IsNull(maxvalue) && totalArea > minvalue && totalArea <= maxvalue) { selectlegend = legends[j]; break; }
+                }
+                var style = new Dev.style.Style({
+                    fill: new Dev.style.Fill({ color: selectlegend.Fill.Color }),
+                    stroke: new Dev.style.Stroke({ color: selectlegend.Border.Color, width: parseInt(selectlegend.Border.Width) }),
+                    text: new Dev.style.Text({ text: newdata[i][lever.toLowerCase()] + "(" + totalArea + "亩)", font: "15px serif", fill: new Dev.style.Fill({ color: [255, 255, 255, 1] }), })
+                });
+                var currfeature = newdata[i].feature;
+                currfeature.setStyle(style);
+                featrues.push(currfeature);
+            }
+            Dev.MapUtils.AddFeatures(featrues, "tempGraphicLayer", null, Dev.App.Map);
+            //添加图例
+
+        }
+        //辅助函数
+        function getlever() {//获取当前地图的比例尺对应的行政区划
+            var lever;
+            var resolution = Dev.MapUtils.GetScaleByResolution(Dev.App.Map.getView().getResolution(), Dev.App.Map);
+            for (var i = 0; i < districts.length; i++) {
+                var maxscale = null, minscale = null;
+                if (!Dev.IsNull(districts[i].MaxScale)) maxscale = parseFloat(districts[i].MaxScale);
+                if (!Dev.IsNull(districts[i].MinScale)) minscale = parseFloat(districts[i].MinScale);
+                if (!Dev.IsNull(maxscale) && !Dev.IsNull(minscale) && resolution >= minscale && resolution <= maxscale) { lever = districts[i].GroupField; break; }
+                if (!Dev.IsNull(minscale) && Dev.IsNull(maxscale) && resolution >= minscale) { lever = districts[i].GroupField; break; }
+                if (!Dev.IsNull(maxscale) && Dev.IsNull(minscale) && resolution <= maxscale) { lever = districts[i].GroupField; break; }
+            }
+            return lever;
+        }
+        function resize() {//bottomPanel 的Size发生改变
+            if (!Dev.IsNull(box)) box.SetSize({ Width: Dev.App.BottomPanel.Target.width(), Height: (Dev.App.BottomPanel.Height - 28) });
+        }
+        function getCondition() {//获取统计条件
+            var condition = "1=1";
+            var category = taskcategory.GetValue();
+            if (!Dev.IsNull(category) && category != "-不限-") condition += " AND  \"CATEGORY\"='" + category + "'";
+            var type = tasktype.GetValue();
+            if (!Dev.IsNull(type) && type != "-不限-") condition += " AND \"TYPE\"='" + type + "'";
+                //if (!Dev.IsNull(paramType)) condition += " AND \"DEVICETYPE\"='" + paramType + "'";
+            else {
+                var devicetype = $("#devicetype").prop("$this").GetValue();
+                if (!Dev.IsNull(devicetype) && devicetype != "-不限-") { condition += " AND \"DEVICETYPE\" = '" + devicetype + "'"; }
+            }
+            //时间条件
+            var time1 = $("#stattime1").datebox("getValue");
+            var time2 = $("#stattime2").datebox("getValue");
+            if (!Dev.IsNull(time1) && !Dev.IsNull(time2)) {
+                var t1 = new Date(time1.replace(/-/g, "/"));
+                var t2 = new Date(time2.replace(/-/g, "/"));
+                if (t1.getTime() > t2.getTime()) {
+                    var temp = time1;
+                    time1 = time2;
+                    time2 = temp;
+                }
+            }
+            if (!Dev.IsNull(time1)) condition += " AND \"COMPLETETIME\">='" + time1 + "'";
+            if (!Dev.IsNull(time2)) condition += " AND \"COMPLETETIME\"<='" + time2 + "'";
+            return condition;
+        }
+        function initlegend() { //初始化图例
+            legendcontrol = new Dev.UCLegend({ Left: 5 });
+            legendcontrol.SetData(legends);
+            legendcontrol.SetVisible(true);
+        }
+        var drilldown = [];
+        function getdrilldown(data, levername, id) {
+            var groupname;
+            var sname, sname1;
+            if (levername == "province") { groupname = "city"; sname = "市"; sname1 = "市"; }
+            if (levername == "city") { groupname = "county"; sname = "县"; sname1 = "县"; }
+            if (levername == "county") { groupname = "town"; sname = "乡"; sname1 = "乡"; }
+            if (levername == "town") { sname = "面积"; sname1 = "时长" }
+            var currdata = { name: sname, id: id, data: [], type: "column", tag: "面积" };
+            var currdata1 = { name: sname1, id: "line" + id, data: [], type: "spline", yAxis: 1, tag: "时长", color: "#95c471" };
+            drilldown.push(currdata);
+            drilldown.push(currdata1);
+            if (!Dev.IsNull(groupname)) {
+                var seriesdata = Enumerable.From(data).GroupBy('s=>s.' + groupname.toLowerCase()).ToArray();
+                for (var i = 0; i < seriesdata.length; i++) {
+                    var drowdownname = "";
+                    if (groupname == "city") drilldownname = "county";
+                    if (groupname == "county") drilldownname = "town";
+                    var data = seriesdata[i].source;
+                    var totalArea = Enumerable.From(data).Sum('s=>s.totalArea');
+                    var totalTime = Enumerable.From(data).Sum('s=>s.totalTime');
+                    var labelname = data[0][groupname.toLowerCase()];
+                    currdata.data.push({ name: labelname, y: totalArea, drilldown: id + drilldownname + i });
+                    currdata1.data.push({ name: labelname, y: totalTime, drilldown: "line" + id + drilldownname + i });
+                    getdrilldown(data, groupname, id + drilldownname + i);
+                }
+            }
+            else {
+                for (var i = 0; i < data.length; i++) {
+                    var methodname = method.toLowerCase();
+                    if (methodname == "orgid") methodname = "orgname";
+                    if (methodname == "userid") methodname = "username";
+                    currdata.data.push({ name: data[i][methodname], y: data[i].totalArea });
+                    currdata1.data.push({ name: data[i][methodname], y: data[i].totalTime });
+                }
+            }
+        }
+        function initchartData() {
+            var chartdiv = $('<div class="chartDiv"></div>');
+            drilldown = [];
+            var chart = $('<div id="chart"></div>').appendTo(chartdiv);
+            var seriesdata = Enumerable.From(statData).GroupBy('s=>s.province').ToArray();
+            var series = [{ name: "省", data: [], type: "column", tag: "面积" }, { name: "时长", data: [], type: 'spline', yAxis: 1, tag: "时长", color: "#95c471" }];
+            for (var i = 0; i < seriesdata.length; i++) {
+                var totalArae = Enumerable.From(seriesdata[i]).Sum('s=>s.totalArea');
+                var totalTime = Enumerable.From(seriesdata[i]).Sum('s=>s.totalTime');
+                series[0].data.push({ name: seriesdata[i].source[0].province, y: totalArae, drilldown: "province" + i });
+                series[1].data.push({ name: seriesdata[i].source[0].province, y: totalTime, drilldwon: "lineprovince" + i });
+                var data = seriesdata[i].source;
+                getdrilldown(data, "province", "province" + i);
+            }
+            chart.highcharts({
+                chart: {
+                    events: {
+                        drilldown: function (e) {
+                            var c = this;
+                            var drilldownid = e.point.drilldown;
+                            var drilldownlineid = "line" + e.point.drilldown;
+                            var newseries = Enumerable.From(drilldown).Where('s=>s.id=="' + drilldownid + '" || s.id=="' + drilldownlineid + '"').ToArray();
+                            for (var i = 0; i < newseries.length; i++) c.addSingleSeriesAsDrilldown(e.point, newseries[i]);
+                            c.applyDrilldown();
+                            return false;
+                        }
+                    }
+                },
+                title: null,
+                xAxis: {
+                    type: 'category'
+                },
+                yAxis: [
+                    {
+                        title: { text: '面积(亩)' }
+                    },
+                    {
+                        title: { text: '时长（h）' }, opposite: true
+                    }
+                ],
+                legend: {
+                    enabled: true,
+                    labelFormatter: function (s, e) {
+                        return '<b>' + this.userOptions.tag + '</b>';
+                    }
+
+                },
+                credits: { enabled: false },
+                series: series,
+                drilldown: {
+                    //series: drilldown
+                    series: []
+                }
+
+
+            });
+            return chartdiv;
+        }
+        function clearbottompanel() {
+            Dev.MapUtils.ClearFeature("tempGraphicLayer");
+            statData = null;
+            if (!Dev.IsNull(legendcontrol)) legendcontrol.SetVisible(false);
+            Dev.App.BottomPanel.ClearTool();
+            Dev.App.BottomPanel.Content.empty();
+            Dev.App.BottomPanel.SetVisible(false);
+        }
+        //字典表查询任务类型
+        function getDicData(deviceType) {
+            taskTypeArr = Dev.GetDicData([deviceType]).map(function (val) { return val.data; });
+            taskTypeArr.unshift("-不限-");
+            if (!Dev.IsNull(taskTypeArr)) {
+                tasktype.SetData(taskTypeArr);
+            }
+        }
+    </script>
+</head>
+<body style="height: 100%; width: 100%;">
+    <div class="content">
+        <div class="row">
+            <div class="title">统计方式</div>
+            <div class="control">
+                <div id="statmethod" class="dev-combobox" style="width: 100%; margin-top: 5px;" opt='{"Required":true,"TextField":"Text","ValueField":"Type","Height":26,"TipInfo":"请选择","Data":[{"Text":"按设备统计","Type":"NO"},{"Text":"按组织统计","Type":"ORGID"},{"Text":"按人员统计","Type":"USERID"}],"Padding":"0px 5px","TextAlign":"left"}'></div>
+            </div>
+        </div>
+        <div id="searchType" class="row">
+            <div class="title">设备类型</div>
+            <div class="control">
+                <div id="devicetype" class="dev-combobox" style="z-index: 4; width: 100%; margin-top: 5px;" opt='{"TextField":"Text","ValueField":"Type","Height":26,"TipInfo":"请选择","Data":[{"Text":"-不限-","Type":"-不限-"},{"Text":"农机","Type":"农机"},{"Text":"无人机","Type":"无人机"}],"Padding":"0px 5px","TextAlign":"left"}'></div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="title">任务类别</div>
+            <div class="control">
+                <div id="taskcategory" class="dev-combobox" style="z-index: 3; width: 100%; margin-top: 5px;" opt='{"Height":26,"TipInfo":"请选择","Data":["-不限-","计划任务","调度任务"],"Padding":"0px 5px","TextAlign":"left"}'></div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="title">任务类型</div>
+            <div class="control">
+                <div id="tasktype" class="dev-combobox" style="z-index: 2; width: 100%; margin-top: 5px;" opt='{"Height":26,"TipInfo":"请选择","Data":["-不限-"],"Padding":"0px 5px","TextAlign":"left"}'></div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="title">完成时间</div>
+            <div class="control">
+                <div class="timeDiv" style="width: 94px; height: 35px; line-height: 35px; display: inline-block; float: left; margin-top: 0px;">
+                    <input id="stattime1" class="easyui-datebox" data-options="width:94,height:24,editable:false" />
+                </div>
+                <div style="width: 20px; height: 35px; line-height: 35px; display: inline-block; float: left; text-align: center">至</div>
+                <div class="timeDiv" style="width: 94px; height: 35px; line-height: 35px; display: inline-block; float: left; margin-left: 1px;">
+                    <input id="stattime2" class="easyui-datebox" data-options="width:94,height:24,editable:false" />
+                </div>
+            </div>
+        </div>
+        <div class="row" style="text-align: right;">
+            <div id="errorMsg" style="width: 120px; height: 35px; line-height: 35px; display: inline-block; float: left; color: red; margin-left: 18px; text-align: left;"></div>
+            <div class="Button" tag="stat" style="margin-left: 10px; margin-top: 0px;">
+                <div class="icon-statgraph" style="height: 16px; width: 16px; margin-top: 4px; margin-left: 5px; display: inline-block; float: left;"></div>
+                <span style="line-height: 28px; color: #fcfcfc;">统&nbsp;计</span>
+            </div>
+            <div class="Button" tag="cancel" style="margin-right: 10px;">
+                <div class="machine-reset" style="height: 16px; width: 16px; margin-top: 4px; margin-left: 5px; display: inline-block; float: left;"></div>
+                <span style="line-height: 28px; color: #fcfcfc;">重&nbsp;置</span>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

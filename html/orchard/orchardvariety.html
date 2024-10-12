@@ -1,0 +1,421 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>果园品种管理</title>
+    <link rel="stylesheet" href="../../theme/default/easyui.css" />
+    <link rel="stylesheet" type="text/css" href="../../theme/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/app.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/icon.css" />
+    <link type="text/css" href="../../css/dev.css" rel="stylesheet" />
+    <script type="text/javascript" src="../../js/jquery.min.js"></script>
+    <script type="text/javascript" src="../../js/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="../../js/easyui-lang-zh_CN.js"></script>
+    <script type="text/javascript" src="../../js/linq.min.js"></script>
+    <script type="text/javascript" src="../../js/data.util.js"></script>
+    <script type="text/javascript" src="../../js/jquery.dev.control.js"></script>
+    <script type="text/javascript" src="../../js/dev.ui.js"></script>
+    <script type="text/javascript" src="../../js/guid.js"></script>
+    <style>
+        .content {
+            height: 100%;
+            width: 100%;
+            position: relative;
+        }
+
+        .Title {
+            width: 75px;
+            line-height: 38px;
+            height: 38px;
+            display: inline-block;
+            float: left;
+        }
+
+            .Title .Icon {
+                width: 16px;
+                height: 16px;
+                display: inline-block;
+                margin-top: 10px;
+            }
+
+            .Title .Text {
+                display: inline-block;
+                float: right;
+                padding-right: 5px;
+            }
+
+        .title3 {
+            width: 63px;
+        }
+
+        .content .SearchDiv {
+            width: 195px;
+            height: 38px;
+            display: inline-block;
+            margin-left: 0px;
+            margin-right: 0px;
+        }
+
+        .content .Button {
+            width: 60px;
+            height: 26px;
+            float: left;
+            margin-top: 7px;
+            background-color: #16dbbb;
+            text-align: center;
+            border: 1px solid #16dbbb;
+            display: inline-block;
+            margin-left: 5px;
+        }
+
+            .content .Button:hover {
+                background-color: #5227de;
+                border: 1px solid #5227de;
+                cursor: pointer;
+            }
+
+        .content .ButtonDisable {
+            background-color: #808080;
+            color: #000;
+            border: 1px solid #808080;
+        }
+
+            .content .ButtonDisable:hover {
+                background-color: #808080;
+                color: #000;
+                border: 1px solid #808080;
+            }
+
+        .datagrid-row {
+            height: 28px;
+        }
+    </style>
+    <script type="text/javascript">
+        //定义窗口
+        var Dev = window.top.window.dev;
+
+        var parent;
+
+        //定义grid
+        var dataGrid, pageIndex = 1, pageSize = 5;
+
+        //定义信息提示框和确认框
+        var dialog, flashDialog;
+
+        function WidgetCommunication(s) {
+            parent = s.parent;
+            Dev.App.BottomPanel.SetHeight(262);
+            Dev.App.BottomPanel.Header.css({ "background": "#14cdad", "color": "#fcfcfc", "font-weight": "bold" });
+            Dev.App.BottomPanel.SetIconCls("orchard-type");
+            var cooperative_layer = Dev.MapUtils.GetLayer("cooplayer", Dev.App.Map); //获取合作社图层
+            if (!Dev.IsNull(cooperative_layer)) cooperative_layer.setVisible(false);//显示图层
+            var orchard_layer = Dev.MapUtils.GetLayer("orchardlayer", Dev.App.Map);//获取果园图层
+            if (!Dev.IsNull(orchard_layer)) orchard_layer.setVisible(false);//显示图层
+            Dev.OrchardTipClose();
+            initDataGrid();//初始化grid
+            $(window).resize(function () { resize(); });
+            //获取button的tag，不同的tag进入不同的方法 search-查询 clear-重置 deletes-删除 cancel-取消 export-导出
+            $(".Button").click(function () {
+                var tag = $(this).attr("tag");
+                if (tag == "search") { pageIndex = 1; search(); }
+                if (tag == "clear") { pageIndex = 1; searchClear(); search(); };
+                if (tag == "deletes") deletes();
+                if (tag == "cancel") editWin.Close();
+                if (tag == "import") importFile();
+                if (tag == "importFile") importFileClick();
+            });
+            //信息提示框
+            flashDialog = new Dev.Messager({ Height: 95, Width: 200, AutoShow: false, Type: "question", Timeout: 1500, ButtonVisible: false, AutoVisible: true, Effect: "normal" });
+            //信息确认框
+            dialog = new Dev.Messager({ AutoShow: false, Type: "question" });
+            //页面释放
+            parent.one("onClosing", function () {
+                Dev.App.BottomPanel.SetHeight(207);
+                if (!Dev.IsNull(dataGrid)) {
+                    dataGrid.Target.unbind("onSelectPage");
+                    dataGrid.Target.unbind("onClickRow");
+                    dataGrid = null;
+                }
+
+                if (!Dev.IsNull(detailWin)) {
+                    detailWin.Target.unbind("onClosing");
+                    detailWin.Close();
+                    detailWin.Destroy();
+                    detailWin = null;
+                }
+            });
+            resize();
+        }
+
+        //初始化grid
+        function initDataGrid() {
+            if (Dev.IsNull(dataGrid)) {
+                $("#gridDiv").empty();
+                var columns = [
+                    { field: "ck", width: 30, align: 'center', title: '勾选', sortable: false, checkbox: true },
+                    { field: "orchardName", width: 80, align: 'center', title: '果园名称', sortable: false },
+                    { field: "village", width: 100, align: 'center', title: '所在村社', sortable: false },
+                    { field: "fruitType", width: 80, align: 'center', title: '水果类型', sortable: false },
+                    { field: "area", width: 80, align: 'center', title: '合计面积(亩)', sortable: false },
+                    {
+                        field: "_oprate", width: 50, align: 'center', title: '操作', sortable: false,
+                        formatter: function (value, row, index) {
+                            return '<a href="javascript:void(0)" style="color:blue;margin-left:6px;" title="删除" onclick="deleteinfo(\'' + index + '\')"><img src="../../image/agri/delete.png"/></a>&nbsp;<a href="javascript:void(0)" style="color:blue;margin-left:6px;" onclick="detailInfo(\'' + row.id + '\')" title="详细信息"><img src="../../image/agri/cartype.png"/></a>';
+                        }
+                    }
+                ];
+                dataGrid = new UCDataGrid(Dev, { PageIndex: pageIndex, PageSize: pageSize, RowNumbers: false, ID: "orchardGrid", pagequery: false });
+                $("#gridDiv").append(dataGrid.Target);
+                dataGrid.Layout(columns);
+                dataGrid.Target.bind("onSelectPage", function (s, e) {
+                    pageIndex = e.index;
+                    search();
+                });
+                dataGrid.Target.bind("onClickRow", function (s, e) {
+                    var row = e.Row;
+                   // highlight(row);
+                });
+            }
+            search();
+        }
+        //查询数据
+        function search() {
+            var con = getCondition();
+            $.ajax({
+                type: "POST",
+                data: con,
+                contentType: "application/json",
+                url: Dev.GetSystemUrlByRelID("Service") + "orchardVariety/getbyfilter/" + pageIndex + "/" + pageSize,
+                success: function (result) {
+                    if (!result.statusCode == 200) return;
+                    dataGrid.Load(result.data.dataSource, result.data.pageInfo);
+                   // showpagedata(result.data.dataSource);
+                }
+            });
+        }
+
+        //获取查询条件
+        function getCondition() {
+            var condition = " 1=1 ";
+            var orchardname = $("#orchardName").prop("$this").GetValue();
+            if (!Dev.IsNull(orchardname) && orchardname.length > 0) condition += " AND ( \"ORCHARDNAME\"  LIKE '%" + $.trim(orchardname) + "%'" + " OR " + "UPPER( \"ORCHARDNAME\" )  LIKE " + "UPPER('%" + $.trim(orchardname) + "%')" + " OR " + "LOWER( \"ORCHARDNAME\" )  LIKE " + "LOWER('%" + $.trim(orchardname) + "%'))";       //大小写不敏感
+            var fruitType = $("#fruitType").prop("$this").GetValue();
+            if (!Dev.IsNull(fruitType) && fruitType.length > 0) condition += " AND ( \"FRUITTYPE\"  LIKE '%" + $.trim(fruitType) + "%'" + " OR " + "UPPER( \"FRUITTYPE\" )  LIKE " + "UPPER('%" + $.trim(fruitType) + "%')" + " OR " + "LOWER( \"FRUITTYPE\" )  LIKE " + "LOWER('%" + $.trim(fruitType) + "%'))";
+            return condition;
+        }
+
+        //批量删除
+        function deletes() {
+            var rows = dataGrid.DataGrid.datagrid("getChecked");
+            var curRowNo = dataGrid.DataGrid.datagrid("getData").total;       //获取已有的数据行数
+            if (curRowNo == rows.length && pageIndex != 1) pageIndex -= 1;     //如果没删完，保持在本页，删完回到上一页。
+            if (Dev.IsNull(rows) || rows.length == 0) {
+                flashDialog.Alert("请选择需要删除的数据!", "info");
+                return;
+            }
+            var ids = [];
+            for (var i = 0, len = rows.length; i < len; i++) {
+                ids.push(rows[i].id);
+            }
+            dialog.Confirm('确定删除所有勾选记录吗？', function (r) {
+                if (!r) return;
+                $.ajax({
+                    type: "POST",
+                    data: {"ids":ids.join(",")},
+                    url: Dev.GetSystemUrlByRelID("Service") + "orchardVariety/deleteByids",
+                    success: function (re) {
+                        if (!re.statusCode == 200) return;
+                        search();
+                    }
+                });
+            }, "question");
+        }
+
+        //单行删除信息
+        function deleteinfo(index) {
+            dataGrid.DataGrid.datagrid("selectRow", index);
+            var row = dataGrid.DataGrid.datagrid("getSelected");
+            var curRowNo = dataGrid.DataGrid.datagrid("getData").total;       //获取已有的数据行数
+            if (curRowNo == 1 && pageIndex != 1) pageIndex -= 1;                //删光则返回上一页
+            if (Dev.IsNull(row)) return;
+            dialog.Confirm('确定删除选中记录吗？', function (r) {
+                if (!r) return;
+                $.ajax({
+                    type: "GET",
+                    url: Dev.GetSystemUrlByRelID("Service") + "orchardVariety/deletebyid/" + encodeURIComponent(row.id),//encodeURIComponent
+                    success: function (result) {
+                        if (!result.statusCode == 200) return;
+                        search();
+                    }
+                });
+            }, "question");
+        }
+        //详细信息
+        var detailWin;
+        function detailInfo(id) {
+            if (Dev.IsNull(detailWin)) {
+                detailWin = new Dev.Window({
+                    ID: "detailWin",
+                    IconCls: 'icon-detailinfo',
+                    Title: "果园品种详情",
+                    Parent: Dev.App.FillPanel.Target,
+                    Maximizable: false,
+                    Modal: true,
+                    Draggable: true,
+                    HAlign: 'center',
+                    VAlign: 'center',
+                    Resizable: false,
+                    Url: Dev.App.Root + "html/orchard/orchardvarietydetail.html",
+                    Height: 184,
+                    Width: 500,
+                    Parameters: { id: id }
+                });
+                detailWin.bind("onClosing", function () {
+                });
+            } else {
+                detailWin.SetUrl(Dev.App.Root + "html/orchard/orchardvarietydetail.html");
+                detailWin.Parameters = { id: id };
+                detailWin.Open();
+            }
+        }
+        //清除查询条件
+        function searchClear() {
+            pageIndex = 1;
+            var orchardName = $("#orchardName").prop("$this");
+            var fruitType = $("#fruitType").prop("$this");
+            if (!Dev.IsNull(orchardName)) orchardName.SetValue("");
+            if (!Dev.IsNull(fruitType)) fruitType.SetValue("");
+           
+        }
+        //展示地图上面的点
+        function showpagedata(data) {
+            if (!Dev.IsNull(pointkey)) {
+                Dev.App.Map.unByKey(pointkey);
+                pointkey = null;
+            }
+            Dev.MapUtils.ClearFeature("tempGraphicLayer");
+            if (Dev.IsNull(data) || data.length == 0) return;
+            var features = [];
+            for (var i = 0; i < data.length; i++) {
+                var x = data[i].longitude;
+                var y = data[i].latitude;
+                if (!Dev.IsNullAll(data[i].rlongtitude) && parseFloat(data[i].rlongtitude) > 0) x = data[i].rlongtitude;
+                if (!Dev.IsNullAll(data[i].rlatitude) && parseFloat(data[i].rlatitude) > 0) y = data[i].rlatitude;
+                var c_p = new Dev.Feature(new Dev.geom.Point([parseFloat(x), parseFloat(y)]));
+                //添加样式
+                var iconsrc = Dev.App.Root + "image/agri/deviceunline.png";
+                if (data[i].onlinestate == "1") iconsrc = Dev.App.Root + "image/agri/deviceonline.png";
+                c_p.setStyle(new Dev.style.Style({
+                    fill: new Dev.style.Fill({ color: [236, 179, 73, 0.2] }),
+                    image: new Dev.style.Icon({
+                        src: iconsrc
+                    })
+                }));
+                features.push(c_p);
+            }
+            Dev.MapUtils.ClearAndAddFeatures(features, "tempGraphicLayer");
+        }
+        //窗口重置
+        function resize() {
+            Dev.App.BottomPanel.SetHeight(262);
+            var height = $(window).outerHeight();
+            var gridheight = height - 40;
+            var gridwidth = parseInt($(window).width()) - 2;
+            //  treeControl.SetHeight(height == 0 ? (262 - 26) : (height - 26));
+            if (gridwidth < 1200) {
+                gridwidth = 1200;
+                gridheight = parseInt(gridheight) - 16;
+            }
+            $("#searchDiv").width(gridwidth);
+            $("#gridDiv").height(gridheight).width(gridwidth);
+            if (!Dev.IsNull(dataGrid)) dataGrid.Resize(gridwidth, gridheight);
+        }
+        // 导入
+        function importFile(dom) {
+            var file = dom.files[0];
+            var fileName = file.name;
+            var extStart = fileName.lastIndexOf(".");
+            var ext = fileName.substring(extStart, fileName.length).toUpperCase();
+            var ispic = (ext === ".XLS" || ext === ".XLSX");
+            if (!ispic) {
+                dialog.Alert("请选择Excel文档", "info");
+                return $(dom).val("");
+            }
+            var form = new FormData();
+            form.append("file", file);
+            $.ajax({
+                type: "post",
+                url: Dev.GetSystemUrlByRelID("Service") + "orchardVariety/import",
+                data: form,
+                processData: false, //注意一定要设置为false
+                contentType: false, // contentType也需要设置成false
+                success: function (response) {
+                    if (response == null || response.statusCode != 200) {
+                        return dialog.Alert("网络超时，请稍候再试！", "error");
+                    }
+                    dialog.Alert("成功导入 " + response.data + " 条数据", "success");
+                    pageIndex = 1;
+                    search();
+                },
+                error: function (e) {
+                    return dialog.Alert("网络超时，请稍候再试！", "error");
+                }
+            });
+            $(dom).val("");
+        }
+        //加载遮罩层
+        function showmodal(isshow) {
+            if (Dev.IsNull(isshow)) return;
+            $("#shade").css("display", (isshow ? "block" : "none"));
+        }
+
+    </script>
+</head>
+<body>
+    <!-- 弹出的遮罩层-->
+    <div id="shade" style="width: 100%; height: 100%; position: absolute; z-index: 10; display: none; background: rgba(255,255,255,0.3)"></div>
+    <!--整体内容-->
+    <div id="content" class="content">
+        <div style="height: 100%; width: 100%; overflow: auto; overflow-y: hidden">
+            <!--操作按钮以及查询部分-->
+            <div id="searchDiv" style="height: 38px; width: 100%; border-left: 1px solid #ddd; position: relative; min-width: 1200px;">
+                <div style="height: 38px; position: absolute; left: 0px;">
+                    <div class="SearchDiv">
+                        <div id="orchardName" class="dev-textbox" style="z-index: 2; width: 190px; display: inline-block;" opt='{"TipInfo":"请输入果园名称","HeaderCSS":{"padding":"0px","width":"75px"},"IsOverShow":true,"Padding":"0px 5px","TextAlign":"left","BodyCSS": { "background-color": "transparent","margin-top":"8px","margin-right":"8px"},"Title":"<div class=\"Title\"><div class=\"Icon machine-carnum\"></div><span class=\"Text\">果园名称</span></div>"}'></div>
+                    </div>
+                    <div class="SearchDiv">
+                        <div id="fruitType" class="dev-textbox" style="z-index: 2; width: 190px; display: inline-block;" opt='{"TipInfo":"请输入水果类型","HeaderCSS":{"padding":"0px","width":"75px"},"IsOverShow":true,"Padding":"0px 5px","TextAlign":"left","BodyCSS": { "background-color": "transparent","margin-top":"8px","margin-right":"8px"},"Title":"<div class=\"Title\"><div class=\"Icon machine-carnum\"></div><span class=\"Text\">水果类型</span></div>"}'></div>
+                    </div>
+                </div>
+                <!--操作按钮部分-->
+                <div style="width: 299px; height: 100%; position: absolute; right: 10px; z-index: 2; top: -2px;">
+                    <div class="Button" tag="search" style="margin-left: 10px;">
+                        <div class="machine-query" style="height: 16px; width: 16px; margin-top: 4px; margin-left: 5px; display: inline-block; float: left;"></div>
+                        <span style="line-height: 28px; color: #fcfcfc;">查&nbsp;询</span>
+                    </div>
+                    <div class="Button" tag="clear">
+                        <div class="machine-reset" style="height: 16px; width: 16px; margin-top: 4px; margin-left: 5px; display: inline-block; float: left;"></div>
+                        <span style="line-height: 28px; color: #fcfcfc;">重&nbsp;置</span>
+                    </div>
+                    <div class="Button" tag="deletes" style="width: 75px;">
+                        <div class="machine-deletes" style="height: 16px; width: 16px; margin-top: 4px; margin-left: 5px; display: inline-block; float: left;"></div>
+                        <span style="line-height: 28px; color: #fcfcfc;">批量删除</span>
+                    </div>
+                    <div class="Button" tag="adds" style="position: relative">
+                        <div class="machine-add"
+                            style="height: 16px; width: 16px; margin-top: 6px; margin-left: 5px; display: inline-block; float: left;">
+                        </div>
+                        <span style="line-height: 28px; color: #fcfcfc;">导&nbsp;入</span>
+                        <input type="file" id="file" onchange="importFile(this);" style="cursor: pointer; position: absolute; font-size: 0; right: 0; top: 0; opacity: 0; width: 60px; height: 26px;">
+                    </div>
+                </div>
+            </div>
+            <!--表格部分-->
+            <div id="gridDiv" style="width: 100%; border-left: 1px solid #ddd; border-top: 1px solid #ddd;"></div>
+        </div>
+
+    </div>
+
+</body>
+</html>

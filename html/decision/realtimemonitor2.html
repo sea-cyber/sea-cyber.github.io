@@ -1,0 +1,926 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>实时监控</title>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../../theme/default/easyui.css" />
+    <link rel="stylesheet" type="text/css" href="../../theme/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/app.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/dev.css" />
+    <script type="text/javascript" src="../../js/jquery.min.js"></script>
+    <script type="text/javascript" src="../../js/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="../../js/easyui-lang-zh_CN.js"></script>
+    <script type="text/javascript" src="../../js/linq.min.js"></script>
+    <script type="text/javascript" src="../../js/data.util.js"></script>
+    <script type="text/javascript" src="../../js/dev.ui.js"></script>
+    <script type="text/javascript" src="../../js/highcharts.js"></script>
+    <script type="text/javascript" src="../../js/highcharts-more.js"></script>
+    <script type="text/javascript" src="../../js/solid-gauge.js"></script>
+    <script type="text/javascript" src="../../js/jquery.dev.control.js"></script>
+    <script type="text/javascript" src="../../js/ezuikit.js"></script>
+
+    <style type="text/css">
+        .monitorcontent {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            overflow-y: auto;
+            overflow-x: hidden;
+            min-width: 1300px;
+        }
+
+            .monitorcontent .Left {
+                height: 100%;
+                width: calc(100% - 956px);
+                /*border-right: 1px solid #ddd;*/
+                min-width: 300px;
+                display: inline-block;
+                float: left;
+                margin-right: 0px;
+            }
+
+                .monitorcontent .Left .mapdiv {
+                    width: 100%;
+                    margin-top: 10px;
+                    height: 490px;
+                    background-color: #ddd;
+                }
+
+                .monitorcontent .Left .videodiv {
+                    width: 100%;
+                    height: calc(100% - 520px);
+                    margin-top: 20px;
+                    background: url(../../image/agri/novideo.png);
+                    background-position: center;
+                    background-repeat: no-repeat;
+                }
+
+            .monitorcontent .Right {
+                height: 100%;
+                width: 956px;
+                margin-left: 0px;
+                display: inline-block;
+                float: left;
+                position: relative;
+            }
+
+                .monitorcontent .Right .tempandsun {
+                    width: 100%;
+                    height: 520px;
+                }
+
+                    .monitorcontent .Right .tempandsun .tempraturesItem {
+                        height: 218px;
+                        width: 218px;
+                        border: 1px solid #ddd;
+                        display: inline-block;
+                        position: relative;
+                    }
+
+                .monitorcontent .Right .soilandwater {
+                    /*height: calc(100% - 520px);*/
+                    width: 100%;
+                }
+
+        .statbtn {
+            height: 16px;
+            width: 16px;
+            margin-top: 9px;
+            float: right;
+            margin-right: 10px;
+        }
+
+            .statbtn:hover {
+                background-color: #0b86ee;
+            }
+
+        .buttom {
+            position: absolute;
+            display: none;
+            width: 40px;
+            height: 210px;
+            top: 580px;
+            left: calc(100% - 1000px);
+            background: rgba(0,0,0, 0.5);
+        }
+
+            .buttom > div {
+                float: left;
+                width: 40px;
+                height: 30px;
+                border-radius: 5px;
+                color: white;
+                font-size: 12px;
+                line-height: 30px;
+                text-align: center;
+                cursor: pointer;
+            }
+
+                .buttom > div:hover {
+                    background-color: rgba(255,255,255, 0.5);
+                }
+    </style>
+    <script type="text/javascript">
+        var Dev = window.top.window.dev;
+        var parent;
+        var monitorMap, orgcombotree;
+        var tempraturec, tempdityc, temprpressurec, windspeedc, winddirectc, temprainc;//气象控件变量
+        var soilhumidityc1, soilhumidityc2, soilhumidityc3, phvalueControl, soiltemperaturec1, soiltemperaturec2, soiltemperaturec3;//土壤控件变量
+        var effectivec, effectivetotalc;//光照辐射变量
+        var liquidc;//液位变量
+        var monitormapclick, pointkey;
+        var selectmonitor;
+        var deviceSerial, accesstoken;
+        var timetick;
+        var orgcon;
+        var selectid;
+        function WidgetCommunication(s) {//部件通讯
+            parent = s.parent;
+            inittempcontrol();//初始化气象控件
+            initsoilcontrol();//初始化土壤控件
+            initeffeccontrol();//初始化光合辐射控件
+            initliquidcontrol();//初始化液位或者光照
+            initMap();//初始化树
+            resize();
+            initcomboTree();//初始化组织树
+            initvideo();//初始化视频
+            $(window).resize(function () {
+                resize();
+            });
+            $(".statbtn").click(function () {
+                var tag = $(this).attr("tag");
+                initmonitorstat(tag);
+            });
+            parent.one("onClosing", function () {
+                clear();
+            });
+            $("#closeBtn").click(function () {
+                parent.unbind("onClosing"); clear(); Dev.App.MenuInit.CloseCurrentWidget();
+            });
+            $(".monitorcontent").scroll(function () {
+                var top = $(".Left").offset().top;
+                //  var scrolltop = $(".monitorcontent").offset().top;
+                // var oldtop = parseInt($("#monitorMap", Dev.App.CoverBox).css("top"));
+                $("#monitorMap", Dev.App.FillPanel.Target).css("top", (10 + top) + "px");
+            });
+            timetick = setInterval(function () {
+                if (Dev.IsNull(selectmonitor)) return;
+                getmonitordata(selectmonitor.indepeid, selectmonitor.serialnumber);
+            }, 120000);
+        }
+        function inittempcontrol() {
+            //温度
+            tempraturec = new UCThermometer(Dev, { CSS: { "left": "70px", "top": "31px" }, MinValue: -50, MaxValue: 100, ValueInterval: 5 });
+            $("div[name='freeairtemperature']").append(tempraturec.Target);
+            tempraturec.Layout();
+            tempraturec.SetValue(0);
+            //湿度
+            $("div[name='freeairhumidity']").highcharts({
+                chart: { type: 'gauge' },
+                credits: { enabled: false },
+                title: null,
+                pane: { startAngle: -150, endAngle: 150, size: "107%" },
+                yAxis: {
+                    min: 0, max: 100, minorTickWidth: 1, minorTickLength: 5, minorTickPosition: 'inside',
+                    minorTickColor: '#ababab', tickPixelInterval: 100, tickWidth: 2, tickPosition: 'inside',
+                    tickLength: 15, tickColor: '#515151', tickWidth: 1,
+                    labels: { step: 1, rotation: 'auto' },
+                    plotBands: [
+                        { from: 0, to: 33, color: '#0b86ee' },
+                        { from: 33, to: 66, color: '#ff7f7f' },
+                        { from: 66, to: 100, color: '#fe9024' }
+                    ]
+                },
+                series: [{ name: '大气湿度', data: [0], }]
+            },
+            function (c) { tempdityc = c; });
+            //大气压
+            $("div[name='freeairpressure']").highcharts({
+                chart: { type: 'gauge' },
+                credits: { enabled: false },
+                title: null,
+                pane: { startAngle: -150, endAngle: 150, size: "107%" },
+                yAxis: {
+                    min: 0, max: 1100, minorTickWidth: 1, minorTickLength: 5, minorTickPosition: 'inside',
+                    minorTickColor: '#ababab', tickPixelInterval: 100, tickWidth: 2, tickPosition: 'inside',
+                    tickLength: 15, tickColor: '#515151', tickWidth: 1,
+                    labels: { step: 1, rotation: 'auto' },
+                    plotBands: [
+                        { from: 0, to: 375, color: '#0b86ee' },
+                        { from: 375, to: 750, color: '#ff7f7f' },
+                        { from: 750, to: 1100, color: '#fe9024' }
+                    ]
+                },
+                series: [{ name: '大气压', data: [0], }]
+            },
+           function (c) { temprpressurec = c; });
+            //风速
+            $("div[name='windspeed']").highcharts({
+                title: null,
+                chart: { type: 'solidgauge' },
+                credits: { enabled: false },
+                yAxis: {
+                    min: 0, max: 100, title: null, stops: [[0.1, '#55BF3B'], [0.5, '#DDDF0D'], [0.9, '#DF5353']],
+                    minorTickInterval: null, tickPixelInterval: 200, tickWidth: 0, labels: { y: 25 }
+                },
+                series: [{ name: '风速', data: [0] }],
+                pane: {
+                    center: ['50%', '85%'],
+                    size: '140%',
+                    startAngle: -90,
+                    endAngle: 90,
+                    background: {
+                        backgroundColor: (Highcharts.theme && Highcharts.theme.background2) || '#EEE',
+                        innerRadius: '60%',
+                        outerRadius: '100%',
+                        shape: 'arc'
+                    }
+                }
+            }, function (c) { windspeedc = c; });
+            //风向
+            winddirectc = new UCWindMeter(Dev, {
+                Width: 170, Height: 170, CSS: { "left": "24px", "top": "0px" },
+                annotations_fill_style: "#ababab",
+                guidewire_fill_style: "#e14cf3",
+                guidewire_stroke_style: "#e14cf3",
+                tick_long_stroke_style: "#7e7e7e",
+                FillStyle: "#ffffff",
+                BorderStyle: "#d5dee8"
+            });
+            $("div[name='winddirection']").append(winddirectc.Target);
+            winddirectc.Layout();
+            //雨量
+            temprainc = new UCBottle(Dev, { CSS: { "left": "70px", "top": '0px' }, Height: 170, MaxValue: 25, MinValue: 0, Step: 1 });
+            $("div[name='rain']").append(temprainc.Target);
+            temprainc.Layout();
+        }//初始化气象控件
+        function initsoilcontrol() {
+            //温度1
+            //soiltemperature1
+            soiltemperaturec1 = new UCThermometer(Dev, { CSS: { "left": "30px", "top": "0px" }, Height: 120, MinValue: -20, MaxValue: 60, ValueInterval: 5 });
+            $("div[name='soiltemperature1']").append(soiltemperaturec1.Target);
+            soiltemperaturec1.Layout();
+            soiltemperaturec1.SetValue(0);
+            //温度2
+            soiltemperaturec2 = new UCThermometer(Dev, { CSS: { "left": "30px", "top": "0px" }, Height: 120, MinValue: -20, MaxValue: 60, ValueInterval: 5 });
+            $("div[name='soiltemperature2']").append(soiltemperaturec2.Target);
+            soiltemperaturec2.Layout();
+            soiltemperaturec2.SetValue(0);
+            //温度3
+            soiltemperaturec3 = new UCThermometer(Dev, { CSS: { "left": "30px", "top": "0px" }, Height: 120, MinValue: -20, MaxValue: 60, ValueInterval: 5 });
+            $("div[name='soiltemperature3']").append(soiltemperaturec3.Target);
+            soiltemperaturec3.Layout();
+            soiltemperaturec3.SetValue(0);
+            //湿度1
+            $("div[name='soilhumidity1']").highcharts({
+                chart: { type: 'gauge' },
+                credits: { enabled: false },
+                title: null,
+                pane: { startAngle: -150, endAngle: 150, size: "115%" },
+                yAxis: {
+                    min: 0, max: 100, minorTickWidth: 1, minorTickLength: 5, minorTickPosition: 'inside',
+                    minorTickColor: '#ababab', tickPixelInterval: 100, tickWidth: 2, tickPosition: 'inside',
+                    tickLength: 15, tickColor: '#515151', tickWidth: 1,
+                    labels: { step: 1, rotation: 'auto' },
+                    plotBands: [
+                        { from: 0, to: 33, color: '#0b86ee' },
+                        { from: 33, to: 66, color: '#ff7f7f' },
+                        { from: 66, to: 100, color: '#fe9024' }
+                    ]
+                },
+                series: [{ name: '土壤10cm湿度', data: [0], }]
+            }, function (c) { soilhumidityc1 = c; });
+            //湿度2
+            $("div[name='soilhumidity2']").highcharts({
+                chart: { type: 'gauge' },
+                credits: { enabled: false },
+                title: null,
+                pane: { startAngle: -150, endAngle: 150, size: "115%" },
+                yAxis: {
+                    min: 0, max: 100, minorTickWidth: 1, minorTickLength: 5, minorTickPosition: 'inside',
+                    minorTickColor: '#ababab', tickPixelInterval: 100, tickWidth: 2, tickPosition: 'inside',
+                    tickLength: 15, tickColor: '#515151', tickWidth: 1,
+                    labels: { step: 1, rotation: 'auto' },
+                    plotBands: [
+                        { from: 0, to: 33, color: '#0b86ee' },
+                        { from: 33, to: 66, color: '#ff7f7f' },
+                        { from: 66, to: 100, color: '#fe9024' }
+                    ]
+                },
+                series: [{ name: '土壤20cm湿度', data: [0], }]
+            }, function (c) { soilhumidityc2 = c; });
+            //湿度3
+            $("div[name='soilhumidity3']").highcharts({
+                chart: { type: 'gauge' },
+                credits: { enabled: false },
+                title: null,
+                pane: { startAngle: -150, endAngle: 150, size: "115%" },
+                yAxis: {
+                    min: 0, max: 100, minorTickWidth: 1, minorTickLength: 5, minorTickPosition: 'inside',
+                    minorTickColor: '#ababab', tickPixelInterval: 100, tickWidth: 2, tickPosition: 'inside',
+                    tickLength: 15, tickColor: '#515151', tickWidth: 1,
+                    labels: { step: 1, rotation: 'auto' },
+                    plotBands: [
+                        { from: 0, to: 33, color: '#0b86ee' },
+                        { from: 33, to: 66, color: '#ff7f7f' },
+                        { from: 66, to: 100, color: '#fe9024' }
+                    ]
+                },
+                series: [{ name: '土壤30cm湿度', data: [0], }]
+            }, function (c) { soilhumidityc3 = c; });
+            //PH值
+            $("div[name='phvalue']").highcharts({
+                chart: { type: 'solidgauge' },
+                title: null,
+                yAxis: {
+                    min: 0, max: 14,
+                    stops: [[0, '#0b86ee'], [7, '#ff7f7f'], [14, '#fe9024']],
+                    minorTickInterval: 7, tickPixelInterval: 25, tickWidth: 0, labels: { y: -5 }
+                },
+                credits: { enabled: false },
+                series: [{ name: 'PH', data: [0] }],
+                pane: {
+                    center: ['50%', '85%'], size: '135%',
+                    startAngle: -90, endAngle: 90,
+                    background: {
+                        backgroundColor: '#EEE', shape: 'arc', innerRadius: '60%',
+                        outerRadius: '100%',
+                    }
+                }
+            }, function (c) {
+                phvalueControl = c;
+            });
+
+        }//初始化土壤控件
+        function initeffeccontrol() {
+            //光合有效辐射
+            $("div[name='effectiveradiation']").highcharts({
+                chart: { type: 'gauge' },
+                credits: { enabled: false },
+                title: null,
+                pane: { startAngle: -150, endAngle: 150, size: "107%" },
+                yAxis: {
+                    min: 0, max: 2000, minorTickWidth: 1, minorTickLength: 5, minorTickPosition: 'inside',
+                    minorTickColor: '#ababab', tickPixelInterval: 100, tickWidth: 2, tickPosition: 'inside',
+                    tickLength: 15, tickColor: '#515151', tickWidth: 1,
+                    labels: { step: 1, rotation: 'auto' },
+                    plotBands: [
+                        { from: 0, to: 666, color: '#0b86ee' },
+                        { from: 666, to: 1333, color: '#ff7f7f' },
+                        { from: 1333, to: 2000, color: '#fe9024' }
+                    ]
+                },
+                series: [{ name: '光合有效辐射', data: [0], }]
+            },
+           function (c) { effectivec = c; });
+            //总辐射
+            $("div[name='totalradiation']").highcharts({
+                chart: { type: 'gauge' },
+                credits: { enabled: false },
+                title: null,
+                pane: { startAngle: -150, endAngle: 150, size: "107%" },
+                yAxis: {
+                    min: 0, max: 2000, minorTickWidth: 1, minorTickLength: 5, minorTickPosition: 'inside',
+                    minorTickColor: '#ababab', tickPixelInterval: 100, tickWidth: 2, tickPosition: 'inside',
+                    tickLength: 15, tickColor: '#515151', tickWidth: 1,
+                    labels: { step: 1, rotation: 'auto' },
+                    plotBands: [
+                        { from: 0, to: 666, color: '#0b86ee' },
+                        { from: 666, to: 1333, color: '#ff7f7f' },
+                        { from: 1333, to: 2000, color: '#fe9024' }
+                    ]
+                },
+                series: [{ name: '光合总辐射', data: [0], }]
+            },
+          function (c) { effectivetotalc = c; });
+        }//初始化光合辐射控件
+        function initliquidcontrol() {
+            liquidc = new UCBottle(Dev, { CSS: { "left": "70px", "top": '0px' }, Height: 260, MaxValue: 1200, MinValue: 0, Step: 50 });
+            $("div[name='liquid']").append(liquidc.Target);
+            liquidc.Layout();
+        }//初始化液位或者光照
+        function initMap() {
+            var monitormapdiv = $('<div id="monitorMap" style="z-index:5;position:absolute;left:0px;top:10px;background-color:#fff;"></div>').appendTo(Dev.App.FillPanel.Target);
+            monitormapdiv.height($(".mapdiv").height());
+            monitormapdiv.width($(".mapdiv").width());
+            var initconfig = Dev.App.Config.SystemMap;
+            var resolutions;
+            if (!Dev.IsNull(initconfig.LevelInfo) && !Dev.IsNull(initconfig.LevelInfo.IsVisibleLevel) && initconfig.LevelInfo.IsVisibleLevel == "true") {
+                resolutions = [];
+                for (var i = 0; i < initconfig.LevelInfo.Levels.length; i++) {
+                    if (Dev.App.Config.SystemMap.DisplayEPSG == 'EPSG:3857')
+                        resolutions.push(parseFloat(initconfig.LevelInfo.Levels[i].Resolution3857));
+                    else
+                        resolutions.push(parseFloat(initconfig.LevelInfo.Levels[i].Resolution));
+                };
+            }
+            var view = new Dev.View({
+                projection: Dev.proj.get(Dev.App.Config.SystemMap.DisplayEPSG),
+                resolutions: resolutions,
+                minZoom: 1,
+                maxResolution: resolutions[resolutions.length - 1],
+                maxZoom: 20,
+                minResolution: resolutions[0],
+            });
+            monitorMap = new Dev.Map({
+                controls: new Dev.control.defaults({ zoom: false, rotate: false, attribution: false }),
+                interactions: Dev.interaction.defaults().extend([new Dev.interaction.DragRotateAndZoom()]),
+                target: monitormapdiv[0],
+                logo: false,
+                view: view
+            });
+            Dev.MapLoad.InitMap($.extend({ Map: monitorMap }, initconfig));
+            var initExtent = [parseFloat(initconfig.Extent.XMin), parseFloat(initconfig.Extent.YMin), parseFloat(initconfig.Extent.XMax), parseFloat(initconfig.Extent.YMax)];
+            monitorMap.getView().setZoom(initconfig.Zoom);
+            monitormapclick = monitorMap.on("singleclick", function (e) {
+                var pixel = this.getPixelFromCoordinate(e.coordinate);
+                monitorMap.forEachFeatureAtPixel(pixel, function (feature) {
+                    if (Dev.IsNull(feature)) return;
+                    if (!Dev.IsNull(pointkey)) {
+                        //picMap.unByKey(pointkey); pointkey = null;
+                        Dev.MapUtils.removePointKey(selectid, monitorMap);
+                        pointkey = null;
+                    }
+
+                    selectid = "select" + feature.getProperties().serialnumber;
+                    feature.setId(selectid);
+
+                    pointkey = Dev.MapUtils.PointSymbolStyle1(feature, 1, "rgba(0, 21, 42, 1)", "rgba(0,21,42,0.5)", 30, monitorMap, false); //默认高亮第一个
+
+                    getmonitordata(feature.getProperties().indepeid, feature.getProperties().serialnumber);
+                    getcamera(feature.getProperties().serialnumber)
+                    selectmonitor = feature.getProperties();
+                });
+            });
+
+            monitormapdiv.css("cursor", "url(" + Dev.App.Root + "image/hands.cur),auto");
+            monitorMap.on('pointermove', function (evt) {
+                var normalcur = "url(" + Dev.App.Root + "image/hands.cur),auto";
+                if (isdrag) normalcur = 'url(' + Dev.App.Root + 'image/handm.cur),auto'
+                monitorMap.getTargetElement().style.cursor = monitorMap.hasFeatureAtPixel(evt.pixel) ? 'pointer' : normalcur;
+            });
+            //点击事件
+            var isdrag = false;
+            monitorMap.on('pointerdrag', function (evt) {
+                isdrag = true;
+                monitormapdiv.css("cursor", 'url(' + Dev.App.Root + 'image/handm.cur),auto');
+            });
+            monitorMap.on("moveend", function () {
+                isdrag = false;
+                monitormapdiv.css("cursor", "url(" + Dev.App.Root + "image/hands.cur),auto");
+            });
+
+        }//初始化地图
+        function initcomboTree() {
+            var treediv = $('<div style="width:280px;height:35px;position:absolute;left:20px;top:10px;"></div>').appendTo($("#monitorMap", Dev.App.FillPanel.Target));
+            orgcombotree = new Dev.Combotree({
+                ValueField: "id", TextField: "name", ChildrenField: "child", PopupHeight: 300, Height: 28
+            });
+            treediv.append(orgcombotree.Target);
+            orgcombotree.Layout();
+            orgcombotree.bind("onSelectChanged", function (s, e) {
+                if (Dev.IsNull(e)) return;
+                var currvalue = e.$this.id;
+                var orgids = [];
+                orgids.push(currvalue);
+                var isleaf = orgcombotree.tree.IsLeaf(e);
+                if (!isleaf) {
+                    var allchilds = orgcombotree.tree.GetAllChildren(e);
+                    for (var i = 0; i < allchilds.length; i++) orgids.push(allchilds[i].id);
+                }
+
+                var con = "";
+                if (Dev.IsNull(orgids) || orgids.length == 0) return;
+                con = "\"ORGID\"  IN(";
+                for (var i = 0; i < orgids.length; i++) con += "'" + orgids[i] + "',";
+                con = con.substr(0, con.length - 1);
+                con += ")";
+                orgcon = con;
+                getmonitorbyorg(con);
+            });
+            //获取组织数据
+            var orgid = Dev.cookie.user.orgid;
+            $.ajax({
+                url: Dev.GetSystemUrlByRelID("Service") + "organize/gettreebyid/" + orgid + "?" + new Date().getTime(),
+                type: "Get",
+                contentType: 'application/json',
+                dataType: 'json',
+                success: function (result) {
+                    var treeData = Dev.ConvertTreeData(result.data, orgid);
+                    orgcombotree.SetData(treeData);
+                    if (treeData.length > 0) orgcombotree.SetValueEx(orgcombotree.tree.GetRoots()[0].id);
+                }
+            });
+        }//初始化组织树
+        function getmonitorbyorg(con) {
+            $.ajax({
+                url: Dev.GetSystemUrlByRelID("Service") + "amstation/getbyfilter",
+                type: "Post",
+                contentType: 'application/json',
+                dataType: 'json',
+                data: con,
+                success: function (result) {
+                    //清空界面
+                    featureclear();
+                    if (result.statusCode != 200 || result.data.length == 0) return;
+                    showmonitor(result.data);
+                }
+            });
+
+        }//获取组织下所有监测站点
+        function showmonitor(data) {
+            if (Dev.IsNull(data) || data.length == 0) return;
+            var features = [];
+            for (var i = 0; i < data.length; i++) {
+                var x = data[i].longitude;
+                var y = data[i].latitude;
+                var currfeature = new Dev.Feature(new Dev.geom.Point([parseFloat(x), parseFloat(y)]));
+                currfeature.set("serialnumber", data[i].serialnumber);
+                currfeature.set("indepeid", data[i].indepeid);
+                currfeature.setStyle(new Dev.style.Style({
+                    image: new Dev.style.Icon({ src: Dev.App.Root + "image/agri/ams-online.png" }),
+                    text: new Dev.style.Text({ text: data[i].no, font: "15px serif", offsetX: 5, offsetY: -20, fill: new Dev.style.Fill({ color: [255, 255, 255, 1] }) })
+                }));
+                features.push(currfeature);
+            }
+
+            Dev.MapUtils.ClearAndAddFeatures(features, "tempGraphicLayer", null, monitorMap);
+            var extentd = Dev.getExtentByFeatures(features);
+            monitorMap.getView().fit(extentd, monitorMap.getSize());
+
+            //设置高亮图层的Z-index
+            var hl_layer = Dev.MapUtils.GetLayer("HightLightLayer", monitorMap);
+            var c_index = hl_layer.getZIndex();
+            hl_layer.setZIndex(c_index - 1);
+                      
+
+            selectid = "select" + features[0].getProperties().serialnumber;
+            features[0].setId(selectid);
+
+            pointkey = Dev.MapUtils.PointSymbolStyle1(features[0], 1, "rgba(0, 21, 42, 1)", "rgba(0,21,42,0.5)", 30, monitorMap, false); //默认高亮第一个
+            getmonitordata(data[0].indepeid, data[0].serialnumber);
+            getcamera(data[0].serialnumber);
+            selectmonitor = data[0];
+        }
+        function getmonitordata(indepeid, seriesnum) {
+            if (Dev.IsNull(indepeid) && Dev.IsNull(seriesnum)) return;
+            $.ajax({
+                url: Dev.GetSystemUrlByRelID("Service") + "/meteorYtjData/queryLastTimeAmsDate",
+                type: "POST",
+                dataType: 'json',
+                data: {
+                    indepeId: indepeid,
+                    meteorSerNum: seriesnum
+                },
+                success: function (result) {
+                    if (result.statusCode != 200 || result.data.length == 0) result.data[0] = {};
+                    setconrolValue(result.data[0]);
+                    if (!Dev.IsNull(result.data[0].uploaddate)) $("#monitortime").html(Dev.GetDateString(result.data[0].uploaddate));
+                    else $("#monitortime").html("");
+
+                }
+            });
+        }//获取站点最新数据
+        function initvideo(address) {
+            if (Dev.IsNull(address)) return;
+            var rtmp = address;
+            var http = address;
+            var videoDiv = $('<video id="myPlayer" style="width:100%;height:100%;" poster="" controls playsinline webkit-playsinline autoplay><source src="' + rtmp + '"type="" /><source src="' + http + '" type="application/x-mpegURL" /></video>');
+            $(".videodiv").append(videoDiv);
+            $('<div class="buttom"><div id="enlarge">放大</div><div id="narrow">缩小</div><div id="up">向上</div><div id="down">向下</div><div id="right">向右</div><div id="left">向左</div><div id="stop">停止</div></div>').appendTo($(".videodiv"));
+            player = new EZUIPlayer('myPlayer');
+            $("#myPlayer").mouseover(function (e) {
+                $('.buttom').css("display", "block");
+            });
+            $("#myPlayer").mouseleave(function (e) {
+                if (!Dev.IsNull(e.toElement) && e.toElement.parentElement.className == "buttom" || (!Dev.IsNull(e.relatedTarget) && e.relatedTarget.parentElement.className == "buttom")) return;
+                $('.buttom').css("display", "none");
+            });
+            $("#enlarge").click(function (e) {
+                $.post("https://open.ys7.com/api/lapp/device/ptz/start",
+                   {
+                       accessToken: accesstoken,
+                       deviceSerial: deviceSerial,
+                       channelNo: 1,
+                       direction: 8,
+                       speed: 1
+                   });
+                setTimeout(function () {
+                    stopvideo(e);
+                }, 600);
+            });
+            $("#narrow").click(function (e) {
+                $.post("https://open.ys7.com/api/lapp/device/ptz/start",
+                   {
+                       accessToken: accesstoken,
+                       deviceSerial: deviceSerial,
+                       channelNo: 1,
+                       direction: 9,
+                       speed: 1
+                   });
+                setTimeout(function () {
+                    stopvideo(e);
+                }, 600);
+            });
+            $("#up").click(function (e) {
+                $.post("https://open.ys7.com/api/lapp/device/ptz/start",
+                   {
+                       accessToken: accesstoken,
+                       deviceSerial: deviceSerial,
+                       channelNo: 1,
+                       direction: 0,
+                       speed: 1
+                   });
+                setTimeout(function () {
+                    stopvideo(e);
+                }, 600);
+            });
+            $("#down").click(function (e) {
+                $.post("https://open.ys7.com/api/lapp/device/ptz/start",
+                   {
+                       accessToken: accesstoken,
+                       deviceSerial: deviceSerial,
+                       channelNo: 1,
+                       direction: 1,
+                       speed: 1
+                   });
+                setTimeout(function () {
+                    stopvideo(e);
+                }, 600);
+            });
+            $("#left").click(function (e) {
+                $.post("https://open.ys7.com/api/lapp/device/ptz/start",
+                   {
+                       accessToken: accesstoken,
+                       deviceSerial: deviceSerial,
+                       channelNo: 1,
+                       direction: 2,
+                       speed: 1
+                   });
+                setTimeout(function () {
+                    stopvideo(e);
+                }, 600);
+            });
+            $("#right").click(function (e) {
+                $.post("https://open.ys7.com/api/lapp/device/ptz/start",
+                   {
+                       accessToken: accesstoken,
+                       deviceSerial: deviceSerial,
+                       channelNo: 1,
+                       direction: 3,
+                       speed: 1
+                   });
+                setTimeout(function () {
+                    stopvideo(e);
+                }, 600);
+            });
+            $("#stop").click(function (e) {
+                stopvideo(e);
+            });
+        }
+        function stopvideo(e) {
+            $.post("https://open.ys7.com/api/lapp/device/ptz/stop",
+                       {
+                           accessToken: accesstoken,
+                           deviceSerial: deviceSerial,
+                           channelNo: 1,
+                       });
+        }
+        //初始化视频
+        function getcamera(seriesnum) {
+            if (Dev.IsNull(seriesnum)) return;
+            $.ajax({
+                url: Dev.GetSystemUrlByRelID("Service") + "/camera/getbyfilter",
+                type: "POST",
+                contentType: 'application/json',
+                dataType: 'json',
+                data: "\"AMSSERNUM\"='" + seriesnum + "'",
+                success: function (result) {
+                    $(".videodiv").empty();
+                    if (result.statusCode != 200 || result.data.length == 0) return;
+                    var data = result.data;
+                    //判断是否有"球机"，如果有就加载出视频
+                    $.each(data, function (s, e) {
+                        if (e.brandtype == "球机") {
+                            initvideo(result.data[s].videoaddress);
+                            deviceSerial = result.data[s].serialnumber;
+                            accesstoken = result.data[s].accessToken;
+                        }
+                    })
+
+                }
+
+            });
+        }
+        function initmonitorstat(type) {
+            $("#monitorMap", Dev.App.FillPanel.Target).css("display", "none");
+            Dev.App.FillPanel.Add(Dev.App.Root + "html/decision/realtimestatic.html", { indepeid: selectmonitor.indepeid, serialnumber: selectmonitor.serialnumber, type: type, orgid: orgcon }, "realtimestatic");
+        }//初始化窗体
+        //辅助函数
+        function featureclear() {
+            Dev.MapUtils.ClearFeature("tempGraphicLayer", monitorMap);
+            if (!Dev.IsNull(pointkey)) {
+                //picMap.unByKey(pointkey); pointkey = null;
+                Dev.MapUtils.removePointKey(selectid, monitorMap);
+                pointkey = null;
+            }
+           // if (!Dev.IsNull(pointkey)) { monitorMap.unByKey(pointkey); pointkey = null; }
+        }
+        function setconrolValue(data) {
+            //气候
+            tempraturec.SetValue(Dev.IsNull(data.freeairtemperature) ? 0 : parseFloat(data.freeairtemperature));//温度s
+            tempdityc.series[0].data[0].y = Dev.IsNull(data.freeairhumidity) ? 0 : parseFloat(data.freeairhumidity);//湿度
+            tempdityc.render();
+            temprpressurec.series[0].data[0].y = Dev.IsNull(data.freeairpressure) ? 0 : parseFloat(data.freeairpressure);//大气压
+            temprpressurec.render();
+            windspeedc.series[0].data[0].y = Dev.IsNull(data.windspeed) ? 0 : parseFloat(data.windspeed);//风速
+            windspeedc.render();
+            winddirectc.SetAngleValue(Dev.IsNull(data.winddirection) ? 0 : parseFloat(data.winddirection));//风向
+            temprainc.SetValue(Dev.IsNull(data.rain) ? 0 : parseFloat(data.rain));//雨量
+            //土壤
+            soilhumidityc1.series[0].data[0].y = Dev.IsNull(data.soilhumidity1) ? 0 : parseFloat(data.soilhumidity1);//土壤湿度1
+            soilhumidityc1.render();
+            soilhumidityc2.series[0].data[0].y = Dev.IsNull(data.soilhumidity2) ? 0 : parseFloat(data.soilhumidity2);//土壤湿度2
+            soilhumidityc2.render();
+            soilhumidityc3.series[0].data[0].y = Dev.IsNull(data.soilhumidity3) ? 0 : parseFloat(data.soilhumidity3);//土壤湿度3
+            soilhumidityc3.render();
+            soiltemperaturec1.SetValue(Dev.IsNull(data.soiltemperature1) ? 0 : parseFloat(data.soiltemperature1));//温度1
+            soiltemperaturec2.SetValue(Dev.IsNull(data.soiltemperature2) ? 0 : parseFloat(data.soiltemperature2));//温度2
+            soiltemperaturec3.SetValue(Dev.IsNull(data.soiltemperature3) ? 0 : parseFloat(data.soiltemperature3));//温度3
+            phvalueControl.series[0].data[0].y = Dev.IsNull(data.phvalue) ? 0 : parseFloat(data.phvalue);//PH值
+            phvalueControl.render();
+            //光合
+            effectivec.series[0].data[0].y = Dev.IsNull(data.effectiveradiation) ? 0 : parseFloat(data.effectiveradiation);//有效光照辐射
+            effectivec.render();
+            effectivetotalc.series[0].data[0].y = Dev.IsNull(data.totalradiation) ? 0 : parseFloat(data.totalradiation);//总辐射
+            effectivetotalc.render();
+            //液位
+            liquidc.SetValue(Dev.IsNull(data.liquid) ? 0 : parseFloat(data.liquid));//液位
+        }
+        function resize() {
+            var mapdivh = $(".mapdiv").height();
+            var mapdivw = $(".mapdiv").width();
+            $("#monitorMap", Dev.App.FillPanel.Target).height(mapdivh);
+            $("#monitorMap", Dev.App.FillPanel.Target).width(mapdivw);
+            monitorMap.updateSize();
+            $(".videodiv").height($(".soilandwater").outerHeight());
+        }
+        function clear() {
+            if (!Dev.IsNull(timetick)) clearInterval(timetick);
+            if (!Dev.IsNull(monitorMap)) {
+                if (!Dev.IsNull(monitormapclick)) monitorMap.unByKey(monitormapclick);
+                monitorMap.un("pointermove");
+                monitorMap.un("pointerdrag");
+                monitorMap.un("moveend");
+                featureclear();
+                $("#monitorMap", Dev.FillPanel.Target).remove();
+                monitorMap = null;
+            }
+            if (!Dev.IsNull(orgcombotree)) orgcombotree.unbind("onSelectChanged");
+            $("#videodiv").empty();
+            player = null;
+        }
+    </script>
+</head>
+<body>
+    <div class="monitorcontent">
+        <div id="closeBtn" style="z-index: 50; top: 0px; width: 30px; height: 40px; text-align: center; right: 0px; color: rgb(255, 255, 255); line-height: 35px; padding-left: 10px; font-size: 30px; font-weight: bold; position: absolute; border-bottom-left-radius: 40px; background-color: rgba(0, 0, 0, 0.6); cursor: pointer;">×</div>
+        <div class="Left">
+            <div class="mapdiv"></div>
+            <div class="videodiv">
+            </div>
+        </div>
+        <div class="Right">
+            <div class="tempandsun">
+                <div style="width: 672px; position: relative; margin-left: 20px; display: inline-block; float: left;">
+                    <div style="height: 35px; width: 100%; background:#14cdad; margin-top: 10px;">
+                        <span style="margin-left: 20px; font-weight: bold; font-size: 14px; color: #fcfcfc; line-height: 35px;">气象数据</span>
+                        <span id="monitortime" style="margin-left: 400px; font-weight: bold; font-size: 12px; color: #fcfcfc; line-height: 25px;"></span>
+                        <div class="statbtn icon-statgraph" tag="temperature"></div>
+                    </div>
+                    <div style="height: 445px; width: 100%; margin-top: 10px;">
+                        <div style="height: 220px; width: 100%;">
+                            <div class="tempraturesItem">
+                                <div style="height: 31px; line-height: 31px; width: 100%; text-align: center; position: absolute; color: #0b86ee; font-weight: bold;">温度(℃)</div>
+                                <div name="freeairtemperature" style="height: 193px; width: 100%; position: absolute;"></div>
+                            </div>
+                            <div class="tempraturesItem">
+                                <div style="height: 31px; line-height: 31px; width: 100%; text-align: center; position: absolute; color: #0b86ee; font-weight: bold;">湿度(%)</div>
+                                <div name="freeairhumidity" style="height: 170px; width: 100%; position: absolute; top: 31px;">
+                                </div>
+                            </div>
+                            <div class="tempraturesItem">
+                                <div style="height: 31px; line-height: 31px; width: 100%; text-align: center; position: absolute; color: #0b86ee; font-weight: bold;">大气压(kPa)</div>
+                                <div name="freeairpressure" style="height: 170px; width: 100%; position: absolute; top: 31px;">
+                                </div>
+                            </div>
+                        </div>
+                        <div style="height: 220px; width: 100%; margin-top: 5px;">
+                            <div class="tempraturesItem">
+                                <div style="height: 31px; line-height: 31px; width: 100%; text-align: center; position: absolute; color: #0b86ee; font-weight: bold;">风速(m/s)</div>
+                                <div name="windspeed" style="height: 170px; width: 100%; position: absolute; top: 31px;">
+                                </div>
+                            </div>
+                            <div class="tempraturesItem">
+                                <div style="height: 31px; line-height: 31px; width: 100%; text-align: center; position: absolute; color: #0b86ee; font-weight: bold;">风向(°)</div>
+                                <div name="winddirection" style="height: 170px; width: 100%; position: absolute; top: 31px;">
+                                </div>
+                            </div>
+                            <div class="tempraturesItem">
+                                <div style="height: 31px; line-height: 31px; width: 100%; text-align: center; position: absolute; color: #0b86ee; font-weight: bold;">雨量(mm)</div>
+                                <div name="rain" style="height: 170px; width: 100%; position: absolute; top: 31px;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div style="width: 220px; height: 100%; margin-left: 20px; display: inline-block;">
+                    <div style="height: 35px; width: 100%; background:#14cdad; margin-top: 10px;">
+                        <span style="margin-left: 20px; font-weight: bold; font-size: 14px; color: #fcfcfc; line-height: 35px;">光合辐射</span><div class="statbtn icon-statgraph" tag="effecv"></div>
+                    </div>
+                    <div style="height: 445px; width: 100%; margin-top: 10px;">
+                        <div class="tempraturesItem">
+                            <div style="height: 31px; line-height: 31px; width: 100%; text-align: center; position: absolute; color: #0b86ee; font-weight: bold;">光合有效辐射(w/㎡)</div>
+                            <div name="effectiveradiation" style="height: 170px; width: 100%; position: absolute; top: 31px;">
+                            </div>
+                        </div>
+                        <div class="tempraturesItem">
+                            <div style="height: 31px; line-height: 31px; width: 100%; text-align: center; position: absolute; color: #0b86ee; font-weight: bold;">光合总辐射(w/㎡)</div>
+                            <div name="totalradiation" style="height: 170px; width: 100%; position: absolute; top: 31px;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="soilandwater">
+                <div style="width: 672px; position: relative; margin-left: 20px; display: inline-block; float: left;">
+                    <div style="height: 35px; width: 100%; background: #14cdad;">
+                        <span style="margin-left: 20px; font-weight: bold; font-size: 14px; color: #fcfcfc; line-height: 35px;">土壤数据</span><div class="statbtn icon-statgraph" tag="soil"></div>
+                    </div>
+                    <div style="height: 295px; width: 100%; margin-top: 10px;">
+                        <div style="height: 145px; width: 100%;">
+                            <div style="height: 100%; width: 333px; display: inline-block;">
+                                <div style="height: 100%; width: 150px; border: 1px solid #ddd; display: inline-block; position: relative;">
+                                    <div style="height: 25px; line-height: 25px; width: 100%; text-align: center; position: absolute; color: #0b86ee; font-weight: bold;">土壤10cm温度(℃)</div>
+                                    <div name="soiltemperature1" style="height: 120px; width: 100%; position: absolute; top: 25px;"></div>
+                                </div>
+                                <div style="height: 100%; width: 173px; border: 1px solid #ddd; display: inline-block; position: relative;">
+                                    <div style="height: 25px; line-height: 25px; width: 100%; text-align: center; position: absolute; color: #0b86ee; font-weight: bold;">土壤10cm湿度(%)</div>
+                                    <div name="soilhumidity1" style="height: 120px; width: 100%; position: absolute; top: 25px;">
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="height: 100%; width: 333px; display: inline-block;">
+                                <div style="height: 100%; width: 150px; border: 1px solid #ddd; display: inline-block; position: relative;">
+                                    <div style="height: 25px; line-height: 25px; width: 100%; text-align: center; position: absolute; color: #0b86ee; font-weight: bold;">土壤20cm温度(℃)</div>
+                                    <div name="soiltemperature2" style="height: 120px; width: 100%; position: absolute; top: 25px;"></div>
+                                </div>
+                                <div style="height: 100%; width: 173px; border: 1px solid #ddd; display: inline-block; position: relative;">
+                                    <div style="height: 25px; line-height: 25px; width: 100%; text-align: center; position: absolute; color: #0b86ee; font-weight: bold;">土壤20cm湿度(%)</div>
+                                    <div name="soilhumidity2" style="height: 120px; width: 100%; position: absolute; top: 25px;">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="height: 145px; width: 100%; margin-top: 5px;">
+                            <div style="height: 100%; width: 333px; display: inline-block;">
+                                <div style="height: 100%; width: 150px; border: 1px solid #ddd; display: inline-block; position: relative;">
+                                    <div style="height: 25px; line-height: 25px; width: 100%; text-align: center; position: absolute; color: #0b86ee; font-weight: bold;">土壤30cm温度(℃)</div>
+                                    <div name="soiltemperature3" style="height: 120px; width: 100%; position: absolute; top: 25px;"></div>
+                                </div>
+                                <div style="height: 100%; width: 173px; border: 1px solid #ddd; display: inline-block; position: relative;">
+                                    <div style="height: 25px; line-height: 25px; width: 100%; text-align: center; position: absolute; color: #0b86ee; font-weight: bold;">土壤30cm湿度(%)</div>
+                                    <div name="soilhumidity3" style="height: 120px; width: 100%; position: absolute; top: 25px;">
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="height: 100%; width: 333px; display: inline-block;">
+                                <div style="height: 100%; width: 331px; border: 1px solid #ddd; display: inline-block; position: relative;">
+                                    <div style="height: 25px; line-height: 25px; width: 100%; text-align: center; position: absolute; color: #0b86ee; font-weight: bold;">PH值</div>
+                                    <div name="phvalue" style="height: 120px; width: 100%; position: absolute; top: 25px;">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div style="width: 220px; height: 100%; margin-left: 20px; display: inline-block;">
+                    <div style="height: 35px; width: 100%; background: #14cdad;">
+                        <span style="margin-left: 20px; font-weight: bold; font-size: 14px; color: #fcfcfc; line-height: 35px;">液位</span><div class="statbtn icon-statgraph" tag="liquid"></div>
+                    </div>
+                    <div style="height: 295px; width: 100%; margin-top: 10px;">
+                        <div style="height: 293px; width: 218px; border: 1px solid #ddd; display: inline-block; position: relative;">
+                            <div style="height: 25px; line-height: 25px; width: 100%; text-align: center; position: absolute; color: #0b86ee; font-weight: bold;">液位(mm)</div>
+                            <div name="liquid" style="height: 268px; width: 100%; position: absolute; top: 25px;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

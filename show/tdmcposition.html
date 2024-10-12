@@ -1,0 +1,436 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>农业大数据研究与管理平台</title>
+    <link rel="stylesheet" href="../theme/default/easyui.css" />
+    <link rel="stylesheet" type="text/css" href="../css/app.css" />
+    <link rel="stylesheet" type="text/css" href="../css/main.css" />
+    <link type="text/css" href="../css/dev.css" rel="stylesheet" />
+    <link rel="stylesheet" type="text/css" href="../css/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../cesium/Widgets/widgets.css" />
+    <script type="text/javascript" src="../js/jquery.min.js"></script>
+    <script type="text/javascript" src="../js/dev.ui.js"></script>
+    <script type="text/javascript" src="../js/data.util.js"></script>
+    <script type="text/javascript" src="../js/ol.min.3.2.1.js"></script>
+    <script type="text/javascript" src="../js/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="../js/easyui-lang-zh_CN.js"></script>
+    <script type="text/javascript" src="js/show.gis.js"></script>
+    <script type="text/javascript" src="../js/linq.min.js"></script>
+    <script type="text/javascript" src="../js/guid.js"></script>
+    <script type="text/javascript" src="../js/jquery.dev.js"></script>
+    <script type="text/javascript" src="../js/jquery.cookie.js"></script>
+    <script type="text/javascript" src="../cesium/Cesium.js"></script>
+    <script type="text/javascript" src="../js/measure3D.js"></script>
+    <script type="text/javascript" src="../cesium/viewerNavigation.js"></script>
+    <style type="text/css">
+        .position_content {
+            width: 100%;
+            height: calc(100% - 33px);
+            background: url(showimg/bg1.png) no-repeat top,url(showimg/bglogo.png) no-repeat center 20px,-webkit-radial-gradient(#291f3a 30%,#0f0e23 70%);
+            background: url(showimg/bg1.png) no-repeat top,url(showimg/bglogo.png) no-repeat center 20px,-o-radial-gradient(#291f3a 30%,#0f0e23 70%);
+            background: url(showimg/bg1.png) no-repeat top,url(showimg/bglogo.png) no-repeat center 20px,-moz-radial-gradient(#291f3a 30%,#0f0e23 70%);
+            background: url(showimg/bg1.png) no-repeat top,url(showimg/bglogo.png) no-repeat center 20px,radial-gradient(#291f3a 30%,#0f0e23 70%);
+            position: relative;
+        }
+
+        .fillpanel {
+            width: 100%;
+            height: 100%;
+            display: none;
+            position: absolute;
+            top: 0;
+        }
+
+        .mappanel {
+            width: 96%;
+            height: calc(100% - 140px);
+            background: url(showimg/topl.png),url(showimg/topr.png),url(showimg/bottoml.png),url(showimg/bottomr.png),url(showimg/divbg.png) no-repeat center/100% 100%;
+            background-repeat: no-repeat,no-repeat,no-repeat,no-repeat;
+            background-position: top left,top right,bottom left,bottom right;
+            left: 2%;
+            top: 110px;
+            position: absolute;
+        }
+
+        .mappaneldom {
+            float: left;
+            margin: 3px;
+            width: calc(100% - 6px);
+            height: calc(100% - 6px);
+            display: inline-block;
+        }
+        /* 底部样式 */
+        footer {
+            background-color: #363636;
+            font-size: 14px;
+            color: #fff;
+            line-height: 33px;
+            position: relative;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
+            height: 33px;
+            text-align: center;
+        }
+    </style>
+    <script type="text/javascript">
+        var Config;
+        var devicenos;
+        var timeinterval;
+        function GetRootPath() {
+            var pathName = window.document.location.pathname;
+            var localhost = window.location.host;
+            var projectName = pathName.substring(0, pathName.substr(1).indexOf('/') + 1);
+            return ("http://" + localhost + projectName + "/");
+        }
+        $(window).ready(function () {
+            //初始化三维地图
+            dev.cookie.user = JSON.parse($.cookie("usertoken"));
+            dev.App.MapPanel = $(".mappanel");
+            dev.App.MapPanel.Target = $(".mappanel");
+            dev.App.FillPanel = new dev.FillPanel($(".fillpanel"));
+            dev.App.MapPanel.MapDOM3D = $(".mappaneldom");
+            if (dev.IsNull(Config)) {
+                var config = null;
+                $.ajax({
+                    url: "../config/app.xml",
+                    dataType: 'xml',
+                    type: 'GET',
+                    cache: false,
+                    timeout: 2000,
+                    async: false,
+                    error: function (xml) {
+                        alert("加载系统配置文件出错！");
+                        return;
+                    },
+                    success: function (xml) {
+                        config = $.xml2json(xml);
+                    }
+                });
+                dev.App.Config = Config = config;
+            }
+            dev.App.Root = GetRootPath();
+            dev.InitSMap3D(Config, false);
+            getdevices();
+        });
+
+        //获取设备
+        var ajaxRequests = [];
+        var listczml = [];
+        var isfirst = true;
+        var devicelist;
+        function getdevices() {
+            var orgid = dev.cookie.user.orgid;
+            var ajaxrequest = $.ajax({
+                type: "POST",
+                data: { orgId: orgid },
+                dataType: 'json',
+                url: dev.MapLoad.GetUrlByRelID("Service") + "realti/getOrgTreeAndRealTimeData",
+                success: function (response) {
+                    if (dev.IsNull(response.orgList) || dev.IsNull(response.realTimeList)) return;
+                    if (isfirst) {
+                        initlayer(response.realTimeList); isfirst = false;
+                        if (dev.IsNull(timeinterval)) timeinterval = setInterval("getrefreshdata()", 5000);
+                    }
+                    setview(response.realTimeList);
+                }
+            });
+            ajaxRequests.push(ajaxrequest);
+        }
+
+        function initlayer(livelist) {
+            if (dev.IsNull(livelist) || livelist.length == 0) return;
+            devicenos = "";
+            for (var i = 0; i < livelist.length; i++) {
+                devicenos += "'" + livelist[i].no + "',";
+                createczml(livelist[i]);
+            }
+            devicenos = devicenos.substr(0, devicenos.length - 1);
+
+        }
+
+        //设定范围
+        function setview(realist) {
+            var ext = dev.App.Config.SystemMap.Extent;
+            var beginpoint = [parseFloat(ext.XMin), parseFloat(ext.YMin)];
+            var endpoint = [parseFloat(ext.XMax), parseFloat(ext.YMax)];
+            dev.Map3DUtils.SetView(beginpoint, endpoint);
+        }
+
+        function createczml(p) {
+            //var czml = [{
+            //    "id": "document",
+            //    "name": p.id,
+            //    "version": "1.0",
+            //    "clock": {
+            //        "interval": "2012-08-04T10:00:00Z/2012-08-04T10:00:10Z",
+            //        "currentTime": "2012-08-04T10:00:00Z",
+            //        "multiplier": 10
+            //    }
+            //}, {
+            //    "id": p.id,
+            //    "name": "path with GPS flight data",
+            //    "availability": "2012-08-04T10:00:00Z/2012-08-04T10:00:10Z",
+            //    "path": {
+            //        "material": {
+            //            "polylineOutline": {
+            //                "color": {
+            //                    "rgba": [255, 0, 255, 255]
+            //                },
+            //                "outlineColor": {
+            //                    "rgba": [0, 255, 255, 255]
+            //                },
+            //                "outlineWidth": 5
+            //            }
+            //        },
+            //        "width": 8,
+            //        "leadTime": 1,
+            //        "trailTime": 1000,
+            //        "resolution": 5
+            //    },
+            //    "billboard": {
+            //        "image": dev.App.Root + "image/agri/deviceunline.png",
+            //        "scale": 1.0,
+            //        "eyeOffset": {
+            //            "cartesian": [0.0, 0.0, -10.0]
+            //        }
+            //    },
+            //    "label": {
+            //        "fillColor": {
+            //            "rgba": [236, 179, 73, 0.2]
+            //        },
+            //        "font": "15px serif",
+            //        "horizontalOrigin": "LEFT",
+            //        "outlineColor": {
+            //            "rgba": [255, 255, 255, 255]
+            //        },
+            //        "outlineWidth": 1,
+            //        "pixelOffset": {
+            //            "cartesian2": [20, 0]
+            //        },
+            //        "style": "FILL_AND_OUTLINE",
+            //        "text": p.no + "：" + parseFloat(p.speed).toFixed(2) + "km/h"
+            //    },
+            //    "position": {
+            //        "epoch": "2012-08-04T10:00:00Z",
+            //        "cartographicDegrees": []
+            //    }
+            //}];
+            //if (p.devicetype == dev.DeviceType.machine) {
+            //    if (p.onlineState == "1") {
+            //        czml[1].billboard.image = dev.App.Root + "image/agri/deviceonline.png";
+            //    }
+            //    if (p.onlineState == "1" && p.barrierflag == "是") {
+            //        czml[1].billboard.image = dev.App.Root + "image/agri/machine_warn.png";
+            //    }
+            //}
+            //else {
+            //    czml[1].billboard.image = dev.App.Root + "image/agri/uavofflineO.png";
+            //    if (p.onlineState == "1") {
+            //        czml[1].billboard.image = dev.App.Root + "image/agri/uavonline.png";
+            //    }
+            //    if (p.onlineState == "1" && p.barrierflag == "是") {
+            //        czml[1].billboard.image = dev.App.Root + "image/agri/uav_warn.png";
+            //    }
+            //}
+            //var h = p.altitude == null ? 100 : p.altitude;
+            ////var deg = Cesium.Cartesian3.fromDegrees(parseFloat(p.longitude), parseFloat(p.latitude), parseFloat(h));
+            //czml[1].position.cartographicDegrees.push(0, parseFloat(p.longitude), parseFloat(p.latitude), parseFloat(h));
+            //czml[1].position.cartographicDegrees.push(10, parseFloat(p.longitude), parseFloat(p.latitude), parseFloat(h));
+            //var promise = dev.App.Map3D.dataSources.add(Cesium.CzmlDataSource.load(czml));
+            ////dev.App.Map3D.camera.flyHome(0);
+            ////dev.App.Map3D.dataSources.add(Cesium.CzmlDataSource.load(czml)).then(function (ds) {
+            ////dev.App.Map3D.trackedEntity = ds.entities.getById(p.id);
+            ////});
+            //listczml.push(czml);
+            var h = p.altitude == null ? 100 : p.altitude;
+            var url = dev.App.Root + "image/agri/deviceunline.png";
+            if (p.devicetype == dev.DeviceType.machine) {
+                if (p.onlineState == "1") {
+                    url = dev.App.Root + "image/agri/deviceonline.png";
+                }
+                if (p.onlineState == "1" && p.barrierflag == "是") {
+                    url = dev.App.Root + "image/agri/machine_warn.png";
+                }
+            }
+            else {
+                url = dev.App.Root + "image/agri/uavofflineO.png";
+                if (p.onlineState == "1") {
+                    urle = dev.App.Root + "image/agri/uavonline.png";
+                }
+                if (p.onlineState == "1" && p.barrierflag == "是") {
+                    url = dev.App.Root + "image/agri/uav_warn.png";
+                }
+            }
+            var et = {
+                id: p.id,
+                position: Cesium.Cartesian3.fromDegrees(parseFloat(p.longitude), parseFloat(p.latitude), parseFloat(h)),
+                billboard: {
+                    image: url
+                },
+                label: {
+                    scale: 1.5,
+                    font: '14px monospace',
+                    horizontalOrigin: Cesium.HorizontalOrigin.LEFT,
+                    pixelOffset: new Cesium.Cartesian2(15, 0),
+                    text: p.no + "：" + parseFloat(p.speed).toFixed(2) + "km/h"
+                },
+            };
+            dev.App.Map3D.entities.add(et);
+            listczml.push(et);
+        }
+
+        //实时刷新
+        function getrefreshdata() {
+            var condition = "1=1";
+            if (!dev.IsNull(devicenos)) condition += ' AND \"NO\" IN(' + devicenos + ')';
+            var ajaxparam = $.ajax({
+                type: "POST",
+                contentType: 'application/json',
+                dataType: 'json',
+                data: condition,
+                url: dev.MapLoad.GetUrlByRelID("Service") + "realti/getbyfilter",
+                success: function (result) {
+                    if (result.statusCode != 200 || result.data.length == 0) return;
+                    devicelist = result.data;
+                    refreshmapdata();
+                }
+
+            });
+        }
+        function refreshmapdata() {
+            if (dev.IsNull(devicelist) || devicelist.length == 0) return;
+            for (var i = 0; i < devicelist.length; i++) {
+                //var curr_devicepoints = Enumerable.From(listczml).Where('s=>s[1].id=="' + devicelist[i].id + '"').FirstOrDefault();
+                //if (!dev.IsNull(curr_devicepoints)) {
+                //    var cartogr = curr_devicepoints[1].position.cartographicDegrees;
+                //    var index = curr_devicepoints[1].position.cartographicDegrees.length - 4;
+                //    var x = parseFloat(devicelist[i].longitude);
+                //    var y = parseFloat(devicelist[i].latitude);
+                //    if (devicelist[i].devicetype == dev.DeviceType.machine) {
+                //        if (devicelist[i].onlineState == "1") {
+                //            curr_devicepoints[1].billboard.image = dev.App.Root + "image/agri/deviceonline.png";
+                //        }
+                //        if (devicelist[i].onlineState == "1" && devicelist[i].barrierflag == "是") {
+                //            curr_devicepoints[1].billboard.image = dev.App.Root + "image/agri/machine_warn.png";
+                //        }
+                //    }
+                //    else {
+                //        if (devicelist[i].onlineState == "1") {
+                //            curr_devicepoints[1].billboard.image = dev.App.Root + "image/agri/uavonline.png";
+                //        }
+                //        if (devicelist[i].onlineState == "1" && devicelist[i].barrierflag == "是") {
+                //            curr_devicepoints[1].billboard.image = dev.App.Root + "image/agri/uav_warn.png";
+                //        }
+                //    }
+                //    if (cartogr[index + 1] != x || cartogr[index + 2] != y) {
+                //        listczml.splice(curr_devicepoints, 1);
+                //        var ds = Enumerable.From(dev.App.Map3D.dataSources._dataSources).Where('s=>s._name=="' + devicelist[i].id + '"').FirstOrDefault();
+                //        curr_devicepoints[1].position.cartographicDegrees.push((cartogr[index] + 10), x, y, devicelist[0].altitude == null ? 0 : parseFloat(devicelist[0].altitude));
+                //        curr_devicepoints[1].label.text = devicelist[i].no + "：" + parseFloat(devicelist[i].speed).toFixed(2) + "km/h";
+                //        if ((cartogr[index] + 10) <= 60) {
+                //            var time = curr_devicepoints[0].clock.interval.split('/');
+                //            curr_devicepoints[0].clock.interval = time[0] + "/2012-08-04T10:00:" + (cartogr[index] + 10) + "Z";
+                //            curr_devicepoints[0].clock.currentTime = "2012-08-04T10:00:" + (cartogr[index] + 10) + "Z";
+                //            curr_devicepoints[1].availability = time[0] + "/2012-08-04T10:00:" + (cartogr[index] + 10) + "Z";
+                //        }
+                //        else if ((cartogr[index] + 10) > 60 && (cartogr[index] + 10) < 3600) {
+                //            var ig = parseInt((cartogr[index] + 10) / 60);
+                //            if (ig < 10)
+                //                ig = "0" + ig;
+                //            var rd = (cartogr[index] + 10) % 60;
+                //            var time = curr_devicepoints[0].clock.interval.split('/');
+                //            curr_devicepoints[0].clock.interval = time[0] + "/2012-08-04T10:" + ig + ":" + rd + "Z";
+                //            curr_devicepoints[0].clock.currentTime = "2012-08-04T10:" + ig + ":" + rd + "Z";
+                //            curr_devicepoints[1].availability = time[0] + "/2012-08-04T10:" + ig + ":" + rd + "Z";
+                //        }
+                //        else if ((cartogr[index] + 10) > 3600) {
+                //            var ig = parseInt((cartogr[index] + 10) / 3600);
+                //            if (ig < 10)
+                //                ig = "0" + ig;
+                //            var rd = (cartogr[index] + 10) % 3600;
+                //            var md, sd;
+                //            if (rd > 60) {
+                //                md = parseInt(rd / 60);
+                //                sd = rd % 60;
+                //            }
+                //            else {
+                //                md = "00";
+                //                sd = rd;
+                //            }
+                //            var time = curr_devicepoints[0].clock.interval.split('/');
+                //            curr_devicepoints[0].clock.interval = time[0] + "/2012-08-04T" + ig + ":" + md + ":" + rd + "Z";
+                //            curr_devicepoints[0].clock.currentTime = "2012-08-04T" + ig + ":" + md + ":" + rd + "Z";
+                //            curr_devicepoints[1].availability = time[0] + "/2012-08-04T" + ig + ":" + md + ":" + rd + "Z";
+                //        }
+                //        ds.process(curr_devicepoints).then(function (ds) {
+                //            ds.clock.stopTime = ds.clock.currentTime;
+
+                //        });
+                //        listczml.push(curr_devicepoints);
+                //    }
+
+                //}
+                var curr_devicepoints = Enumerable.From(listczml).Where('s=>s.id=="' + devicelist[i].id + '"').FirstOrDefault();
+                if (!dev.IsNull(curr_devicepoints)) {
+                    var cartogr = curr_devicepoints.position;
+                    var ellipsoid = dev.App.Map3D.scene.globe.ellipsoid;
+                    var cartesian3 = new Cesium.Cartesian3(cartogr.x, cartogr.y, cartogr.z);
+                    var cartographic = ellipsoid.cartesianToCartographic(cartesian3);
+                    var lat = Cesium.Math.toDegrees(cartographic.latitude);
+                    var lng = Cesium.Math.toDegrees(cartographic.longitude);
+                    var alt = cartographic.height;
+                    var dxy = Cesium.Cartesian3.fromDegrees(parseFloat(devicelist[i].longitude), parseFloat(devicelist[i].latitude));
+                    if (lng == parseFloat(devicelist[i].longitude) && (lat == parseFloat(devicelist[i].latitude) || lat.toString().substr(0, lat.toString().length - 1) == devicelist[i].latitude)) {
+                        continue;
+                    }
+                    dev.App.Map3D.entities.remove(curr_devicepoints);
+                    listczml.splice(curr_devicepoints, 1);
+                    if (devicelist[i].devicetype == dev.DeviceType.machine) {
+                        if (devicelist[i].onlineState == "1") {
+                            curr_devicepoints.billboard.image = dev.App.Root + "image/agri/deviceonline.png";
+                        }
+                        if (devicelist[i].onlineState == "1" && devicelist[i].barrierflag == "是") {
+                            curr_devicepoints.billboard.image = dev.App.Root + "image/agri/machine_warn.png";
+                        }
+                    }
+                    else {
+                        if (devicelist[i].onlineState == "1") {
+                            curr_devicepoints.billboard.image = dev.App.Root + "image/agri/uavonline.png";
+                        }
+                        if (devicelist[i].onlineState == "1" && devicelist[i].barrierflag == "是") {
+                            curr_devicepoints.billboard.image = dev.App.Root + "image/agri/uav_warn.png";
+                        }
+                    }
+                    var redLine = dev.App.Map3D.entities.add({
+                        name: 'Red line on terrain',
+                        polyline: {
+                            positions: Cesium.Cartesian3.fromDegreesArrayHeights([lng, lat, alt,
+                                        parseFloat(devicelist[i].longitude), parseFloat(devicelist[i].latitude), parseFloat(devicelist[i].latitude)]),
+                            width: 5,
+                            material: Cesium.Color.RED,
+                            clampToGround: true
+                        }
+                    });
+                    createczml(devicelist[i]);
+                }
+
+            }
+        }
+    </script>
+</head>
+<body>
+    <div class="position_content">
+        <div class="mappanel">
+            <div class="mappaneldom"></div>
+        </div>
+    </div>
+    <div class="fillpanel">
+    </div>
+    <footer>
+        Copyright&nbsp;©&nbsp;2017-2020&nbsp;&nbsp;北京禾壮慧农科技发展有限公司&nbsp;&nbsp;版权所有
+    </footer>
+</body>
+</html>

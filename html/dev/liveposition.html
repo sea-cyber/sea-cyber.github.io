@@ -1,0 +1,1042 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>实时监控</title>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+    <link rel="stylesheet" href="../../theme/default/easyui.css" />
+    <link rel="stylesheet" type="text/css" href="../../theme/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/app.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/dev.css" />
+    <script type="text/javascript" src="../../js/jquery.min.js"></script>
+    <script type="text/javascript" src="../../js/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="../../js/easyui-lang-zh_CN.js"></script>
+    <script type="text/javascript" src="../../js/linq.min.js"></script>
+    <script type="text/javascript" src="../../js/data.util.js"></script>
+    <script type="text/javascript" src="../../js/jquery.dev.control.js"></script>
+    <script type="text/javascript" src="../../js/dev.ui.js"></script>
+    <script type="text/javascript" src="../../js/highcharts.js"></script>
+    <script type="text/javascript" src="../../js/highcharts-more.js"></script>
+    <script type="text/javascript" src="../../js/solid-gauge.js"></script>
+    <style type="text/css">
+        .content {
+            width: 100%;
+            height: 100%;
+        }
+
+            .content .defaultbtn {
+                height: 20px;
+                width: 30px;
+                line-height: 22px;
+                color: #fcfcfc;
+                position: absolute;
+                right: 15px;
+                background-color: #03afD9;
+                /*border-radius: 5px;*/
+                text-align: center;
+                border: 1px solid #03afD9;
+            }
+
+                .content .defaultbtn:hover {
+                    background-color: #95B8E7;
+                    border: 1px solid #95B8E7;
+                    cursor: pointer;
+                }
+    </style>
+    <script type="text/javascript">
+        var Dev = window.top.window.dev;
+        var parent;
+        var treecontrol;
+        var timeinterval;
+        var simpleinterval;
+        var dialog;
+        var serverinfo;
+        var singleclick;
+        var dataGrid, pageIndex = 1, pageSize = 5;
+        var ajaxRequests = [], devicelist = [], treestateopen = [];
+        var isfirst = true;
+        var currentResolution, maxFeatureCount, livesource;
+        var pointskey = [];
+        var maplegenddiv;
+        var deviceType;
+
+        var selectpolykey;
+        var selectfinfo;
+        var mapproj;
+
+        var isrefresh = false;
+
+        function WidgetCommunication(s) {//部件通讯
+            parent = s.parent;
+            mapproj = Dev.App.Map.getView().getProjection();
+            if (!Dev.IsNull(s.param) && !Dev.IsNull(s.param.DeviceType)) deviceType = s.param.DeviceType;
+            Dev.App.LeftPanel.bind("onResize", function () {//LeftPanel大小改变事件监听(Q:那么窗体改变的时候会进入该事件吗？)
+                resize();
+            });
+            Dev.App.LeftPanel.AddTool([{ ID: 'treerefresh', IconCls: 'liveposition-refresh', TipTitle: '刷新' }]);
+            Dev.App.LeftPanel.bind("onToolClick", function (s, e) {
+                if (e.ToolItem.ID == "treerefresh") getlivedata();
+            })
+            Dev.App.LeftPanel.SetIconCls("machine-carmanage");
+            Dev.App.LeftPanel.Header.css("background", "#14cdad");
+            //添加到地图上
+            serverinfo = Dev.GetServerInfoByValues(["fishnetlayer1"])[0];
+            inittree();
+            AddWMS();
+            initmapclick();
+            dialog = new Dev.Messager({ AutoShow: false, Type: "warn", VAlign: "bottom", Modal: false, HAlign: "right", Effect: "down", Timeout: 4000, ButtonVisible: false, Height: 90, AutoVisible: true, Title: "提示信息" });
+            parent.one("onClosing", function () {
+                //查找所有
+                Dev.App.MapPanel.Target.unbind("onMapRefresh");
+                clearCluster();
+                Dev.App.LeftPanel.unbind("onResize");
+                Dev.App.LeftPanel.unbind("onToolClick");
+                //移除
+                Dev.App.LeftPanel.RemoveTool(["treerefresh"]);
+                Dev.App.LeftPanel.ClearTool();
+                $(".defaultbtn", treecontrol.Target).unbind("click");
+                $(".defaultbtn", treecontrol.Target).remove();
+                treecontrol.unbind("onSelectChanged");
+                treecontrol.unbind("onContextMenu");
+                treecontrol.unbind("onChecked");
+                treecontrol.unbind("onCollapsed");
+                treecontrol.unbind("onExpanded");
+                if (ajaxRequests.length > 0) {
+                    for (var i = 0; i < ajaxRequests.length; i++) {
+                        ajaxRequests[i].abort();
+                        ajaxRequests.splice(i, 1);
+                    }
+                }
+                if (!Dev.IsNull(timeinterval)) clearInterval(timeinterval);
+                if (!Dev.IsNull(simpleinterval)) clearInterval(simpleinterval);
+                if (!Dev.IsNull(singleclick)) Dev.App.Map.unByKey(singleclick);
+                Dev.MapUtils.ClearFeature("tempTrackLayer");
+
+                Dev.MapUtils.RemoveLayer("fishnetWMS");
+                Dev.MapUtils.ClearFeature("tempGraphicLayer");
+                if (!Dev.IsNull(newmaptip)) newmaptip.Close();
+                if (!Dev.IsNull(dataGrid)) {
+                    dataGrid.Target.unbind("onSelectPage");
+                    dataGrid = null;
+                }
+                if (!Dev.IsNull(maplegenddiv)) maplegenddiv.remove();
+            });
+            resize();
+            Dev.App.MapPanel.Target.bind("onMapRefresh", function () {
+                isfirst = true;
+                isrefresh = true;
+                if (!Dev.IsNull(timeinterval)) { clearInterval(timeinterval); timeinterval = null; }
+                mapproj = Dev.App.Map.getView().getProjection();
+                //获取中心点
+                getlivedata();
+            });
+        }
+        function initmapclick() {
+            singleclick = Dev.App.Map.on("singleclick", function (e) {
+                var pixel = this.getPixelFromCoordinate(e.coordinate);
+                Dev.App.Map.forEachFeatureAtPixel(pixel, function (feature) {
+                    var orgrif = feature.get("features");
+                    if (!orgrif) return;
+                    var size = orgrif.length;
+                    if (size == 1) {
+                        var currf = orgrif[0];
+                        Dev.App.Map.getView().setCenter(currf.getGeometry().getCoordinates());
+                        var info = currf.getProperties();
+                        selectfinfo = info;
+                        //如果是农机
+                        showTips(currf, { isalert: info.barrierflag == "是" }, deviceType)
+                        Dev.App.RightPanel.SetVisible(true);
+                        Dev.App.RightPanel.Add(Dev.App.Root + "html/detailInfo.html", { Type: "AGRI_DEVICE", ServerUrl: Dev.GetSystemUrlByRelID("Service") + "device/getbyfilter", PrimaryKey: "NO", KeyValue: info.no });
+                    }
+                })
+            });
+        }//地图点击事件
+        function inittree() {
+            treecontrol = new Dev.Tree({ //初始化树
+                ValueField: "id",
+                TextField: "no",
+                ChildrenField: "child",
+                CheckBox: true
+            });
+            $(".content").append(treecontrol.Target);//将树添加到滚动框中
+            treecontrol.bind("onContextMenu", function (s, o) {
+                //显示右键菜单
+                if (o.node.$this.hasOwnProperty("parentid")) return;
+                //如果不在线则不能实时跟踪
+                if (o.node.$this.onlineState != "1") return;
+                //判断是否存在实时跟踪
+                var count = $(".defaultbtn", treecontrol.Target).length;
+                if (count > 0) {
+                    //移除按钮，移除线路，移除定时器
+                    $(".defaultbtn", treecontrol.Target).remove();
+                    if (!Dev.IsNull(simpleinterval)) clearInterval(simpleinterval);
+                    Dev.MapUtils.ClearFeature("tempTrackLayer");
+                    points = [];
+                }
+                $("#mm").menu('show', {
+                    left: o.positionX,
+                    top: o.positionY
+                });
+            });
+            treecontrol.bind("onChecked", function (s, o) {
+                var checked = o.checked;
+                var leff;
+                if (treecontrol.IsLeaf(o.node[0])) leff = [o.node[0]];
+                else leff = treecontrol.GetLeafs(o.node[0], checked);
+                if (Dev.IsNull(leff) || leff.length == 0) leff = [o.node[0]];
+                if (checked) {
+                    var c_fs = [];
+                    for (var i = 0; i < leff.length; i++) {
+                        var c_p = [parseFloat(leff[i].$this.longitude), parseFloat(leff[i].$this.latitude)];
+                        if (mapproj.getCode() != Dev.App.Config.SystemMap.DataEPSG) c_p = Dev.proj.transform(c_p, Dev.App.Config.SystemMap.DataEPSG, mapproj.getCode());
+                        var currf = new Dev.Feature(new Dev.geom.Point(c_p));
+                        currf.setProperties(leff[i].$this);
+                        currf.setId(leff[i].$this.id);
+                        c_fs.push(currf);
+                        devicelist.push(leff[i].$this);
+                    }
+                    livesource.addFeatures(c_fs);
+                }
+                else {
+                    var c_fs = livesource.getFeatures();
+                    for (var i = 0; i < leff.length; i++) {
+                        var c_f;
+                        for (var j = 0; j < c_fs.length; j++) {
+                            if (c_fs[j].getId() == leff[i].$this.id) { c_f = c_fs[j]; break; }
+                        }
+                        if (!Dev.IsNull(c_f)) livesource.removeFeature(c_f);
+                        devicelist = Enumerable.From(devicelist).Where('s=>s.id!="' + leff[i].$this.id + '"').ToArray();
+                        var polykey = Enumerable.From(pointskey).Where('s=>s.key=="' + leff[i].$this.id + '"').FirstOrDefault();
+                        if (!Dev.IsNull(newmaptip) && !Dev.IsNull(maptipno) && maptipno == leff[i].$this.no) newmaptip.Close();
+                        if (Dev.IsNull(polykey)) continue;
+                        Dev.MapUtils.removePointKey(leff[i].$this.id);
+                        pointskey = Enumerable.From(pointskey).Where('s=>s.key!="' + leff[i].$this.id + '"').ToArray();
+                    }
+                }
+                setview(devicelist);
+                showlegend();
+            });
+            treecontrol.bind("onSelectChanged", function (s, o) {
+                if (Dev.IsNull(o.$this.latitude) || Dev.IsNull(o.$this.longitude)) {
+                    var allchild = treecontrol.GetAllChildren(o);  //获取选中选中子节点
+                    var device_points = [];
+                    for (var i = 0; i < allchild.length; i++) {
+                        if (Dev.IsNull(allchild[i].$this.latitude) || Dev.IsNull(allchild[i].$this.longitude)) continue;
+                        device_points.push({ x: parseFloat(allchild[i].$this.longitude), y: parseFloat(allchild[i].$this.latitude) });
+                    }
+                    if (device_points.length > 1) {
+                        var extent = Dev.getExtentByPoints(device_points);
+                        if (mapproj.getCode() != Dev.App.Config.SystemMap.DataEPSG) extent = Dev.proj.transformExtent(extent, Dev.App.Config.SystemMap.DataEPSG, mapproj.getCode());
+                        Dev.App.Map.getView().fit(extent, Dev.App.Map.getSize());
+                    }
+                    else if (device_points.length == 1) {
+                        var new_p = [device_points[0].x, device_points[0].y];
+                        if (mapproj.getCode() != Dev.App.Config.SystemMap.DataEPSG) new_p = Dev.proj.transform(new_p, Dev.App.Config.SystemMap.DataEPSG, mapproj.getCode());
+                        Dev.App.Map.getView().setCenter(new_p, Dev.App.Map.getSize());
+                    }
+
+                }
+                else {
+                    var curr_p = [parseFloat(o.$this.longitude), parseFloat(o.$this.latitude)];
+                    if (mapproj.getCode() != Dev.App.Config.SystemMap.DataEPSG) curr_p = Dev.proj.transform(curr_p, Dev.App.Config.SystemMap.DataEPSG, mapproj.getCode());
+                    Dev.App.Map.getView().setCenter(curr_p, Dev.App.Map.getSize());
+                    // Dev.App.Map.getView().setCenter([parseFloat(o.$this.longitude), parseFloat(o.$this.latitude)], Dev.App.Map.getSize());
+                }
+                   
+            });
+            treecontrol.bind("onCollapsed", function (s, o) {
+                if (Dev.IsNull(o)) return;
+                treestateopen = Enumerable.From(treestateopen).Where('s=>s!="' + o.$this.id + '"').ToArray();
+            });
+            treecontrol.bind("onExpanded", function (s, o) {
+                if (Dev.IsNull(o)) return;
+                treestateopen.push(o.$this.id);
+            });
+            getlivedata();
+        } //初始化树
+        function getlivedata() {
+            var orgid = Dev.cookie.user.orgid;
+            var ajaxrequest = $.ajax({
+                type: "POST",
+                data: { orgId: orgid, deviceType: deviceType },
+                dataType: 'json',
+                url: Dev.cookie.baseUri + "realti/getOrgTreeAndRealTimeData",
+                success: function (response) {
+                    if (Dev.IsNull(response.orgList) || Dev.IsNull(response.realTimeList)) return;
+                    var neworglist = [];
+                    for (var i = 0; i < response.orgList.length; i++) {
+                        var orgchild = Enumerable.From(response.orgList).Where('s=>s.parentid=="' + response.orgList[i].id + '"').ToArray();
+                        var tempreal = Enumerable.From(response.realTimeList).Where('s=>s.orgid=="' + response.orgList[i].id + '"').ToArray();
+                        if ((!Dev.IsNull(orgchild) && orgchild.length > 0) || (!Dev.IsNull(tempreal) && tempreal.length > 0)) neworglist.push(response.orgList[i]);
+                    }
+                    var rootdata = Enumerable.From(neworglist).Where('s=>s.id=="' + orgid + '"').FirstOrDefault();
+                    rootdata.child = converttreeedata(neworglist, response.realTimeList, orgid);
+                    var reallist = Enumerable.From(response.realTimeList).Where('s=>s.orgid=="' + orgid + '"').ToArray();
+                    for (var i = 0; i < reallist.length; i++) {
+                        reallist[i].checked = true;
+                        if (reallist[i].devicetype == Dev.DeviceType.uav) {
+                            reallist[i].iconCls = "uav-offline";
+                            if (reallist[i].onlineState == "1") {
+                                reallist[i].iconCls = "uav-logoblue";
+                                if (reallist[i].barrierflag == "是") reallist[i].iconCls = "uav-warnonline";
+                            }
+                        }
+                        if (reallist[i].devicetype == Dev.DeviceType.machine) {
+                            reallist[i].iconCls = "machine-offline";
+                            if (reallist[i].onlineState == "1") {
+                                reallist[i].iconCls = "machine-carmanage1";
+                                if (reallist[i].barrierflag == "是") reallist[i].iconCls = "machine-warnonline";
+                            }
+                        }
+                        rootdata.child.push(reallist[i]);
+                    }
+                    rootdata.state = "open";
+                    rootdata.no = rootdata.name;
+                    treecontrol.LoadData([rootdata]);
+                    devicelist = response.realTimeList;
+                    if (isfirst) { initlayer(response.realTimeList); isfirst = false; }
+                    else refreshmapdata();
+                    if (!isrefresh) setview(response.realTimeList);
+                    else isrefresh = false;
+                    showlegend();
+                 //   if (isfirst) { initlayer(response.realTimeList); isfirst = false; }
+                  //  else refreshmapdata();
+                 //   setview(response.realTimeList);
+                 //   showlegend();
+                  // if (Dev.IsNull(timeinterval)) timeinterval = setInterval("getmaplivedata()", "10000");
+                }
+            })
+            ajaxRequests.push(ajaxrequest);
+        }//获取树数据
+        function converttreeedata(orglist, reatilist, id) {
+            if (Dev.IsNull(orglist) || orglist.length == 0 || Dev.IsNull(reatilist) || reatilist.length == 0) return [];
+            var rootData = Enumerable.From(orglist).Where('s=>s.parentid=="' + id + '"').ToArray();
+            if (Dev.IsNull(rootData) || rootData.length == 0) return rootData;
+            var deleteids = [];
+            for (var i = 0; i < rootData.length; i++) {
+                rootData[i].no = rootData[i].name;
+                rootData[i].child = converttreeedata(orglist, reatilist, rootData[i].id);
+                var reatichild = Enumerable.From(reatilist).Where('s=>s.orgid=="' + rootData[i].id + '"').ToArray();
+                if (!Dev.IsNull(reatichild) && reatichild.length > 0) {
+                    for (var j = 0; j < reatichild.length; j++) {
+                        reatichild[j].checked = true;
+                        if (reatichild[j].devicetype == Dev.DeviceType.uav) {
+                            reatichild[j].iconCls = "uav-offline";
+                            if (reatichild[j].onlineState == "1") {
+                                reatichild[j].iconCls = "uav-logoblue";
+                                if (reatichild[j].barrierflag == "是") reatichild[j].iconCls = "uav-warnonline";
+                            }
+                        }
+                        if (reatichild[j].devicetype == Dev.DeviceType.machine) {
+                            reatichild[j].iconCls = "machine-offline";
+                            if (reatichild[j].onlineState == "1") {
+                                reatichild[j].iconCls = "machine-carmanage1";
+                                if (reatichild[j].barrierflag == "是") reatichild[j].iconCls = "machine-warnonline";
+                            }
+                        }
+                        rootData[i].child.push(reatichild[j]);
+                    }
+                }
+                if (rootData[i].child.length == 0) deleteids.push(rootData[i].id);
+            }
+            if (deleteids.length > 0) {
+                var strcon = "";
+                for (var n = 0; n < deleteids.length; n++) strcon += ' s.id!="' + deleteids[n] + '" &&';
+                strcon = strcon.substr(0, strcon.length - 2);
+                rootData = Enumerable.From(rootData).Where('s=>' + strcon).ToArray();
+            }
+            return rootData;
+        }
+
+        function getmaplivedata() {
+            //获取条件
+            var treecheckeds = treecontrol.GetLeafs(null, true);
+            if (Dev.IsNull(treecheckeds) || treecheckeds.length == 0) return;
+            var nos = "";
+            for (var i = 0; i < treecheckeds.length; i++) nos += "'" + treecheckeds[i].$this.no + "',";
+            nos = nos.substr(0, nos.length - 1);
+            var condition = "\"NO\" IN(" + nos + ")";
+            if (!Dev.IsNull(deviceType)) condition += " AND \"DEVICETYPE\"='" + deviceType + "'";
+            var ajaxparam = $.ajax({
+                type: "POST",
+                contentType: 'application/json',
+                dataType: 'json',
+                data: condition,
+                url: Dev.cookie.baseUri + "realti/getbyfilter",
+                success: function (result) {
+                    if (result.statusCode != 200 || result.data.length == 0) return;
+                    devicelist = result.data;
+                    livesource.clear();
+                    refreshmapdata();
+                }
+            });
+            ajaxRequests.push(ajaxparam);
+        }//获取地图实时数据
+        function setview(realist) {
+            if (Dev.IsNull(realist)) return;
+            for (var i = 0; i < realist.length; i++) {
+                realist[i].x = parseFloat(realist[i].longitude);
+                realist[i].y = parseFloat(realist[i].latitude);
+            }
+            if (newmaptip == null) {
+                var extend;
+                if (realist.length == 1) {
+                    var ext = Dev.MapUtils.GetExtentByMapClick([parseFloat(realist[0].x), parseFloat(realist[0].y)], Dev.App.Map, 2,falses);
+                    if (!Dev.IsNull(ext)) extend = ext.getExtent();
+                }
+                else if (realist.length > 1) extend = Dev.getExtentByPoints(realist);
+                if (!Dev.IsNull(extend)) {
+                    var points = [[extend[0], extend[1]], [extend[0], extend[3]], [extend[2], extend[3]], [extend[2], extend[1]], [extend[0], extend[1]]];
+                    var extendfeature = new Dev.Feature(new Dev.geom.Polygon([points]));
+                    Dev.setcountyposition(extendfeature);
+                    //extend转换
+                    if (mapproj.getCode() != Dev.App.Config.SystemMap.DataEPSG) extend = Dev.proj.transformExtent(extend, Dev.App.Config.SystemMap.DataEPSG, mapproj.getCode());
+                    Dev.App.Map.getView().fit(extend, Dev.App.Map.getSize());
+                }
+            }
+        }//定位居中
+
+        function refreshmapdata() {
+            if (Dev.IsNull(devicelist) || devicelist.length == 0) return;
+            var cfs = [];
+            var barrierNumArray = [];//报警信息
+            clearmapdata();
+            for (var i = 0; i < devicelist.length; i++) {
+                var c_p = [parseFloat(devicelist[i].longitude), parseFloat(devicelist[i].latitude)];
+                if (mapproj.getCode() != Dev.App.Config.SystemMap.DataEPSG) c_p = Dev.proj.transform(c_p, Dev.App.Config.SystemMap.DataEPSG, mapproj.getCode());
+                var c_f = new Dev.Feature(new Dev.geom.Point(c_p));
+              //  var c_f = new Dev.Feature(new Dev.geom.Point([parseFloat(devicelist[i].longitude), parseFloat(devicelist[i].latitude)]));
+                c_f.setProperties(devicelist[i]);
+                c_f.setId(devicelist[i].no);
+                cfs.push(c_f);
+                if (devicelist[i].barrierflag == "是") barrierNumArray.push(devicelist[i].no);
+                if (!Dev.IsNull(newmaptip) && !Dev.IsNull(maptipno) && devicelist[i].no == maptipno) newmaptip.SetPosition([parseFloat(devicelist[i].longitude), parseFloat(devicelist[i].latitude)]);
+            }
+            livesource.addFeatures(cfs);
+            // setview(devicelist);
+            if (!Dev.IsNull(barrierNumArray) && barrierNumArray.length > 0) dialog.Alert("设备" + barrierNumArray.join(",") + "越栏！");
+        }//刷新地图数据
+
+
+        //聚合
+        function initlayer(livelist) {
+            if (Dev.IsNull(livelist) || livelist.length == 0) return;
+            clearCluster();
+            var distance = 15;
+            var count = livelist.count;
+            var features = new Array(count);
+            var barrierNumArray = [];//存放越栏农机号
+            for (var i = 0; i < livelist.length; i++) {
+                var c_p = [parseFloat(livelist[i].longitude), parseFloat(livelist[i].latitude)];
+                if (mapproj.getCode() != Dev.App.Config.SystemMap.DataEPSG) c_p = Dev.proj.transform(c_p, Dev.App.Config.SystemMap.DataEPSG, mapproj.getCode());
+                var currf = new Dev.Feature(new Dev.geom.Point(c_p));
+                currf.setProperties(livelist[i]);
+                currf.setId(livelist[i].id);
+                features[i] = currf;
+                if (livelist[i].barrierflag == "是") barrierNumArray.push(livelist[i].no);
+            }
+            livesource = new Dev.source.Vector({ features: features });
+            var clusterSource = new Dev.source.Cluster({ distance: distance, source: livesource });
+            var clusters = new Dev.layer.Vector({ id: "clusterlayer", source: clusterSource, style: styleFunction, zIndex: 10005, type: "TempClusterVector" });
+            Dev.App.Map.addLayer(clusters);
+            if (!Dev.IsNull(barrierNumArray) && barrierNumArray.length > 0) dialog.Alert("设备" + barrierNumArray.join(",") + "越栏！");
+        }
+        function styleFunction(feature, resolution) {
+            if (resolution != currentResolution) {
+                calculateClusterInfo(resolution);
+                currentResolution = resolution;
+            }
+            var style;
+            var size = feature.get("features").length;
+            if (size > 1) {
+                var color = "rgba(255,0,0,0.5)";
+                var fillcolor = [255, 0, 0, Math.min(0.8, 0.4 + (size / maxFeatureCount))]
+                if (size > 100 && size < 200) {
+                    color = "rgba(255, 204, 0, 0.6)";
+                    fillcolor = [255, 153, 0, Math.min(0.8, 0.4 + (size / maxFeatureCount))]
+                }
+                if (size >= 200) {
+                    color = "rgba(0,255, 0, 0.6)";
+                    fillcolor = [0, 255, 0, Math.min(0.8, 0.4 + (size / maxFeatureCount))]
+                }
+                var features = feature.get("features");
+                //聚合去掉闪烁
+                for (var i = 0; i < features.length; i++) {
+                    var key = features[i].getProperties().id;
+                    var pointkey = Enumerable.From(pointskey).Where('s=>s.key=="' + key + '"').FirstOrDefault();
+                    if (!Dev.IsNull(pointkey)) {
+                        Dev.MapUtils.removePointKey(features[i].getId());
+                        pointkey.pointKey = null;
+                    }
+                    pointkey = null;
+                    pointskey = Enumerable.From(pointskey).Where('s=>s.key!="' + key + '"').ToArray();
+                }
+                style = new Dev.style.Style({
+                    image: new Dev.style.Circle({
+                        fill: new Dev.style.Fill({ color: fillcolor }),
+                        stroke: new Dev.style.Stroke({ color: color, width: 1 }),
+                        radius: feature.get('radius'),
+                        points: 4
+                    }),
+                    text: new Dev.style.Text({
+                        text: size.toString(),
+                        fill: new Dev.style.Fill({ color: "#fff" }),
+                        stroke: new Dev.style.Stroke({ color: 'rgba(0, 0, 0, 0.6)', width: 3 })
+                    })
+                });
+            }
+            else {
+                var originalFeature = feature.get('features')[0];
+                var key = originalFeature.getId();
+                var curr_polykey = Enumerable.From(pointskey).Where('s=>s.key=="' + key + '"').FirstOrDefault();
+                if (!Dev.IsNull(curr_polykey)) {
+                    Dev.MapUtils.removePointKey(originalFeature.getId());
+                    curr_polykey = null;
+                }
+                pointskey = Enumerable.From(pointskey).Where('s=>s.key!="' + key + '"').ToArray();
+                var styleparam = getstylebyinfo(originalFeature.getProperties());
+                style = new Dev.style.Style({
+                    fill: new Dev.style.Fill({ color: [236, 179, 73, 0.2] }),
+                    image: new Dev.style.Icon({ src: styleparam.iconsrc }),
+                    text: new Dev.style.Text({ text: originalFeature.getProperties().no + "：" + parseFloat(originalFeature.getProperties().speed).toFixed(2) + "km/h", font: "15px serif", offsetX: 5, offsetY: -20, fill: new Dev.style.Fill({ color: [255, 255, 255, 1] }) })
+                });
+                var pointKey = Dev.MapUtils.PointSymbolStyle1(originalFeature, 1, styleparam.color, styleparam.fillcolor, 30, Dev.App.Map,false);
+                pointskey.push({ key: originalFeature.getProperties().id, pointKey: pointKey });
+            }
+            return style;
+        }
+        function calculateClusterInfo(resolution) {
+            maxFeatureCount = 0;
+            var currlayer = Dev.MapUtils.GetLayer("clusterlayer", Dev.App.Map);
+            var features = currlayer.getSource().getFeatures();
+            var feature, radius;
+            for (var i = features.length - 1; i >= 0; i--) {
+                feature = features[i];
+                var originalFeatures = feature.get('features');
+                var extent = Dev.extent.createEmpty();
+                for (var j = 0; j < originalFeatures.length; j++) Dev.extent.extend(extent, originalFeatures[j].getGeometry().getExtent());
+                maxFeatureCount = Math.max(maxFeatureCount, originalFeatures.length);
+                feature.set('radius', 15);
+            }
+        }
+        //根据设备信息获取设备对应的样式
+        function getstylebyinfo(info) {
+            if (Dev.IsNull(info)) return;
+            var iconsrc = "";
+            var color = "";
+            var fillcolor = "";
+            if (info.devicetype == Dev.DeviceType.machine) {
+                iconsrc = Dev.App.Root + "image/agri/deviceunline.png";
+                color = "rgba(153,153,153,1)";
+                fillcolor = "rgba(153,153,153,0.5)";
+                if (info.onlineState == "1") {
+                    color = "rgba(63,85,225,1)";
+                    fillcolor = "rgba(63,85,225,0.5)";
+                    iconsrc = Dev.App.Root + "image/agri/deviceonline.png";
+                }
+                if (info.onlineState == "1" && info.barrierflag == "是") {
+                    color = "rgba(255,0,0,1)";
+                    fillcolor = "rgba(255,0,0,0.5)";
+                    iconsrc = Dev.App.Root + "image/agri/machine_warn.png";
+                }
+            }
+            else {
+                color = "rgba(153,153,153,1)";
+                fillcolor = "rgba(153,153,153,0.5)";
+                iconsrc = Dev.App.Root + "image/agri/uavofflineO.png";
+                if (info.onlineState == "1") {
+                    color = "rgba(63,85,225,1)";
+                    fillcolor = "rgba(63,85,225,0.5)";
+                    iconsrc = Dev.App.Root + "image/agri/uavonline.png";
+                }
+                if (info.onlineState == "1" && info.barrierflag == "是") {
+                    color = "rgba(255,0,0,1)";
+                    fillcolor = "rgba(255,0,0,0.5)";
+                    iconsrc = Dev.App.Root + "image/agri/uav_warn.png";
+                }
+            }
+            if (!Dev.IsNull(selectfinfo) && info.id == selectfinfo.id) {
+                color = "rgba(0, 21, 42, 1)";
+                fillcolor = "rgba(0,21,42,0.5)";
+            }
+            return { iconsrc: iconsrc, color: color, fillcolor: fillcolor };
+        }
+
+        function AddWMS() {
+            var condition = Dev.ConvertFilter(getcondition());
+            var param = {
+                Map: Dev.App.Map,
+                ID: "fishnetWMS",
+                Url: Dev.GetSystemUrlByRelID(serverinfo.Url),
+                Layers: serverinfo.TypeName,
+                CQLFilter: condition,
+                ServerType: serverinfo.ServerType,
+                EPSG: Dev.App.Map.getView().getProjection().getCode()
+             //   EPSG: 'EPSG:4326'
+            };
+            if (!Dev.IsNull(serverinfo.SldLegend)) {
+                if (Dev.IsNull(serverinfo.SldLegend.length)) serverinfo.SldLegend = [serverinfo.SldLegend];
+                param.Sldbody = Dev.GetSLDString(serverinfo.TypeName, Dev.LegendToRule(serverinfo.SldLegend));
+            }
+            Dev.MapLoad.AddWMSLayer(param);
+        }//添加电子围栏
+
+        function showlegend() {
+            if (!Dev.IsNull(maplegenddiv)) maplegenddiv.remove();
+            var legenddatas = getlegenddata();
+            maplegenddiv = $('<div style="width:360px;z-index:10001;position:absolute;bottom:0px;left:150px;background-color:#fcfcfc;border:1px solid #0099cc;"></div>').appendTo(Dev.App.MapPanel.MapDOM);
+            var legends = [
+                { text: "农机离线(" + legenddatas.machineoffline + ")", url: Dev.App.Root + "image/agri/deviceunline.png", type: "农机" },
+                { text: "农机在线(" + legenddatas.machineonline + ")", url: Dev.App.Root + "image/agri/deviceonline.png", type: "农机" },
+                { text: "农机报警(" + legenddatas.machinealert + ")", url: Dev.App.Root + "image/agri/machine_warn.png", type: "农机" },
+                { text: "无人机离线(" + legenddatas.uavoffline + ")", url: Dev.App.Root + "image/agri/uavofflineO.png", type: "无人机" },
+                { text: "无人机在线(" + legenddatas.uavonline + ")", url: Dev.App.Root + "image/agri/uavonline.png", type: "无人机" },
+                { text: "无人机报警(" + legenddatas.uavalert + ")", url: Dev.App.Root + "image/agri/uav_warn.png", type: "无人机" }
+            ];
+            if (!Dev.IsNull(deviceType)) legends = Enumerable.From(legends).Where('s=>s.type=="' + deviceType + '"').ToArray();
+            for (var i = 0; i < legends.length; i++) {
+                var item = $('<div style="width:120px;height:30px;display:inline-block;float:left;"></div>').appendTo(maplegenddiv);
+                var item_icon = $('<div style="height:30px;width:30px;display:inline-block;float:left;background-position:center;background-size:24px 24px;background-repeat:no-repeat;background-image:url(' + legends[i].url + ')"></div>').appendTo(item);
+                var item_text = $('<div style="height:30px;line-height:30px;width:80px;display:inline-block;text-align:center;">' + legends[i].text + '</div>').appendTo(item);
+            }
+        }
+        function getlegenddata() {
+            var machinenums = Enumerable.From(devicelist).Where('s=>s.devicetype=="' + Dev.DeviceType.machine + '"').ToArray();
+            var uavnums = Enumerable.From(devicelist).Where('s=>s.devicetype=="' + Dev.DeviceType.uav + '"').ToArray();
+            var legendata = { machineoffline: 0, machineonline: 0, machinealert: 0, uavoffline: 0, uavonline: 0, uavalert: 0 };
+            legendata.machineoffline = Enumerable.From(machinenums).Where('s=>s.onlineState!="1"').ToArray().length;
+            legendata.machineonline = Enumerable.From(machinenums).Where('s=>s.onlineState=="1"').ToArray().length;
+            legendata.machinealert = Enumerable.From(machinenums).Where('s=>s.onlineState=="1" && s.barrierflag=="是"').ToArray().length;
+            legendata.uavoffline = Enumerable.From(uavnums).Where('s=>s.onlineState!="1"').ToArray().length;
+            legendata.uavonline = Enumerable.From(uavnums).Where('s=>s.onlineState=="1"').ToArray().length;
+            legendata.uavalert = Enumerable.From(uavnums).Where('s=>s.onlineState=="1" && s.barrierflag=="是"').ToArray().length;
+            return legendata;
+        }
+        //实时跟踪
+        var oldcenter, oldzoom;
+        var selectno;
+        var points = [];
+        function menuHandler(item) {
+            //获取当前树的选中项
+            var selectnode = treecontrol.GetSelectNode();
+            if (Dev.IsNull(selectnode) || selectnode.length == 0) return;
+            if (!Dev.IsNull(singleclick)) { Dev.App.Map.unByKey(singleclick); singleclick = null; }//移除地图点击事件
+            if (!Dev.IsNull(newmaptip)) newmaptip.Close();//关闭冒泡
+            if (!Dev.IsNull(timeinterval)) { clearInterval(timeinterval); timeinterval = null; }//停止实时更新数据
+            clearmapdata();//清空聚合图层
+            //记录当前中心点及其zoom
+            oldcenter = Dev.App.Map.getView().getCenter();
+            oldzoom = Dev.App.Map.getView().getZoom();
+            var currdata = selectnode[0].$this;//添加实时更新当前点的数据
+            //添加新的zoom及center;
+            var center = [parseFloat(currdata.longitude), parseFloat(currdata.latitude)];
+            var mapproj = Dev.App.Map.getView().getProjection();
+            if (mapproj.getCode() != Dev.App.Config.SystemMap.DataEPSG) center = Dev.proj.transform(center, Dev.App.Config.SystemMap.DataEPSG, mapproj.getCode());
+            Dev.App.Map.getView().setCenter(center);
+            Dev.App.Map.getView().setZoom(16);
+            selectno = currdata.no;
+            getdatabyno();
+            simpleinterval = setInterval("getdatabyno()", "2000");
+            //当前项
+            $(selectnode[0]).css("position", "relative");
+            var btndiv = $('<div class="defaultbtn" style="top:' + selectnode[0].offsetTop + 'px">退出</div>');
+            btndiv.prop("data", currdata);
+            $($(selectnode[0]).parent()).append(btndiv);
+            btndiv.bind("click", function () {
+                var data = $(this).prop("data");
+                //移除该元素
+                $(this).remove();
+                //停止当前实时线路更新
+                if (!Dev.IsNull(simpleinterval)) clearInterval(simpleinterval);
+                //清空当前线路
+                Dev.MapUtils.ClearFeature("tempTrackLayer");
+                points = [];
+                //还原开始所记录的中心点与zoom
+                Dev.App.Map.getView().setCenter(oldcenter);
+                Dev.App.Map.getView().setZoom(oldzoom);
+                //开始实时数据更新
+                getlivedata();
+                //添加地图点击事件
+                initmapclick();
+            });
+        }//右键点击实时跟踪事件
+        function getdatabyno() {
+            if (Dev.IsNull(selectno)) return;
+            var con = "\"NO\"='" + selectno + "'";
+            var ajaxrequest = $.ajax({
+                type: "POST",
+                contentType: 'application/json',
+                dataType: 'json',
+                data: con,
+                url: Dev.cookie.baseUri + "realti/getbyfilter",
+                success: function (response) {
+                    if (response.statusCode !== 200 || Dev.IsNull(response.data) || response.data.length == 0) return;
+                    var data = response.data[0];
+                    var currpoint = [parseFloat(data.longitude), parseFloat(data.latitude)];
+                    if (points.length > 200) points = [];
+                    points.push(currpoint);
+                    //获取上一个节点，进行角度计算
+                    var anger = 0
+                    if (points.length > 1) anger = getrotation(points[points.length - 2], points[points.length - 1]);
+                    var featureMark = new Dev.Feature(new Dev.geom.Point(currpoint));
+                    var style = new Dev.style.Style({
+                        fill: new Dev.style.Fill({ color: [236, 179, 73, 0.2] }),
+                        image: new Dev.style.Icon({
+                            anchor: [0.5, 1],
+                            src: Dev.App.Root + (deviceType == Dev.DeviceType.machine ? "show/showimg/tractor.png" : "show/showimg/uav.png"),
+                            rotation: anger * Math.PI / 180
+                        }),
+                        text: new Dev.style.Text({ text: data.no + "：" + parseFloat(data.speed).toFixed(2) + "km/h", font: "15px serif", offsetX: 5, offsetY: -20, fill: new Dev.style.Fill({ color: [255, 255, 255, 1] }), })
+                    });
+                    featureMark.setStyle(style);
+                    //添加线
+                    var featureLine = new Dev.Feature(new Dev.geom.LineString(points));
+                    Dev.MapUtils.ClearAndAddFeatures([featureMark, featureLine], "tempTrackLayer", null, Dev.App.Map);
+                }
+            });
+            ajaxRequests.push(ajaxrequest);
+        }//获取实时监控数据
+        //冒泡
+        var newmaptip = null, maptipno;
+        function showTips(feature, param, type) {
+            if (dev.IsNull(feature)) return;
+            if (!Dev.IsNull(newmaptip)) { newmaptip.Close(); newmaptip = null; }
+            if (type == Dev.DeviceType.uav && param.isalert == false) return;
+            var extent;
+            extent = feature.getGeometry().getExtent();
+            var center = [(extent[0] + extent[2]) / 2, (extent[1] + extent[3]) / 2];
+            newmaptip = new Dev.UCMapTip({
+                ID: Dev.IsNull(param.ID) ? "livemapTip" : param.ID,
+                Title: Dev.IsNull(param.Title) ? "设备信息" : param.Title,
+                IconUri: Dev.IsNull(param.IconUri) ? "" : param.IconUri,
+                Position: center,
+                Width: 562,
+                Height: param.isalert ? 250 : 226
+            });
+            newmaptip.tipContent.one("onClosed", function () {
+                if (!Dev.IsNull(dataGrid)) {
+                    dataGrid.unbind("onSelectPage");
+                    dataGrid = null;
+                }
+                newmaptip = null;
+                maptipno = null;
+                Dev.App.RightPanel.Clear();
+                Dev.App.RightPanel.SetVisible(false);
+            });
+            //显示数据内容
+            //判断是否有tab页
+            maptipno = feature.getProperties().no;
+            tipcontent(feature.getProperties().no, param.isalert, type);
+        }
+        function tipcontent(deviceno, isalert, type) {
+            newmaptip.tipContent.empty();
+            dataGrid = null;
+            if (!isalert) {
+                if (type == Dev.DeviceType.machine) {
+                    var detailbox = new Dev.Box({ Width: 560, Height: 200, HasBorder: false });
+                    newmaptip.Add(detailbox.Target);
+                    detailbox.SetContent(getmotorData(deviceno));
+                    detailbox.Layout();
+                }
+            }
+            else {
+                var items;
+                if (type == Dev.DeviceType.machine) {
+                    items = [
+                  { ID: "chartmaptip", Name: "发动机监控数据", Content: getmotorData(deviceno), Width: 560, Height: 200 },
+                   { ID: "alertmaptip", Name: "报警信息", Content: $('<div id="alertinfo" style="width:560px;height:200px;position:relative;"></div>'), Width: 560, Height: 200 }];
+                }
+                if (type == Dev.DeviceType.uav) {
+                    items = [{ ID: "alertmaptip", Name: "报警信息", Content: $('<div id="alertinfo" style="width:560px;height:200px;position:relative;"></div>'), Width: 560, Height: 200 }];
+                }
+                var tab = new Dev.Tab({
+                    ID: "maptiptab",
+                    Position: "top",
+                    Width: 560,
+                    Height: 224,
+                    TabNormalCls: "liveNormalTabCls",
+                    TabSelectedCls: "liveSelectedTabCls",
+                    Items: items
+                });
+                tab.bind("onSelected", function () {
+                    if (!Dev.IsNull(dataGrid)) dataGrid.Resize(560, 200);
+                });
+                newmaptip.Add(tab.Target);
+                tab.Layout();
+                no = deviceno;
+                initdatagrid($("#alertinfo", tab.Target));
+            }
+        }
+
+        function initdatagrid(parent) {
+            pageIndex = 1;
+            var columns = [
+                    { field: "type", width: 200, align: 'center', title: '报警内容', sortable: false },
+                    {
+                        field: "locationtime", width: 150, align: 'center', title: '报警时间', sortable: false, formatter: function (value, row, index) {
+                            if (!Dev.IsNull(value)) {
+                                return Dev.DateToString("/Date(" + value + ")/")
+                            }
+                            else return value;
+                        }
+                    },
+                    { field: "speed", width: 60, align: 'center', title: '速度(km/h)', sortable: false },
+            ];
+            dataGrid = new UCDataGrid(Dev, {
+                PageIndex: pageIndex, PageSize: pageSize, RowNumbers: false, ID: "trackGrid", pagequery: false
+            });
+            parent.append(dataGrid.Target);
+            dataGrid.Layout(columns);
+            dataGrid.Target.bind("onSelectPage", function (s, e) {
+                pageIndex = e.index;
+                getData();
+            });
+            if (!Dev.IsNull(dataGrid)) dataGrid.Resize(558, 190);
+            getData();
+        }//报警列表
+        //电机数据
+        function getmotorData(deviceno) {
+            var motordata;
+            var con = "\"NO\"='" + deviceno + "' ORDER BY \"UPLOADTIME\" desc limit 1";
+            var ajaxrequest = $.ajax({
+                type: "POST",
+                url: Dev.cookie.baseUri + "motor/getbyfilter",
+                contentType: 'application/json',
+                dataType: 'json',
+                data: con,
+                async: false,
+                success: function (result) {
+                    if (result.statusCode != 200 || Dev.IsNull(result.data)) { return; }
+                    motordata = result.data;
+                },
+                error: function (msg) {
+                    var k = "";
+                }
+            });
+            ajaxRequests.push(ajaxrequest);
+            var div = $('<div style="width:560px;height:200px;position:relative;"></div>');
+            if (Dev.IsNull(motordata) || motordata.length == 0) return div;
+            //添加时间标记
+            var timeflag = $('<div style="width:120px;height:20px;position:absolute;right:0px;bottom:0px;z-index:5;text-ailgn:right;line-height:20px;">' + Dev.GetDateString(new Date(parseFloat(motordata[0].uploadtime))) + '</div>').appendTo(div);
+            //添加三个统计图
+            var chart1 = $('<div style="width:180px;height:190px;left:0px;position:absolute;"></div>').appendTo(div);
+            chart1.highcharts({
+                chart: { type: 'gauge' },
+                credits: { enabled: false },
+                title: null,
+                pane: {
+                    startAngle: -150, endAngle: 150,
+                    size: "100%"
+                },
+                yAxis: {
+                    min: 0, max: 30, minorTickWidth: 1, minorTickLength: 5, minorTickPosition: 'inside',
+                    minorTickColor: '#666', tickPixelInterval: 100, tickWidth: 2, tickPosition: 'inside',
+                    tickLength: 15, tickColor: '#000', labels: { step: 2, rotation: 'auto' }, title: { text: '转速x100' },
+                    plotBands: [
+                    //    {
+                    //    from: 0,
+                    //    to: 20,
+                    //    color: '#55BF3B' // green
+                    //},
+                    {
+                        from: 20,
+                        to: 25,
+                        color: '#DDDF0D' // yellow
+                    }, {
+                        from: 25,
+                        to: 30,
+                        color: '#DF5353' // red
+                    }]
+                },
+                series: [{
+                    name: '转速',
+                    data: [parseFloat(motordata[0].revs)],
+                    tooltip: {
+                        pointFormat: "<b>转速:{point.y}</b>r/min x100</b>"
+                    },
+                    dataLabels: {
+                        format: "{y}r/min x100"
+                    }
+
+                }]
+            });
+            var chart2 = $('<div style="width:180px;height:190px;left:190px;position:absolute;"></div>').appendTo(div);
+            chart2.highcharts({
+                chart: { type: 'gauge' },
+                credits: { enabled: false },
+                title: null,
+                pane: {
+                    startAngle: -150, endAngle: 150, size: "100%"
+                },
+                yAxis: {
+                    min: 0, max: 120, minorTickWidth: 1, minorTickLength: 5, minorTickPosition: 'inside',
+                    minorTickColor: '#666', tickPixelInterval: 100, tickWidth: 2, tickPosition: 'inside',
+                    tickLength: 15, tickColor: '#000', labels: { step: 2, rotation: 'auto' }, title: { text: '冷却液温度' },
+                    plotBands: [
+                        //{
+                        //from: 0,
+                        //to: 95,
+                        //color: '#55BF3B' // green
+                        //},
+                    {
+                        from: 96,
+                        to: 108,
+                        color: '#DDDF0D' // yellow
+                    }, {
+                        from: 108,
+                        to: 120,
+                        color: '#DF5353' // red
+                    }]
+                },
+                series: [{
+                    name: '冷却液温度',
+                    data: [parseFloat(motordata[0].coolant)],
+                    tooltip: {
+                        pointFormat: "<b>冷却液温度:{point.y}</b>℃</b>"
+                    },
+                    dataLabels: {
+                        format: "{y}℃"
+                    }
+                }]
+
+            });
+            var chart3 = $('<div style="width:180px;height:190px;left:380px;position:absolute;"></div>').appendTo(div);
+            chart3.highcharts({
+                chart: { type: 'gauge' },
+                credits: { enabled: false },
+                title: null,
+                pane: {
+                    startAngle: -150, endAngle: 150, size: "100%"
+                },
+                yAxis: {
+                    min: 0, max: 1, minorTickWidth: 1, minorTickLength: 5, minorTickPosition: 'inside',
+                    minorTickColor: '#666', tickPixelInterval: 150, tickWidth: 2, tickPosition: 'inside',
+                    tickLength: 15, tickColor: '#000', labels: { step: 2, rotation: 'auto' }, title: { text: '油压' },
+                },
+                series: [{
+                    name: '油压',
+                    data: [parseFloat(motordata[0].oil)],
+                    tooltip: {
+                        pointFormat: "<b>油压:{point.y}</b>MPa</b>"
+                    },
+                    dataLabels: {
+                        format: "{y}MPa"
+                    }
+                }]
+            });
+
+            return div;
+        }
+        function getData() {
+            var con = "\"NO\"='" + no + "' ORDER BY \"LOCATIONTIME\" DESC";
+            var ajaxrequest = $.ajax({
+                type: "POST",
+                url: Dev.cookie.baseUri + "caution/getbyfilter/" + pageIndex + "/" + pageSize,
+                contentType: 'application/json',
+                dataType: 'json',
+                data: con,
+                success: function (result) {
+                    if (result.statusCode != 200 || Dev.IsNull(result.data)) { loadError(); return; }
+                    else
+                    {
+                        if (!Dev.IsNull(dataGrid)) {
+                            dataGrid.Load(result.data.dataSource, result.data.pageInfo);
+                            dataGrid.Resize(560, 200);
+                        }
+                    }
+                },
+                error: function (e) {
+                    dialog.Alert(msg.netout, "error");
+                    loadError();
+                }
+            });
+            ajaxRequests.push(ajaxrequest);
+        }
+        function loadError() {
+            dataGrid.Load([], { totalCount: 0, pageIndex: pageIndex, pageSize: pageSize, pageCount: 0 });
+        }
+        //辅助函数
+        function resize() {
+            if (!Dev.IsNull(treecontrol)) {
+                treecontrol.SetHeight(Dev.App.LeftPanel.Height - 24);
+                treecontrol.SetWidth(Dev.App.LeftPanel.Width + 15);
+            }
+        }
+        function clearCluster() {
+            currentResolution = undefined;
+            maxFeatureCount = undefined;
+            clearmapdata();
+            var haslayer = Dev.MapUtils.GetLayer("clusterlayer", Dev.App.Map);
+            if (!Dev.IsNull(haslayer)) Dev.MapUtils.RemoveLayer("clusterlayer");
+        }
+        function clearmapdata() {
+            for (var i = 0; i < pointskey.length; i++) {
+                Dev.MapUtils.removePointKey(pointskey[i].key);
+                pointskey[i].pointKey = null
+                pointskey[i] = null;
+            }
+            pointskey = [];
+            if (!Dev.IsNull(livesource)) livesource.clear();
+        }
+        //获取条件
+        function getcondition() {
+            var con = "1=1";
+            var orgid = Dev.cookie.user.orgid;
+            //获取对应的组织ID
+            var ajaxrequest = $.ajax({
+                url: Dev.GetSystemUrlByRelID("Service") + "organize/gettreebyid/" + orgid + "?" + new Date().getTime(),
+                type: "Get",
+                contentType: 'application/json',
+                dataType: 'json',
+                async: false,
+                success: function (result) {
+                    if (result.statusCode != 200 || Dev.IsNull(result.data) || result.data.length == 0) return con;
+                    con += " AND \"ORGID\" IN (";
+                    for (var i = 0; i < result.data.length; i++) con += "'" + result.data[i].id + "',";
+                    con = con.substr(0, con.length - 1);
+                    con += ")";
+                }
+            });
+            ajaxRequests.push(ajaxrequest);
+            return con;
+        }
+
+        //获取两点间的角度
+        function getrotation(startpoint, endpoint) {
+            curPos = startpoint.clone();
+            targetPos = endpoint.clone();
+            var mapproj = Dev.App.Map.getView().getProjection();
+            if (mapproj.getCode() != Dev.App.Config.SystemMap.DataEPSG) {
+                curPos = Dev.proj.transform(curPos, Dev.App.Config.SystemMap.DataEPSG, mapproj.getCode());
+                targetPos = Dev.proj.transform(targetPos, Dev.App.Config.SystemMap.DataEPSG, mapproj.getCode());
+            }
+            curPos = Dev.App.Map.getPixelFromCoordinate(curPos);
+            targetPos = Dev.App.Map.getPixelFromCoordinate(targetPos);
+            curPos = { x: curPos[0], y: curPos[1] };
+            targetPos = { x: targetPos[0], y: targetPos[1] };
+            var x = Math.abs(targetPos.x - curPos.x);
+            var y = Math.abs(targetPos.y - curPos.y);
+            var z = Math.sqrt(x * x + y * y);
+            var ration = Math.round((Math.asin(y / z) / Math.PI * 180));
+            var a = 0;
+            if (targetPos.y < curPos.y && targetPos.x == curPos.x) a = 270;
+            else if (targetPos.y > curPos.y && targetPos.x == curPos.x) a = 90;
+            else if (targetPos.y == curPos.y && targetPos.x < curPos.x) a = 180;
+            else if (targetPos.y == curPos.y && targetPos.x > curPos.x) a = 0
+            else if (targetPos.y > curPos.y && targetPos.x > curPos.x) a = ration;
+            else if (targetPos.y > curPos.y && targetPos.x < curPos.x) a = 180 - ration;
+            else if (targetPos.y < curPos.y && targetPos.x < curPos.x) a = 180 + ration;
+            else if (targetPos.y < curPos.y && targetPos.x > curPos.x) a = 360 - ration;
+            return a;
+        }
+
+    </script>
+</head>
+<body style="height: 100%; width: 100%;">
+    <div class="content"></div>
+    <div id="mm" class="easyui-menu" data-options="onClick:menuHandler" style="width: 120px;">
+        <div data-options="name:'position'">实时跟踪</div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,1542 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="UTF-8">
+    <title>地块管理</title>
+    <link rel="stylesheet" href="../../theme/default/easyui.css" />
+    <link rel="stylesheet" type="text/css" href="../../theme/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/app.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/icon.css" />
+    <link type="text/css" href="../../css/dev.css" rel="stylesheet" />
+    <script type="text/javascript" src="../../js/jquery.min.js"></script>
+    <script type="text/javascript" src="../../js/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="../../js/easyui-lang-zh_CN.js"></script>
+    <script type="text/javascript" src="../../js/data.util.js"></script>
+    <script type="text/javascript" src="../../js/linq.min.js"></script>
+    <script type="text/javascript" src="../../js/jquery.dev.control.js"></script>
+    <script src="../../js/dev.ui.js"></script>
+    <style type="text/css">
+        .content {
+            height: 100%;
+            width: 100%;
+            position: relative;
+        }
+
+            .content .SearchDiv {
+                width: 210px;
+                height: 40px;
+                display: inline-block;
+                margin-left: 0px;
+                margin-right: 0px;
+                float: left;
+            }
+
+        .Button {
+            width: 70px;
+            height: 26px;
+            float: left;
+            margin-top: 7px;
+            background-color: #16dbbb;
+            text-align: center;
+            border: 1px solid #16dbbb;
+            display: inline-block;
+            margin-left: 5px;
+        }
+
+            .Button:hover {
+                background-color: #5227de;
+                border: 1px solid #5227de;
+                cursor: pointer;
+            }
+
+            .Button:active {
+                background-color: #210097;
+                border: 1px solid #210097;
+                cursor: pointer;
+            }
+
+        .ButtonDisable {
+            background-color: #808080;
+            color: #000;
+            border: 1px solid #808080;
+        }
+
+            .ButtonDisable:hover {
+                background-color: #808080;
+                color: #000;
+                border: 1px solid #808080;
+            }
+
+        .datagrid-row {
+            height: 28px;
+        }
+
+        .Title {
+            width: 75px;
+            text-align: right;
+            line-height: 40px;
+            height: 38px;
+            display: inline-block;
+            float: left;
+        }
+
+            .Title .Icon {
+                width: 16px;
+                height: 16px;
+                display: inline-block;
+                margin-top: 11px;
+            }
+
+        .Title1 {
+            width: 75px;
+            text-align: right;
+            line-height: 24px;
+            height: 25px;
+            display: inline-block;
+            float: left;
+        }
+
+            .Title1 .Icon1 {
+                width: 16px;
+                height: 16px;
+                display: inline-block;
+                margin-top: 3px;
+            }
+
+            .Title1 .Text {
+                display: inline-block;
+                float: right;
+                /*width: 49px;*/
+            }
+
+        .Title .Text {
+            display: inline-block;
+            float: right;
+            /*width: 49px;*/
+        }
+    </style>
+    <script type="text/javascript">
+        var Dev = window.top.window.dev;
+        var parent;
+        var dialog, flashDialog;
+        //行政区划
+        var xzqcontrol, selectNode;
+        var wetherBind = false;
+        var regionCode = "000000";//初始化行政区划代码
+        var nodeType = { province: '省', city: '市', county: '县', town: '乡' };//根据type判断级联
+
+        //初始化datagrid
+        var dataGrid, pageIndex = 1, pageSize = 5;
+        var ajaxRequests = [];
+        var polygonkey;
+        var classnameType, ownershipType, farmLandType, baseLandType;
+
+        //
+        var isModify = false;
+        var issumbit = false;
+
+        //新增修改
+        var geomParams, updateid, draw;
+        var files;
+        var deleteIds;
+        var addWin, form;
+        var modifyInteraction, selectInteraction, selectedRow;
+
+        //初始化农户列表信息
+        var framecontrol, farmeindex = 1, farmesize = 5, receivederIndex;
+        var searchTbFilterFer;
+        var searchTbFnameControl, searchTbFidControl, searchTbFtelControl;
+
+
+        //详细信息
+        var detailWin;
+
+        //定义提示信息
+        var msg = {
+            netout: "网络超时，请稍后再试！",
+            deleteFailed: "删除失败，请稍后再试！",
+            deleteSuccess: "删除成功！",
+            addSuccess: "操作成功！",
+            addFailed: "操作失败，请稍后再试！",
+            dateCompare: "结束日期不小于开始日期",
+            image: "图片限于png，gif，jpeg，jpg格式！"
+        };
+        var MSG_LEVEL = {
+            SUCCESS: "success",
+            INFO: "info",
+            ERROR: "error"
+        };
+
+        //
+        function WidgetCommunication(s) {
+            parent = s.parent;
+            Dev.App.BottomPanel.Header.css({ "background": "#14cdad", "color": "#fcfcfc", "font-weight": "bold" });
+            Dev.App.BottomPanel.SetIconCls("machine-trackmanage");
+
+            initRegionsTree();//初始化行政区划的tree
+            initDataGrid();//初始化datagrid
+            bindData();//绑定datagrid的数据
+
+            var dicdatas = Dev.GetDicData(["LandName", "Ownership", "GDLX", "JBNTLX"]);
+            classnameType = Enumerable.From(dicdatas).Where('s=>s.type=="LandName"').ToArray();//地类名称
+            ownershipType = Enumerable.From(dicdatas).Where('s=>s.type=="Ownership"').ToArray();//权属性质
+            farmLandType = Enumerable.From(dicdatas).Where('s=>s.type=="GDLX"').ToArray();//耕地类型
+            baseLandType = Enumerable.From(dicdatas).Where('s=>s.type=="JBNTLX"').ToArray();//基本农田类型
+            var classname = $("#search-classname").prop("$this"); //地类名称
+            if (!Dev.IsNull(classname)) classname.SetData(classnameType);
+            var ownership = $("#search-ownership").prop("$this");//权属性质
+            if (!Dev.IsNull(ownership)) ownership.SetData(ownershipType);
+
+            $(window).resize(function () { resize(); });
+
+
+            //按钮
+            $(".Button").click(function () {
+                var tag = $(this).attr("tag");
+                if (tag == "save") saveInfo();
+                if (tag == "add-cancel") addWin.Close();//清空重置
+                if (tag == "search") {
+                    pageIndex = 1;
+                    bindData();
+                }
+                if (tag == "clear") {
+                    searchClear();
+                    bindData();
+                }
+                if (tag == "deletes") deletes();
+                if (!wetherBind) return;
+                if (tag == "add") {
+                    geomParams = null;
+                    updateid = "";
+                    initWin();
+                }
+            });
+            resize();//执行初始化事件
+            flashDialog = new Dev.Messager({ Height: 95, Width: 200, AutoShow: false, Type: "question", Timeout: 1500, ButtonVisible: false, AutoVisible: true, Effect: "normal" });
+            dialog = new Dev.Messager({ AutoShow: false, Type: "question" });
+            //页面关闭,释放界面
+            parent.one("onClosing", function () {
+                Dev.MapUtils.ClearFeature("tempDrawLayer");
+                Dev.MapUtils.ClearFeature("tempGraphicLayer");
+                clear();
+                Dev.App.BottomPanel.SetHeight(262);
+                //清空地块的datagrid
+                if (!Dev.IsNull(dataGrid)) {
+                    dataGrid.Target.unbind("onSelectPage");
+                    dataGrid.Target.unbind("onClickRow");
+                    dataGrid.Target.unbind("onPageSizeChange");
+                    dataGrid = null;
+                }
+                if (!Dev.IsNull(framecontrol)) {
+                    framecontrol = null;
+                }
+
+                //清空新增修改弹出界面
+                if (!Dev.IsNull(addWin)) {
+                    addWin.Target.unbind("onClosing")
+                    addWin.Close();
+                    addWin.Destroy();
+                    addWin = null;
+                }
+
+                if (!Dev.IsNull(detailWin)) {
+                    detailWin.Close();
+                    detailWin.Destroy();
+                    detailWin = null;
+                }
+
+                //清空行政区划
+                if (!Dev.IsNull(xzqcontrol)) {
+                    xzqcontrol.unbind("onClick");
+                    xzqcontrol = null;
+                }
+
+                if (ajaxRequests.length > 0) {
+                    for (var i = 0; i < ajaxRequests.length; i++) {
+                        ajaxRequests[i].abort();
+                        ajaxRequests.splice(i, 1);
+                    }
+                }
+
+            });
+        }
+
+        //初始化行政区划的tree
+        function initRegionsTree() {
+            var isHighlight = true;
+            xzqcontrol = $("#regionstree");
+            xzqcontrol.tree({
+                checkbox: false,
+                method: "post",
+                animate: true,
+                url: Dev.GetSystemUrlByRelID("Service") + 'dictionary/asyncdata/county',
+                onClick: function (node) {
+                    $("[tag='add']").each(function () {
+                        $(this).addClass("ButtonDisable");
+                    });
+                    pageIndex = 1;
+                    selectNode = {};
+                    regionCode = node.code;
+                    wetherBind = false;
+                    getNodeMessage(node);
+                    searchClear();
+                    bindData();
+                },
+                onLoadSuccess: function () {
+                    if (isHighlight) {
+                        $("#regionstree li:eq(0)").find("div").addClass("tree-node-selected");
+                        var n = $(this).tree("getSelected");
+                        if (n != null) $(this).tree("select", n.target);
+                        isHighlight = false;
+                        if (n.target.innerText == "中国") {
+                            xzqcontrol.tree("expand", n.target);
+                        };
+                    }
+                },
+                loadFilter: function (data) {
+                    data = data.data;
+                    for (var i = 0; i < data.length; i++) {
+                        if ('data' in data[i]) {
+                            //if (data[i].code == "000000") data[i].state = "open";
+                            data[i].text = data[i].data;
+                        }
+                    }
+                    return data;
+                }
+            });
+        }
+
+        //获取选中树节点信息
+        function getNodeMessage(node) {
+            var remark = node.remark;
+            if (remark == null || remark === "") return;
+            if (remark === nodeType.province) selectNode.province = node.text;
+            if (remark === nodeType.city) selectNode.city = node.text;
+            if (remark === nodeType.county) selectNode.county = node.text;
+            if (remark === nodeType.town) {
+                wetherBind = true;
+                $("[tag='add']").each(function () {
+                    $(this).removeClass("ButtonDisable");
+                });
+                selectNode.town = node.text;
+            }
+
+
+            var parent = xzqcontrol.tree('getParent', node.target);
+            if (parent != null) getNodeMessage(parent);
+        }
+
+        //初始化地块管理的datagrid
+        function initDataGrid() {
+            if (Dev.IsNull(dataGrid)) {
+                var columns = [
+                    { field: "ck", width: 20, align: 'center', title: '勾选', sortable: false, checkbox: true },
+                    { field: "massifid", width: 60, align: 'center', title: '地块编号', sortable: false },
+                    {
+                        field: "farmername", width: 55, align: 'center', title: '农户姓名', sortable: false, formatter: function (value, row, index) {
+                            value = Dev.IsNull(value) ? "" : value;
+                            return '<a href="javascript:void(0)" style="color:blue; text-decoration: underline" title="查看详情" onclick="initTab(\'' + row.farmerid + '\')">' + value + '</a>';
+                        }
+                    },
+                    { field: "classname", width: 75, align: 'center', title: '地类名称', sortable: false },
+                    { field: "ownership", width: 55, align: 'center', title: '权属性质', sortable: false },
+                    { field: "ownershipname", width: 95, align: 'center', title: '权属单位名称', sortable: false },
+                    {
+                        field: "farmlandarea", width: 45, align: 'center', title: '基本农田面积（亩）', sortable: false,
+                        formatter: function (value, row, index) {
+                            return Dev.SqrtMetersToMu(value, 3);//将平方米转换成亩
+                        }
+                    },
+                    {
+                        field: "createdate", width: 45, align: 'center', title: '创建时间', sortable: false,
+                        formatter: function (value, row, index) {
+                            return Dev.GetDateString(value, true);//时间格式化
+                        }
+                    },
+                    {
+                        field: "_oprate", width: 50, align: 'center', title: '操作', sortable: false,
+                        formatter: function (value, row, index) {
+                            return '<a href="javascript:void(0)" style="color:blue;" title="地块修改" onclick="update(\'' + row.id + '\',\'' + index + '\')"><img src="../../image/agri/update.png"/></a>' +
+                                '&nbsp;<a href="javascript:void(0)" style="color:blue;margin-left:6px;" onclick="showdetail(\'' + index + '\')" title="详细信息"><img src="../../image/agri/cartype.png"/>' +
+                            '&nbsp;<a href="javascript:void(0)" style="color:blue;margin-left:6px;" onclick="deleteinfo(\'' + index + '\')" title="删除"><img src="../../image/agri/delete.png"/></a>';
+                        }
+                    }
+                ];
+                dataGrid = new UCDataGrid(Dev, {
+                    PageIndex: pageIndex,
+                    PageSize: pageSize,
+                    RowNumbers: false,
+                    ID: "massifGrid",
+                    pagequery: false,
+                    IsSizeSelect: true
+                });
+                $("#gridDiv").append(dataGrid.Target);
+                dataGrid.Layout(columns);
+                dataGrid.Target.bind("onSelectPage", function (s, e) {
+                    pageIndex = e.index;
+                    bindData();
+                    clear();
+                });
+                dataGrid.Target.bind("onClickRow", function (s, e) {
+                    var row = e.Row;
+                    highlight(row);
+                });
+                dataGrid.Target.bind("onPageSizeChange", function (s, e) {
+                    if (Dev.IsNull(e)) return;
+                    pageIndex = 1;
+                    pageSize = e;
+                    clear();
+                    bindData();
+                });
+            }
+        }
+
+        //查询datagrid数据
+        function bindData() {
+            var ajaxrequest = $.ajax({
+                type: "POST",
+                data: getCondition(),
+                contentType: "application/json;charset=UTF-8",
+                url: Dev.cookie.baseUri + "massif/getbypage/" + pageIndex + "/" + pageSize + "/" + regionCode,
+                success: function (response) {
+                    if (Dev.IsNull(response) || response.statusCode != 200) { loadError(); return; }
+                    if (response.data.dataSource.length == 0) {
+                        //定位到对应的行政区
+                        var townfeature = Dev.QueryXZQ(regionCode, "town");
+                        if (!Dev.IsNull(townfeature) && townfeature.cdata.length > 0) {
+                            var extent = townfeature.cdata[0].getGeometry().getExtent();
+                            var center = [(extent[0] + extent[2]) / 2, (extent[1] + extent[3]) / 2];
+                            var mapproj = Dev.App.Map.getView().getProjection();
+                            if (mapproj.getCode() != Dev.App.Config.SystemMap.DataEPSG) center = Dev.proj.transform(center, Dev.App.Config.SystemMap.DataEPSG, mapproj.getCode());
+                            Dev.App.Map.getView().setCenter(center);
+                        }
+                    }
+                    response.data.dataSource = convertData(response.data.dataSource);//数据转换
+                    dataGrid.Load(response.data.dataSource, response.data.pageInfo);
+                    highpage(response.data.dataSource);
+                },
+                error: function (e) {
+                    //dialog.Alert(msg.netout, MSG_LEVEL.ERROR);
+                    loadError();
+                }
+            });
+            ajaxRequests.push(ajaxrequest);
+        }
+
+        //获取表格的查询条件
+        function getCondition() {
+            var condition = "1=1";
+            var massfid = $("#search-massifid").prop("$this").GetValue().trim();
+            var className = $("#search-classname").prop("$this").GetText();
+            var ownership = $("#search-ownership").prop("$this").GetText();
+            var farmer = $("#search-farmer").prop("$this").GetValue().trim();
+            if (!Dev.IsNull(massfid)) condition += " AND \"MASSIFID\" LIKE '%" + massfid + "%'";
+            if (!Dev.IsNull(farmer)) condition += " AND \"FARMENAME\" LIKE '%" + farmer + "%'";
+            if (!Dev.IsNull(className)) condition += " AND \"CLASSNAME\"='" + className + "'";
+            if (!Dev.IsNull(ownership)) condition += " AND \"OWNERSHIP\"='" + ownership + "'";
+            if (Dev.IsNull(selectNode)) return condition;
+            if (!Dev.IsNull(selectNode.province)) condition += " AND \"PROVINCE\"='" + selectNode.province + "'";
+            if (!Dev.IsNull(selectNode.city)) condition += " AND \"CITY\"='" + selectNode.city + "'";
+            if (!Dev.IsNull(selectNode.county)) condition += " AND \"COUNTY\"='" + selectNode.county + "'";
+            if (!Dev.IsNull(selectNode.town)) condition += " AND \"TOWN\"='" + selectNode.town + "'";
+            return condition;
+        }
+
+        //图形WKT转换为GEOM
+        function convertData(data) {
+            for (var i = 0; i < data.length; i++) {
+                if (Dev.IsNull(data[i]) || Dev.IsNull(data[i].geom)) continue;
+                data[i].geom = Dev.ConvertGeomByWKT(data[i].geom);
+            }
+            return data;
+        }
+
+        //高亮当前页图形
+        function highpage(datas) {
+            if (datas.length === 0) {
+                return;
+            }
+            //if (!Dev.IsNull(polygonkey)) {
+            //    Dev.App.Map.unByKey(polygonkey);
+            //    polygonkey = null;
+            //}
+            if (!Dev.IsNull(polygonkey)) {
+                Dev.MapUtils.removePointKey("trackhightlight", Dev.App.Map);
+                polygonkey = null;
+            }
+            var features = [];
+            for (var i = 0; i < datas.length; i++) {
+                if (Dev.IsNull(datas[i].geom)) continue;
+                features.push(new Dev.Feature({ id: datas[i].id, geometry: datas[i].geom }));
+            }
+            Dev.MapUtils.ClearAndAddFeatures(features, "tempGraphicLayer");
+            var extend = Dev.getExtentByFeatures(features);
+            Dev.App.Map.getView().fit(extend, Dev.App.Map.getSize());
+        }
+
+        //高亮选中行的图形
+        function highlight(row) {
+            if (isModify) {
+                return;
+            }
+            //if (!Dev.IsNull(polygonkey)) {
+            //    Dev.App.Map.unByKey(polygonkey);
+            //    polygonkey = null;
+            //}
+
+            if (!Dev.IsNull(polygonkey)) {
+                Dev.MapUtils.removePointKey("trackhightlight", Dev.App.Map);
+                polygonkey = null;
+            }
+            if (Dev.IsNull(row.geom)) return;
+            var feature = new Dev.Feature({ id: "trackhightlight", geometry: row.geom });
+            feature.setId("trackhightlight");
+            polygonkey = Dev.MapUtils.LineSymbolStyle(feature, Dev.App.Map,null,false);
+            var extent = feature.getGeometry().getExtent();
+            Dev.App.Map.getView().centerOn([((extent[0] + extent[2]) / 2), ((extent[1] + extent[3]) / 2)], Dev.App.Map.getSize(), [Dev.App.Map.getSize()[0] / 2, Dev.App.Map.getSize()[1] / 2]);
+            Dev.App.Map.getView().setZoom(16);
+        }
+
+        //清空地图图形
+        function clear() {
+            if (!Dev.IsNull(polygonkey)) {
+                Dev.MapUtils.removePointKey("trackhightlight", Dev.App.Map);
+                polygonkey = null;
+            }
+            var lastfeature = Dev.MapUtils.GetFeatureByID("trackhightlight", "tempGraphicLayer");
+            if (!Dev.IsNull(lastfeature)) Dev.MapUtils.RemoveFeature(lastfeature, "tempGraphicLayer");
+        }
+
+        //清空datagrid搜索栏
+        function searchClear() {
+            pageIndex = 1;
+            $("#search-massifid").prop("$this").SetValue("");
+            $("#search-farmer").prop("$this").SetValue("");
+            $("#search-classname").prop("$this").SetText("");
+            $("#search-ownership").prop("$this").SetText("");
+        }
+
+        //批量删除地块
+        function deletes() {
+            var rows = dataGrid.DataGrid.datagrid("getChecked");
+            var curRowNo = dataGrid.DataGrid.datagrid("getData").total;    //获取已有的数据行数
+            if (curRowNo == rows.length && pageIndex != 1) pageIndex -= 1; //如果没删完，保持在本页，删完回到上一页。
+            if (Dev.IsNull(rows) || rows.length == 0) {
+                flashDialog.Alert("请选择需要删除的数据!", "info");
+                return;
+            }
+            dialog.Confirm('所选地块及关联数据将会删除,是否确认删除操作？', function (r) {
+                if (!r) return;
+                requestDelete(rows)
+            }, "question");
+        }
+
+        //单行删除地块
+        function deleteinfo(index) {
+            dataGrid.DataGrid.datagrid("selectRow", index);
+            var row = dataGrid.DataGrid.datagrid("getSelected");
+            var rows = [];
+            rows.push(row);
+            var curRowNo = dataGrid.DataGrid.datagrid("getData").total;       //获取已有的数据行数
+            if (curRowNo == 1 && pageIndex != 1) pageIndex -= 1;                //删光则返回上一页
+            if (Dev.IsNull(row)) return;
+            dialog.Confirm('所选地块及关联数据将会删除,是否确认删除操作？', function (r) {
+                if (!r) return;
+                requestDelete(rows);
+            }, "question");
+        }
+
+        //删除的ajax函数
+        function requestDelete(rows) {
+            var datas = [];
+            $.each(rows, function (index, value) {
+                var data = {};
+                data.id = value.id;
+                data.massifid = value.massifid;
+                data.attid = value.attid;
+                data.farmerid = value.farmerid
+                datas.push(data);
+            });
+            var ajaxrequest = $.ajax({
+                type: "POST",
+                data: JSON.stringify(datas),
+                contentType: "application/json",
+                url: Dev.GetSystemUrlByRelID("Service") + "massif/" + "deletesm",
+                success: function (re) {
+                    if (re == null || !re.statusCode == 200) {
+                        flashDialog.Alert(msg.deleteFailed, MSG_LEVEL.ERROR);
+                        return;
+                    }
+                    if (!Dev.IsNull(polygonkey)) {
+                        Dev.MapUtils.removePointKey("trackhightlight", Dev.App.Map);
+                        polygonkey = null;
+                    }
+                    pageIndex = 1;
+                    flashDialog.Alert(msg.addSuccess, MSG_LEVEL.SUCCESS, bindData());
+                },
+                error: function (e) {
+                }
+            });
+            ajaxRequests.push(ajaxrequest);
+        }
+
+        //初始化新增，修改窗体
+        function initWin() {
+            files = [];
+            deleteIds = [];
+            geomParams = null;
+            var isupdate = Dev.IsNull(updateid) ? false : true;
+            var title = isupdate ? "地块修改" : "地块新增";
+            var icon = isupdate ? "icon-featureupdate" : "machine-add";
+            if (Dev.IsNull(addWin)) {
+                addWin = new Dev.Window({
+                    ID: "blockeditWin",
+                    IconCls: icon,
+                    Title: title,
+                    Parent: Dev.App.FillPanel.Target,
+                    Maximizable: false,
+                    Modal: false,
+                    Draggable: true,
+                    HAlign: 'center',
+                    VAlign: 'center',
+                    Resizable: false,
+                    Content: $("#add-div"),
+                    Height: 445,
+                    Width: 550
+                });
+                addWin.bind("onClosing", function () {
+                    searchResetFer();
+                    isModify = false;
+                    files = [];
+                    deleteIds = [];
+                    editClear();
+                    showOrHideShade();
+                    if (!Dev.IsNull(draw)) {
+                        draw.Stop();
+                        draw.Destroy();
+                        draw = null;
+                    }
+                    Dev.MapUtils.ClearFeature("tempDrawLayer");
+                    Dev.MapUtils.ClearFeature("tempGraphicLayer");
+                    $("#errorMsg", addWin.Target).html("");
+                    //if (!Dev.IsNull(polygonkey)) {
+                    //    Dev.App.Map.unByKey(polygonkey);
+                    //    polygonkey = null;
+                    //}
+                    if (!Dev.IsNull(polygonkey)) {
+                        Dev.MapUtils.removePointKey("trackhightlight", Dev.App.Map);
+                        polygonkey = null;
+                    }
+                    if (!Dev.IsNull(modifyInteraction)) Dev.App.Map.removeInteraction(modifyInteraction);
+                    if (!Dev.IsNull(selectInteraction)) Dev.App.Map.removeInteraction(selectInteraction);
+                    $("#fishnetEdit", $(".machineadd", Dev.App.FillPanel.Target)).removeClass("edit-selection");
+                    bindData();
+                });
+                winControl();
+                winDraw();
+            } else addWin.Open();
+            addWin.SetTitle(title);
+            addWin.SetIconCls(icon);
+            getpagedata();//获取农户数据
+            if (Dev.IsNull(updateid)) {
+                if ($("#fishnetEdit", addWin.Target).is(":hidden")) {
+                    $("#fishnetEdit", addWin.Target).show();
+                    $('.dev-text[name="geom"]', addWin.Target).prop("$this").SetWidth(490);
+                }
+            }
+            else {
+                winUpdate();
+            }
+            showOrHideShade();
+
+        }
+
+        //初始化绘图控件
+        function winDraw() {
+            $("#fishnetEdit", addWin.Target).click(function () {
+                $(this).addClass("edit-selection");
+                Dev.MapUtils.ClearFeature("tempDrawLayer");
+                var control = $('.dev-text[name="geom"]', addWin.Target);
+                control.prop("$this").SetValue("");
+                if (!Dev.IsNull(draw)) {
+                    draw.Stop();
+                    draw.Destroy();
+                    draw = null;
+                }
+                draw = new Dev.Draw({
+                    Type: "MultiPolygon",
+                    Map: Dev.App.Map,
+                    Layer: Dev.MapUtils.GetLayer("tempDrawLayer", Dev.App.Map)
+                });
+                draw.Target.bind("onDrawCompleted", function (s, e) {
+                    Dev.App.MapPanel.MapDOM.css("cursor", "url(" + Dev.App.Root + "image/hands.cur),auto");
+                    Dev.drawstate = false;
+                    //var result = CheckDrawFeature(regionCode, e.clone());
+                    //if (!result) {
+                    //    flashDialog.Alert("请在相应区域绘制地块", "info", function () {
+                    //        Dev.MapUtils.ClearFeature("tempDrawLayer");
+                    //    });
+                    //    return;
+                    //}
+                    geomParams = e;
+                    var area = formatAreaToUnit(e.getGeometry().getPolygons()[0]);
+                    $("[name='farmlandarea']", addWin.Target).prop("$this").SetValue(area);
+                    //  var coordinates = new_geom.getCoordinates();
+                    var c_geom = e.getGeometry().clone();
+                    if (!Dev.IsNull(control)) {
+                        var mapproj = Dev.App.Map.getView().getProjection();
+                        if (mapproj.getCode() != Dev.App.Config.SystemMap.DataEPSG) c_geom.transform(mapproj.getCode(), Dev.App.Config.SystemMap.DataEPSG);
+                        var coordinates = c_geom.getCoordinates();
+                        control.prop("$this").SetValue(coordinates);
+                    }
+                    draw.Stop();
+                    draw.Destroy();
+                    draw = null;
+                    $("#fishnetEdit", $(".machineadd", Dev.App.FillPanel.Target)).removeClass("edit-selection");
+                });
+                draw.Start();
+                Dev.App.MapPanel.MapDOM.css("cursor", "url(" + Dev.App.Root + "image/cursor_draw.cur),auto");
+                Dev.drawstate = true;
+            });
+        }
+
+        //初始化绘图控件--修改
+        function winUpdate() {
+            if (!Dev.IsNull(polygonkey)) {
+                Dev.MapUtils.removePointKey("trackhightlight", Dev.App.Map);
+                polygonkey = null;
+            }
+            if (!$("#fishnetEdit", $(".machineadd", Dev.App.FillPanel.Target)).is(":hidden")) {
+                $("#fishnetEdit", $(".machineadd", Dev.App.FillPanel.Target)).hide();
+                $('.dev-text[name="geom"]', addWin.Target).prop("$this").SetWidth(539);
+            }
+            var control = $('.dev-text[name="geom"]', addWin.Target);
+            var c_geom = selectedRow.geom.clone();
+            var mapproj = Dev.App.Map.getView().getProjection();
+            if (mapproj.getCode() != Dev.App.Config.SystemMap.DataEPSG) c_geom.transform(mapproj.getCode(), Dev.App.Config.SystemMap.DataEPSG);
+
+            if (!Dev.IsNull(control)) control.prop("$this").SetValue(c_geom.getCoordinates());
+            var style = new Dev.style.Style({
+                stroke: new Dev.style.Stroke({ color: 'red', width: 2 }),
+                fill: new Dev.style.Fill({ color: 'yellow' })
+            });
+            var selectFeature = Dev.MapUtils.GetFeatureByID(selectedRow.id);
+            Dev.MapUtils.RemoveFeature(selectFeature, "tempGraphicLayer");
+            var tempfeature = new Dev.Feature({ id: "modify", geometry: selectedRow.geom });
+            //获取范围
+            var extent = tempfeature.getGeometry().getExtent();
+            Dev.App.Map.getView().centerOn([((extent[0] + extent[2]) / 2), ((extent[1] + extent[3]) / 2)], Dev.App.Map.getSize(), [Dev.App.Map.getSize()[0] / 2, Dev.App.Map.getSize()[1] / 2]);
+            Dev.App.Map.getView().setZoom(16);
+            tempfeature.setStyle(style);
+            var selectFeatureGeom = tempfeature.clone();
+            Dev.MapUtils.AddFeature(selectFeatureGeom, "tempGraphicLayer",null,false);
+            var collection = new Dev.Collection();
+            collection.push(selectFeatureGeom);
+            modifyControl(collection, tempfeature);
+        }
+
+        //图形修改
+        function modifyControl(collection, tempfeature) {
+            modifyInteraction = new Dev.interaction.Modify({
+                features: collection
+            });
+            modifyInteraction.on('modifyend', function (e) {
+                var feature = e.features.a[0];
+                var result = CheckDrawFeature(selectedRow.massifid.substr(0, 9), feature);
+                if (!result) {
+                    flashDialog.Alert("请在相应区域绘制地块", "info");
+                    var modifyEndFeature = Dev.MapUtils.GetFeatureByID("modify", "tempGraphicLayer");
+                    modifyEndFeature.setGeometry(tempfeature.getGeometry().clone());
+                    feature = modifyEndFeature;
+                }
+                geomParams = feature;
+               // var geom = geomParams.getGeometry().getCoordinates();
+                var control = $('.dev-text[name="geom"]', $(".machineadd", Dev.App.FillPanel.Target));
+                if (!Dev.IsNull(control)) {
+                    var c_geom = geomParams.getGeometry().clone();
+                    var mapproj = Dev.App.Map.getView().getProjection();
+                    if (mapproj.getCode() != Dev.App.Config.SystemMap.DataEPSG) c_geom.transform(mapproj.getCode(), Dev.App.Config.SystemMap.DataEPSG);
+                    var coordiantes = c_geom.getCoordinates();
+                    control.prop("$this").SetValue(c_geom);
+                }
+            });
+            Dev.App.Map.addInteraction(modifyInteraction);
+        }
+
+        // 检查绘制的图形是否与行政区一致
+        function CheckDrawFeature(regionCode, feature) {
+            if (Dev.IsNull(regionCode) || Dev.IsNull(feature)) return false;
+            var layerconfigs = Dev.App.Config.Extend.LayerForTree.LayerRoot;
+            var templayer, result = false;
+            if (Dev.IsNull(layerconfigs)) return false;
+            if (Dev.IsNull(layerconfigs.length)) templayer = [Dev.ObjClone(layerconfigs)];
+            else templayer = layerconfigs.clone();
+            var xzqs = Enumerable.From(templayer).Where('s=>s.Type=="xzq"').FirstOrDefault();
+            var condition = "ADCODE='" + regionCode + "'";
+            var layer = Enumerable.From(xzqs.Child).Where('s=>s.Value=="TOWN"').FirstOrDefault();
+            var mapproj = Dev.App.Map.getView().getProjection();
+            if (mapproj.getCode() != Dev.App.Config.SystemMap.DataEPSG) feature.getGeometry().transform(mapproj.getCode(), Dev.App.Config.SystemMap.DataEPSG);
+            var wkt = Dev.GetWKTByFeature(feature, true);
+            condition += " AND " + Dev.MapUtils.GetCql_INTERSECTS(wkt, layer.GeomField);
+            if (Dev.IsNull(layer)) return false;
+            var param = {
+                ID: layer.Value,
+                Url: Dev.GetSystemUrlByRelID(layer.WFSUrl),
+                TypeName: layer.TypeName,
+                CqlFilter: condition,
+                Async: false
+            };
+            var query = new Dev.WFS_H();
+            query.Target.bind("onQueryCompleted", function (s, e) {
+                if (e.statusCode == 200 && !Dev.IsNull(e.data) && e.data.length > 0) {
+                    result = true;
+        }
+            });
+            query.Query(param);
+            return result;
+        }
+
+        //获取地块面积
+        var formatAreaToUnit = function (polygon) {
+            var wgs84Sphere = new Dev.Sphere(6378137);
+            var area;
+            var sourceProj = Dev.App.Map.getView().getProjection();
+            var geom = (polygon.clone().transform(sourceProj, Dev.App.Config.SystemMap.DataEPSG));
+            var coordinates = geom.getLinearRing(0).getCoordinates();
+            area = Math.abs(wgs84Sphere.geodesicArea(coordinates));
+            return area * 0.0015;
+        };
+
+        //初始化农户窗口
+        function winControl() {
+            initframe();
+            var classname = $("#massif-classname", addWin.Target).prop("$this");
+            if (!Dev.IsNull(classname)) classname.SetData(classnameType);
+            var ownership = $("#massif-ownership", addWin.Target).prop("$this");
+            if (!Dev.IsNull(ownership)) ownership.SetData(ownershipType);
+            var landtype = $("#massif-landtype", addWin.Target).prop("$this");
+            if (!Dev.IsNull(landtype)) landtype.SetData(farmLandType);
+            var farmlandtype = $("#massif-farmlandtype", addWin.Target).prop("$this");
+            if (!Dev.IsNull(farmlandtype)) farmlandtype.SetData(baseLandType);
+             imgBindMouse();
+            }
+
+        //初始化农户信息列表
+        function initframe() {
+            framecontrol = $("#farmerid", addWin.Target);
+            framecontrol.combogrid({
+                idField: 'id',
+                TipInfo: "请选择",
+                textField: 'name',
+                columns: [[
+                    { field: 'name', title: '姓名', width: 100, align: 'center' },
+                    { field: 'mobilephone', title: '移动电话', align: 'center', width: 125 },
+                    { field: 'cardid', title: '身份证号', align: 'center', width: 140 },
+                    { field: 'household', title: '户口性质', align: 'center', width: 70 }
+                ]],
+                width: 149,
+                height: 26,
+                panelWidth: 440,
+                panelHeight: 221,
+                pagination: true,
+                toolbar: $("#toobarFarmer")
+            });
+            var framepage = framecontrol.combogrid("grid").datagrid("getPager");
+            var parampage = {
+                showPageList: false,
+                showRefresh: false,
+                pageNumber: farmeindex,
+                pageSize: farmesize,
+                onSelectPage: function (index, size) {
+                    farmeindex = index;
+                    getpagedata();
+                }
+            };
+            framepage.pagination(parampage);
+            searchTbFnameControl = $('#FnameSearch', framecontrol.combogrid("panel")).prop("$this");
+            searchTbFidControl = $('#FidSearch', framecontrol.combogrid("panel")).prop("$this");
+            searchTbFtelControl = $('#FtelSearch', framecontrol.combogrid("panel")).prop("$this");
+            $("#Fersearch", framecontrol.combogrid("panel")).click(function () {
+                farmeindex = 1;
+                searchTbFer();
+            });
+            $("#Fercreset", framecontrol.combogrid("panel")).click(function () {
+                searchResetFer();
+            });
+        }
+
+        //查询农户列表信息
+        function searchTbFer() {
+            receivederIndex = 1;
+            searchTbFilterFer = "1=1";
+            var searchTbFname = $.trim(searchTbFnameControl.GetValue());
+            if (!Dev.IsNull(searchTbFname)) searchTbFilterFer += " AND  \"NAME\" LIKE '%" + searchTbFname + "%'";
+            var searchTbFid = $.trim(searchTbFidControl.GetValue());
+            if (!Dev.IsNull(searchTbFid)) searchTbFilterFer += " AND  \"CARDID\" LIKE '%" + searchTbFid + "%'";
+            var searchTbFtel = $.trim(searchTbFtelControl.GetValue());
+            if (!Dev.IsNull(searchTbFtel)) searchTbFilterFer += " AND  \"MOBILEPHONE\" LIKE '%" + searchTbFtel + "%'";
+            getpagedata();
+        }
+
+        // 获取农户信息列表的数据
+        function getpagedata() {
+            var url = Dev.GetSystemUrlByRelID("Service") + "farmer/getbyfilter/" + farmeindex + "/" + farmesize;
+            var con = "1=1";
+            if (!Dev.IsNull(searchTbFilterFer)) con += "AND " + searchTbFilterFer;
+            //if (!Dev.IsNull(frameCondition)) con += " AND (\"NAME\" like '%" + frameCondition + "%' OR \"CARDID\" like '%" + frameCondition + "%')";
+            con += "  ORDER BY \"NAME\" ASC";
+            var ajaxrequest = $.ajax({
+                url: Dev.GetSystemUrlByRelID("Service") + "farmer/getbyfilter/" + farmeindex + "/" + farmesize,
+                type: "POST",
+                contentType: 'application/json',
+                dataType: 'json',
+                data: con,
+                success: function (result) {
+                    loadComboGridData(result);
+                },
+                error: function (e) {
+                    loadError();
+                }
+            });
+            ajaxRequests.push(ajaxrequest);
+        }
+
+        //加载农户信息combobox列表的数据
+        function loadComboGridData(result) {
+            if (Dev.IsNull(result) || result.statusCode == 400) {
+                loadError();
+                return;
+            }
+            if (!Dev.IsNull(framecontrol)) {
+                framecontrol.combogrid("grid").datagrid("loadData", result.data.dataSource);
+                var page = framecontrol.combogrid("grid").datagrid("getPager");
+                page.pagination('refresh', {
+                    total: result.data.pageInfo.totalCount,
+                    pageNumber: result.data.pageInfo.pageIndex,
+                    displayMsg: "当前页显示第" + (((result.data.pageInfo.pageIndex - 1) * result.data.pageInfo.pageSize) + 1) + "-" + (result.data.pageInfo.pageIndex * result.data.pageInfo.pageSize) + "条记录,共{total}条数据"
+                });
+            }
+        }
+
+        //清空农户列表的查询条件
+        function searchResetFer() {
+            farmeindex = 1;
+            if (!Dev.IsNull(searchTbFnameControl)) searchTbFnameControl.Clear();
+            if (!Dev.IsNull(searchTbFidControl)) searchTbFidControl.Clear();
+            if (!Dev.IsNull(searchTbFtelControl)) searchTbFtelControl.Clear();
+            searchTbFer();
+                }
+
+        //给图片控件加上事件
+        function imgBindMouse() {
+            for (var i = 1; i < 4; i++) {
+                $("[id='imgpreviwe" + i + "']", addWin.Target).mouseover(function () {
+                    var index = parseInt($(this).attr("id").replace("imgpreviwe", ""));
+                    $("[id='btons" + index + "']", addWin.Target).css({ "opacity": "1" });
+                    if ($(this).attr("src") != "image/authorization/default.jpg") {
+                        $("[id='delbtn" + index + "']", addWin.Target).css({ "opacity": "1" });
+                    }
+                }).mouseleave(function () {
+                    var index = parseInt($(this).attr("id").replace("imgpreviwe", ""));
+                    $("[id='btons" + index + "']", addWin.Target).css({ "opacity": "0" });
+                    $("[id='delbtn" + index + "']", addWin.Target).css({ "opacity": "0" });
+                }).click(function () {
+                    clickForReview(parseInt($(this).attr("review")));
+                }).attr("review", i);
+                $("[id='delbtn" + i + "']", addWin.Target).mouseover(function () {
+                    $(this).css({ "opacity": "1" });
+                }).mouseleave(function () {
+                    $(this).css({ "opacity": "0" });
+                }).click(function () {
+                    var index = parseInt($(this).attr("id").replace("delbtn", ""));
+                    clearImage("imgpreviwe" + index);
+                });
+                $("[id='btons" + i + "']", addWin.Target).mouseover(function () {
+                    $(this).css({ "opacity": "1" });
+                }).mouseleave(function () {
+                    $(this).css({ "opacity": "0" });
+                });
+                $("#photo" + i, addWin.Target).bind("change", function () {
+                    uploadPhoto(this, $(this).attr("id"));
+                });
+            }
+        }
+
+        //点击预览图片
+        function clickForReview(index) {
+            var images = [];
+            var showIndex = index;
+            if ($("img[id='imgpreviwe" + index + "']", addWin.Target).attr("src") === "image/authorization/default.jpg") {
+                return;
+            }
+            for (var i = 1; i < 4; i++) {
+                var src = $("img[id='imgpreviwe" + i + "']", addWin.Target).attr("src");
+                if (src != "image/authorization/default.jpg") {
+                    images.push(src);
+                } else if (i < index) {
+                    showIndex--;
+                }
+            }
+            Dev.PreViewPics(images, --showIndex);
+        }
+
+        //上传图片
+        function uploadPhoto(dom, id) {
+            //上传数据
+            var file;
+            if (dom.files.length == 0) return;
+            file = dom.files[0];
+            if (file.size > 20480000) {
+                flashDialog.Alert("文件最大为20M", "error");
+                $(dom).val("");
+                return;
+            }
+            var image = file.name;
+            var extStart = image.lastIndexOf(".");
+            var ext = image.substring(extStart, image.length).toUpperCase();
+            var ispic = (ext == ".PNG" || ext == ".GIF" || ext == ".JPG" || ext == ".JPEG");
+            if (!ispic) {
+                flashDialog.Alert(msg.image, MSG_LEVEL.ERROR);
+                $("#" + id, addWin.Target).val("");
+                return;
+            }
+            var viewid = "";
+            if (id == "photo1") viewid = "imgpreviwe1";
+            if (id == "photo2") viewid = "imgpreviwe2";
+            if (id == "photo3") viewid = "imgpreviwe3";
+            var preview = $("#" + viewid, addWin.Target);
+            preview.attr("src", window.URL.createObjectURL(file));
+            preview.attr("title", "点击预览");
+            //如果已经有了则替换，没有则添加
+            if (!Dev.IsNull(updateid)) {
+                var oldid = $("#" + viewid, addWin.Target).attr("oldid");
+                if (!dev.IsNull(oldid)) {
+                    deleteIds.push(oldid);
+                    $("#" + viewid, addWin.Target).removeAttr("oldid");
+                }
+            }
+            var tempfile = Enumerable.From(files).Where('s=>s.key=="' + viewid + '"').FirstOrDefault();
+            if (Dev.IsNull(tempfile)) files.push({ key: viewid, file: file });
+            else {
+                var tempindex = Enumerable.From(files).IndexOf(tempfile);
+                files[tempindex].file = file;
+            }
+        }
+
+        //清空图片
+        function clearImage(picviewid) {
+            $("#" + picviewid, addWin.Target).attr("src", "image/authorization/default.jpg");
+            $("#" + picviewid, addWin.Target).removeAttr("title");
+            var oldid = $("#" + picviewid, addWin.Target).attr("oldid");
+            if (!dev.IsNull(oldid)) {
+                deleteIds.push(oldid);
+                $("#" + picviewid, addWin.Target).removeAttr("oldid");
+            }
+            if (files.length > 0) files = Enumerable.From(files).Where('s=>s.key!="' + picviewid + '"').ToArray();
+            }
+
+        //通过id获取图片
+        function getImages(attId) {
+                var ajaxrequest = $.ajax({
+                type: "get",
+                url: Dev.cookie.baseUri + "file/att/" + attId + "?" + new Date().getTime(),
+                    success: function (response) {
+                    if (response == null || response.statusCode == 400) return;
+                    var data = response.data;
+                    if (data == null || data.length === 0) return;
+                    loadImages(data);
+                    }
+                });
+                ajaxRequests.push(ajaxrequest);
+            }
+
+        //加载图片
+        function loadImages(paths) {
+            paths.forEach(function (value, index) {
+                $("[id='imgpreviwe" + (parseInt(index) + 1) + "']", addWin.Target).attr("src", value.path);
+                $("#imgpreviwe" + (parseInt(index) + 1), addWin.Target).attr("oldid", value.id).attr("title", "点击预览");
+
+                });
+            }
+
+        //点击按钮，保存地块信息
+        function saveInfo() {
+            if (issumbit) return;
+            issumbit = true;
+            form = new FormData();
+            var win = $(".machineadd", Dev.App.FillPanel.Target);
+            $("#errorMsg", win).html("");
+            var selectitem = framecontrol.combogrid("grid").datagrid("getSelected");
+            if (Dev.IsNull(selectitem) || Dev.IsNull(selectitem.id)) {
+                $("#errorMsg", win).html("请选择农户!");
+                issumbit = false;
+                return;
+            }//获取农户信息
+            form.append("farmerid", selectitem.id);
+            form.append("farmername", selectitem.name);
+            var classname = $("#massif-classname", win).prop("$this");
+            var classnamevalue = classname.GetText();
+            if (Dev.IsNull(classnamevalue)) {
+                $("#errorMsg", win).html("请选择地类名称!");
+                issumbit = false;
+                return;
+            }
+            form.append("classname", classnamevalue);
+            var ownership = $("#massif-ownership", win).prop("$this");
+            var ownershipvalue = ownership.GetText();
+            if (Dev.IsNull(ownershipvalue)) {
+                $("#errorMsg", win).html("请选择权属性质!");
+                issumbit = false;
+                return;
+        }
+            form.append("ownership", ownershipvalue);
+            var landtype = $("#massif-landtype", win).prop("$this");
+            var landtypevalue = landtype.GetText();
+            if (Dev.IsNull(landtypevalue)) {
+                $("#errorMsg", win).html("请选择耕地类型!");
+                issumbit = false;
+                return;
+        }
+            form.append("landtype", landtypevalue);
+            var geomtext = $(".dev-textbox[name='geom']", win).prop("$this");
+            var geomvalue = geomtext.GetValue().trim();
+            if (Dev.IsNull(geomvalue)) {
+                $("#errorMsg", win).html("请在地图上绘制地块!");
+                issumbit = false;
+                return;
+        }
+            if (Dev.IsNull(geomParams)) geomParams = new Dev.Feature(selectedRow.geom);
+            var c_f = geomParams.clone();
+            var mapproj = Dev.App.Map.getView().getProjection();
+            if (mapproj.getCode() != Dev.App.Config.SystemMap.DataEPSG) c_f.getGeometry().transform(mapproj.getCode(), Dev.App.Config.SystemMap.DataEPSG);
+            form.append("geom", Dev.GetWKTByFeature(c_f));
+            var farmlandtype = $("#massif-farmlandtype", win).prop("$this");
+            var farmlandtypevalue = farmlandtype.GetText();
+            if (Dev.IsNull(farmlandtypevalue)) {
+                $("#errorMsg", win).html("请选择基本农田类型!");
+                issumbit = false;
+                return;
+            }
+            form.append("farmlandtype", farmlandtypevalue);
+            var farmlandare = $(".dev-numberbox[name='farmlandarea']", win).prop("$this").GetValue();
+            if (Dev.IsNullAll(farmlandare)) farmlandare = 0;
+            form.append("farmlandarea", parseFloat(farmlandare) * 666.6666667);
+            var ownershipname = $(".dev-textbox[name='ownershipname']", win).prop("$this");
+            var ownershipnameval = ownershipname.GetValue();
+            if (Dev.IsNull(ownershipnameval.trim())) {
+                $("#errorMsg", win).html("请输入单位权属名称!");
+                issumbit = false;
+                return;
+            }
+            if (ownershipnameval.length > 28) {
+                $("#errorMsg", win).html("单位权属名称不能超过28字!");
+                issumbit = false;
+                return;
+            }
+            form.append("ownershipname", ownershipnameval.trim());
+            var remark = $(".dev-textbox[name='remark']", win).prop("$this");
+            var remarkval = remark.GetValue();
+            if (!Dev.IsNull(remarkval) && remarkval.length > 120) {
+                $("#errorMsg", win).html("备注内容不能超过120!");
+                issumbit = false;
+                return;
+            }
+            form.append("remark", remarkval.trim());
+            form.append("regionId", regionCode);
+            if (files.length > 0) {
+                for (var i = 0; i < files.length; i++) form.append("devfile", files[i].file);
+            }
+            if (Dev.IsNull(updateid)) {
+                form.append("province", selectNode.province);
+                form.append("city", selectNode.city);
+                form.append("county", selectNode.county);
+                form.append("town", selectNode.town);
+            }
+            else {
+                form.append('attid', updateAttId);
+                form.append('id', updateid);
+                form.append('massifid', updateMassifid);
+                for (var i = 0; i < deleteIds.length; i++) form.append('deleteId', deleteIds[i]);
+            }
+            //新增or 更新
+            var ajaxrequest = $.ajax({
+                type: "POST",
+                data: form,
+                contentType: false,
+                processData: false, //注意一定要设置为false
+                url: Dev.cookie.baseUri + "massif/addmassif",
+                success: function (response) {
+                    issumbit = false;
+                    if (Dev.IsNull(response) || response.statusCode == 400) {
+                        //dialog.Alert(msg.addFailed, MSG_LEVEL.ERROR);
+                        loadError();
+                        return;
+                    }
+                    flashDialog.Alert(msg.addSuccess, MSG_LEVEL.SUCCESS);
+            pageIndex = 1;
+                    addWin.Close();
+                },
+                error: function (e) {
+                    issumbit = false;
+                }
+            });
+            ajaxRequests.push(ajaxrequest);
+        }
+
+        //清除form表单的内容
+        function editClear() {
+            var textcontrol = $(".dev-textbox", $(".MachineEdit", Dev.App.FillPanel.Target));
+            var numbercontrol = $(".dev-numberbox", $(".MachineEdit", Dev.App.FillPanel.Target));
+            var comboboxcontrol = $(".dev-combobox", $(".MachineEdit", Dev.App.FillPanel.Target));
+            for (var i = 0; i < textcontrol.length; i++) {
+                var currcontrol = $(textcontrol[i]).prop("$this");
+                currcontrol.Clear();
+                if (!Dev.IsNull(currcontrol.SetLengthTip)) currcontrol.SetLengthTip("");
+            }
+            for (var i = 0; i < numbercontrol.length; i++) {
+                var currcontrol = $(numbercontrol[i]).prop("$this");
+                currcontrol.Clear();
+            }
+            for (var i = 0; i < comboboxcontrol.length; i++) {
+                var currcontrol = $(comboboxcontrol[i]).prop("$this");
+                currcontrol.SetValue("");
+            }
+            $("[id^='imgpreviwe']", $(".MachineEdit", Dev.App.FillPanel.Target)).each(function () {
+                $(this).attr("src", "image/authorization/default.jpg");
+            });
+            $("input[name='devfile']", $(".MachineEdit", Dev.App.FillPanel.Target)).each(function () {
+                $(this).val("");
+            });
+            if (!Dev.IsNull(framecontrol)) {
+                framecontrol.combogrid("setValue", "");
+                framecontrol.combogrid("hidePanel");
+            }
+        }
+
+        //点击修改按钮
+        function update(id, index) {
+            isModify = true;
+            dataGrid.DataGrid.datagrid("selectRow", index);
+            selectedRow = dataGrid.DataGrid.datagrid("getSelected");
+            updateid = selectedRow.id;
+            initWin();
+            loadInfo(selectedRow);
+            }
+
+        //打开修改，展示修改信息
+        function loadInfo(model) {
+            updateAttId = model.attid;
+            updateMassifid = model.massifid;
+            var textcontrol = $(".dev-textbox", $(".MachineEdit", Dev.App.FillPanel.Target));
+            var numbercontrol = $('.dev-numberbox', $(".MachineEdit", Dev.App.FillPanel.Target));
+            var comboboxcontrol = $(".dev-combobox", $(".MachineEdit", Dev.App.FillPanel.Target));
+            for (var i = 0; i < textcontrol.length; i++) {
+                var tag = $(textcontrol[i]).attr("name");
+                var currcontrol = $(textcontrol[i]).prop("$this");
+                if (tag == "geom") continue;
+                currcontrol.SetValue(model[tag] == null ? "" : model[tag].trim());
+            }
+            for (var i = 0; i < numbercontrol.length; i++) {
+                var tag = $(numbercontrol[i]).attr("name");
+                var currcontrol = $(numbercontrol[i]).prop("$this");
+                var value = model[tag];
+                if (Dev.IsNull(value)) value = 0;
+                if (tag == "farmlandarea") value = Dev.SqrtMetersToMu(value, 3);
+                currcontrol.SetValue(value);
+            }
+            for (var i = 0; i < comboboxcontrol.length; i++) {
+                var tag = $(comboboxcontrol[i]).attr("name");
+                var currcontrol = $(comboboxcontrol[i]).prop("$this");
+                currcontrol.SetText(model[tag]);        //combobox
+        }
+            getImages(model.attid);
+            var farmerID = model.farmerid;
+            if (!Dev.IsNull(farmerID)) {
+            var ajaxrequest = $.ajax({
+                    type: 'get',
+                    url: Dev.cookie.baseUri + "farmer/get/row/" + farmerID + "?" + new Date().getTime(),
+                    success: function (response) {
+                        loadComboGridData(response);
+                        framecontrol.combogrid("setValue", farmerID);
+                },
+                error: function (e) {
+                    //dialog.Alert(msg.netout, MSG_LEVEL.ERROR);
+                        loadError();
+                }
+            });
+            ajaxRequests.push(ajaxrequest);
+        }
+        }
+
+        //点击详细信息
+        function showdetail(index) {
+            dataGrid.DataGrid.datagrid("selectRow", index);
+            var selectRowData = dataGrid.DataGrid.datagrid("getSelected");
+            if (Dev.IsNull(selectRowData)) return;
+            if (!Dev.IsNull(detailWin)) { detailWin.Close(); detailWin.Destroy(); detailWin = null; }
+            detailWin = new Dev.Window({
+                ID: "plotDetail",
+                IconCls: 'machine-trackedit',
+                Title: "详细信息",
+                Parent: Dev.App.FillPanel.Target,
+                Maximizable: false,
+                Modal: true,
+                Draggable: true,
+                HAlign: 'center',
+                VAlign: 'center',
+                Resizable: false,
+                Url: Dev.App.Root + "html/detailinfo/plotmanagedetail.html",
+                Height: 450,
+                Width: 520,
+                Parameters: { showdata: selectRowData }
+            });
+        }
+
+        //窗口重置
+        function resize() {
+            var height = $(window).outerHeight();
+            var gridheight = height - 40;
+            var gridwidth = parseInt($(window).width() * 0.80) - 2;
+            if (gridwidth < 1200) {
+                gridwidth = 1200;
+                gridheight = parseInt(gridheight) - 16;
+            }
+            $("#searchDiv").width(gridwidth);
+            $("#gridDiv").height(gridheight).width(gridwidth);
+            if (!Dev.IsNull(dataGrid)) dataGrid.Resize(gridwidth, gridheight);
+        }
+
+        //遮罩层是否加载
+        function showOrHideShade() {
+            var shade = $("#shade");
+            if (shade.is(":hidden")) shade.show();
+            else shade.hide();
+        }
+
+        //加载错误信息
+        function loadError() {
+            if (Dev.IsNull(dataGrid)) return;
+            dataGrid.Load([], { totalCount: 0, pageIndex: pageIndex, pageSize: pageSize, pageCount: 0 })
+        }
+    </script>
+</head>
+<body>
+    <div id="shade" style="width: 100%; height: 100%; position: absolute; z-index: 1000; display: none"></div>
+    <!-- datagrid列表,datagrid-search查询  start-->
+    <div id="content" class="content">
+        <div style="height: 100%; width: 20%; position: absolute;">
+            <div style="height: 26px; line-height: 26px; width: 100%; background-color: #ddd;">
+                <span style="margin-left: 15px; color: #0099cc; line-height: 26px; letter-spacing: 3px; font-size: 12px;">行政区划</span>
+            </div>
+            <ul id="regionstree"></ul>
+        </div>
+        <div style="height: 100%; width: 80%; left: 20%; position: absolute; overflow: auto; overflow-y: hidden">
+            <div id="searchDiv" style="height: 38px; border-left: 1px solid #ddd; position: relative; min-width: 1200px;">
+                <div style="height: 38px; position: absolute; left: 0px;">
+                    <div class="SearchDiv">
+                        <div id="search-massifid" class="dev-text" style="z-index: 2; width: 200px; display: inline-block;"
+                            opt='{"TipInfo":"","HeaderCSS":{"padding":"0px","width":"75px"},"IsOverShow":true,"Padding":"0px 5px","TextAlign":"left","BodyCSS": { "background-color": "transparent","margin-top":"8px","margin-left":"5px" },"Title":"<div class=\"Title\"><div class=\"Icon machine-carnum\"></div><span class=\"Text\" style=\"width:50px\">地块编号</span></div>"}'>
+                        </div>
+                    </div>
+                    <div class="SearchDiv">
+                        <div id="search-farmer" class="dev-text" style="z-index: 2; width: 200px; display: inline-block;"
+                            opt='{"TipInfo":"","HeaderCSS":{"padding":"0px","width":"75px"},"IsOverShow":true,"Padding":"0px 5px","TextAlign":"left","BodyCSS": { "background-color": "transparent","margin-top":"8px","margin-left":"5px" },"Title":"<div class=\"Title\"><div class=\"Icon user-username\"></div><span class=\"Text\" style=\"width:50px\">农户姓名</span></div>"}'>
+                        </div>
+                    </div>
+                    <div class="SearchDiv" style="width: 220px">
+                        <div id="search-classname" class="dev-combobox"
+                            style="z-index: 2; width: 220px; display: inline-block; margin-top: 8px"
+                            opt='{"TipInfo":"请选择","TextField":"data","ValueField":"id","HeaderCSS":{"padding":"0px 5px","width":"83px", "text-align": "RIGHT"},"IsOverShow":true,"Padding":"0px 5px","TextAlign":"left","BodyCSS": { "background-color": "transparent"},"Title":"<div class=\"Title1\"><div class=\"Icon1 machine-name\"></div><span class=\"Text\" style=\"width:50px\">地类名称</span></div>"}'>
+                        </div>
+                    </div>
+                    <div class="SearchDiv" style="width: 230px">
+                        <div id="search-ownership" class="dev-combobox"
+                            style="z-index: 2; width: 220px; display: inline-block; margin-top: 8px"
+                            opt='{"TipInfo":"请选择","TextField":"data","ValueField":"id","HeaderCSS":{"padding":"0px 5px","width":"83px", "text-align": "RIGHT"},"IsOverShow":true,"Padding":"0px 5px","TextAlign":"left","BodyCSS": { "background-color": "transparent"},"Title":"<div class=\"Title1\"><div class=\"Icon1 icon-element\"></div><span class=\"Text\" style=\"width:50px\">权属性质</span></div>"}'>
+                        </div>
+                    </div>
+                </div>
+                <div style="width: 320px; height: 100%; position: absolute; right: 10px; z-index: 2; bottom: 2px">
+                    <div class="Button noselect" tag="search">
+                        <div class="machine-query"
+                            style="height: 16px; width: 16px; margin-top: 4px; margin-left: 4px; display: inline-block; float: left;">
+                        </div>
+                        <span style="line-height: 26px; color: #fcfcfc;">查&nbsp;询</span>
+                    </div>
+                    <div class="Button noselect" tag="clear">
+                        <div class="machine-reset"
+                            style="height: 16px; width: 16px; margin-top: 4px; margin-left: 4px; display: inline-block; float: left;">
+                        </div>
+                        <span style="line-height: 26px; color: #fcfcfc;">重&nbsp;置</span>
+                    </div>
+                    <div class="Button ButtonDisable noselect" tag="add" title="行政区划选到最精确时才能新增">
+                        <div class="machine-add"
+                            style="height: 16px; width: 16px; margin-top: 4px; margin-left: 4px; display: inline-block; float: left;">
+                        </div>
+                        <span style="line-height: 26px; color: #fcfcfc;">新&nbsp;增</span>
+                    </div>
+                    <div class="Button noselect" tag="deletes" style="width: 75px;">
+                        <div class="machine-deletes"
+                            style="height: 16px; width: 16px; margin-top: 4px; margin-left: 5px; display: inline-block; float: left;">
+                        </div>
+                        <span style="line-height: 28px; color: #fcfcfc;">批量删除</span>
+                    </div>
+                </div>
+            </div>
+            <div id="gridDiv" style="border-left: 1px solid #ddd; border-top: 1px solid #ddd;"></div>
+        </div>
+    </div>
+    <!-- 新增，修改窗体 start-->
+    <div id="add-div" class="MachineEdit machineadd" style="height: 350px; width: 550px">
+        <div class="Row">
+            <div class="Cell" style="width: 300px">
+                <div style="display: inline-block; width: 82px; line-height: 35px; float: left; text-align: right; padding-right: 8px;">
+                    <span>农户</span>
+                </div>
+                <div style="width: 149px; height: 35px; line-height: 33px; display: inline-block; float: left; margin-top: 1px; position: relative;">
+                    <div id="farmerid" data-options="editable:false"></div>
+                    <div style="position: absolute; height: 10px; width: 10px; top: 12px; right: 20px; color: red; line-height: 10px;">
+                        *
+                    </div>
+                </div>
+            </div>
+            <div class="Cell">
+                <div id="massif-classname" class="dev-combobox" name="classname" byname="地类名称"
+                    style="width: 239px; margin-top: 5px;"
+                    opt='{"Required":true,"TextField":"data","ValueField":"id","TipInfo":"请选择","HeaderCSS":{"padding":"0px 5px","width":"80px", "text-align": "RIGHT"},"IsOverShow":true,"Padding":"0px 5px","TextAlign":"left","BodyCSS": { "background-color": "transparent" },"Title":"<div class=\"Title\"><span>地类名称</span></div>"}'>
+                </div>
+            </div>
+        </div>
+        <div class="Row">
+            <div class="Cell" style="width: 300px">
+                <div id="massif-ownership" class="dev-combobox" name="ownership" byname="权属性质"
+                    style="width: 239px; margin-top: 5px;"
+                    opt='{"Required":true,"TextField":"data","ValueField":"id","TipInfo":"请选择","HeaderCSS":{"padding":"0px 5px","width":"80px", "text-align": "RIGHT"},"IsOverShow":true,"Padding":"0px 5px","TextAlign":"left","BodyCSS": { "background-color": "transparent" },"Title":"<div class=\"Title\"><span>权属性质</span></div>"}'>
+                </div>
+            </div>
+            <div class="Cell">
+                <div id="massif-landtype" class="dev-combobox" name="landtype" byname="耕地类型"
+                    style="width: 239px; margin-top: 5px;"
+                    opt='{"Required":true,"TextField":"data","ValueField":"id","TipInfo":"请选择","HeaderCSS":{"padding":"0px 5px","width":"80px", "text-align": "RIGHT"},"IsOverShow":true,"Padding":"0px 5px","TextAlign":"left","BodyCSS": { "background-color": "transparent" },"Title":"<div class=\"Title\"><span>耕地类型</span></div>"}'>
+                </div>
+            </div>
+        </div>
+        <div class="Row" style="height: 40px; width: 100%; border-bottom: 1px solid #ddd;">
+            <div class="Cell" style="height: 40px; width: 500px; display: inline-block; float: left;">
+                <div class="dev-textbox" name="geom" style="z-index: 2; width: 500px; height: 30px; margin-top: 5px;"
+                    opt='{"Required":true,"TipInfo":"请点击右边的按钮绘制图形","Readonly":true, "Type":"multi-text","HeaderCSS":{"padding":"0px 5px","width":"80px", "text-align": "RIGHT"},"IsOverShow":true,"Padding":"5px","Title":"<div class=\"Title\">地块</div>"}'>
+                </div>
+            </div>
+            <div id="fishnetEdit" title="绘制" class="machine-trackedit"
+                style="height: 28px; width: 28px; display: inline-block; float: left; margin-top: 5px; margin-left: 8px; border: 1px solid #95b8e7;">
+            </div>
+        </div>
+        <div class="Row">
+            <div class="Cell" style="width: 275px">
+                <div id="massif-farmlandtype" class="dev-combobox" name="farmlandtype"
+                    style="width: 239px; margin-top: 5px;" byname="基本农田类型"
+                    opt='{"Required":true,"TextField":"data","ValueField":"id","TipInfo":"请选择","HeaderCSS":{"padding":"0px 5px","width":"80px", "text-align": "RIGHT"},"IsOverShow":true,"Padding":"0px 5px","TextAlign":"left","BodyCSS": { "background-color": "transparent" },"Title":"<div class=\"Title\"><span>基本农田类型</span></div>"}'>
+                </div>
+            </div>
+            <div class="Cell">
+                <div class="dev-numberbox" name="farmlandarea" style="width: 263px; height: 24px; margin-top: 5px;"
+                    opt='{"Max":2000,"Precision":3,"Min":0,"HeaderCSS":{"padding":"0px 5px","width":"105px", "text-align": "RIGHT"},"IsOverShow":true,"Padding":"0px 5px","Title":"<div class=\"Title\" style=\"width:110px;\"><span>基本农田面积（亩）</span></div>"}'>
+                </div>
+            </div>
+        </div>
+        <div class="Row">
+            <div class="Cell" style="width: 538px">
+                <div class="dev-textbox" name="ownershipname"
+                    style="z-index: 2; width: 538px; height: 24px; margin-top: 5px;"
+                    opt='{"MaxLength":18,"Required":true,"TipInfo":"","HeaderCSS":{"padding":"0px 5px","width":"80px", "text-align": "RIGHT"},"IsOverShow":true,"Padding":"5px","Title":"<div class=\"Title\">权属单位名称</div>"}'>
+                </div>
+            </div>
+        </div>
+        <div style="height: 107px; width: 100%; border-bottom: 1px solid #ddd; padding-top: 5px">
+            <div style="width: 86px; height: 100px; float: left; text-align: right; line-height: 100px;">预览图片</div>
+            <div style="margin-left: 4px; border: solid 1px #aec9eb; height: 100px; width: 100px; float: left; position: relative;">
+                <img id="imgpreviwe1" src="image/authorization/default.jpg"
+                    style="width: 100px; height: 100px; position: absolute; top: 0px; cursor: pointer;" />
+                <div id="delbtn1" title="删除"
+                    style="opacity: 0; cursor: pointer; color: red; font-size: 16px; font-weight: bolder; width: 16px; height: 16px; position: absolute; background-color: rgba(0,0,0,0.4); z-index: 10; right: 0px">
+                    －
+                </div>
+                <div id="btons1"
+                    style="position: absolute; width: 100px; background-color: rgba(0,0,0,0.4); opacity: 0; height: 25px; text-align: center; line-height: 25px; z-index: 10; bottom: 0px; cursor: pointer;">
+                    <span style="color: white; width: 58px; cursor: pointer;">选择图片</span>
+                    <div style="filter: alpha(opacity=0); opacity: 0; position: absolute; bottom: 0px; cursor: pointer;">
+                        <input
+                            type="file" name="devfile" id="photo1" accept="image/png,image/gif,image/jpg,image/jpeg"
+                            style="cursor: pointer;" />
+                    </div>
+                </div>
+            </div>
+            <div style="margin-left: 72px; border: solid 1px #aec9eb; height: 100px; width: 100px; float: left; position: relative;">
+                <img id="imgpreviwe2" src="image/authorization/default.jpg"
+                    style="width: 100px; height: 100px; position: absolute; top: 0px; cursor: pointer;" />
+                <div id="delbtn2" title="删除"
+                    style="opacity: 0; cursor: pointer; color: red; font-size: 16px; font-weight: bolder; width: 16px; height: 16px; position: absolute; background-color: rgba(0,0,0,0.4); z-index: 10; right: 0px">
+                    －
+                </div>
+                <div id="btons2"
+                    style="position: absolute; width: 100px; background-color: rgba(0,0,0,0.4); opacity: 0; height: 25px; text-align: center; line-height: 25px; z-index: 10; bottom: 0px; cursor: pointer;">
+                    <span style="color: white; width: 58px; cursor: pointer;">选择图片</span>
+                    <div style="filter: alpha(opacity=0); opacity: 0; position: absolute; bottom: 0px; cursor: pointer;">
+                        <input
+                            type="file" name="devfile" id="photo2" accept="image/png,image/gif,image/jpg,image/jpeg"
+                            style="cursor: pointer;" />
+                    </div>
+                </div>
+            </div>
+            <div style="margin-left: 72px; border: solid 1px #aec9eb; height: 100px; width: 100px; float: left; position: relative;">
+                <img id="imgpreviwe3" src="image/authorization/default.jpg"
+                    style="width: 100px; height: 100px; position: absolute; top: 0px; cursor: pointer;" />
+                <div id="delbtn3" title="删除"
+                    style="opacity: 0; cursor: pointer; color: red; font-size: 16px; font-weight: bolder; width: 16px; height: 16px; position: absolute; background-color: rgba(0,0,0,0.4); z-index: 10; right: 0px">
+                    －
+                </div>
+                <div id="btons3"
+                    style="position: absolute; width: 100px; background-color: rgba(0,0,0,0.4); opacity: 0; height: 25px; text-align: center; line-height: 25px; z-index: 10; bottom: 0px; cursor: pointer;">
+                    <span style="color: white; width: 58px; cursor: pointer;">选择图片</span>
+                    <div style="filter: alpha(opacity=0); opacity: 0; position: absolute; bottom: 0px; cursor: pointer;">
+                        <input
+                            type="file" name="devfile" id="photo3" accept="image/png,image/gif,image/jpg,image/jpeg"
+                            style="cursor: pointer;" />
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="Row" style="height: 65px; width: 100%; border-bottom: 1px solid #ddd;">
+            <div class="Cell" style="width: 540px; height: 60px;">
+                <div class="dev-textbox" name="remark" style="z-index: 2; width: 540px; height: 55px; margin-top: 5px;"
+                    opt='{"TipInfo":"","Type":"multi-text","HeaderCSS":{"padding":"0px 5px","width":"80px", "text-align": "RIGHT"},"IsOverShow":true,"Padding":"5px","Title":"<div class=\"Title\">备注</div>"}'>
+                </div>
+            </div>
+        </div>
+        <div id="errorMsg"
+            style="height: 35px; width: 200px; line-height: 35px; display: inline-block; color: red; padding-left: 10px; margin-left: 20px;">
+        </div>
+        <div class="Submit">
+            <div class="Button" tag="save">
+                <span style="line-height: 26px; color: #fcfcfc;">保&nbsp;&nbsp;存</span>
+            </div>
+            <div class="Button" tag="add-cancel">
+                <span style="line-height: 26px; color: #fcfcfc;">取&nbsp;&nbsp;消</span>
+            </div>
+        </div>
+    </div>
+    <!--农户信息列表查询条件 start-->
+    <div id="toobarFarmer" style="height: 35px; background-color: #fcfcfc">
+        <div style="margin-top: 5px;">
+            <div id="FnameSearch" class="dev-textbox" style="width: 108px; float: left; margin-left: 6px; display: inline-block;" opt='{"TipInfo":"输入姓名"}'></div>
+            <div id="FidSearch" class="dev-textbox" style="width: 108px; float: left; margin-left: 8px; display: inline-block;" opt='{"TipInfo":"输入身份证号"}'></div>
+            <div id="FtelSearch" class="dev-textbox" style="width: 108px; float: left; margin-left: 8px; display: inline-block;" opt='{"TipInfo":"输入电话号码"}'></div>
+            <div style="width: 76px; height: 30px; display: inline-block; margin-left: 8px;">
+                <div id="Fersearch" style="cursor: pointer; height: 24px; width: 35px; display: inline-block; background-color: #03afd9; float: left; color: #fff; line-height: 24px; text-align: center;">查询</div>
+                <div id="Fercreset" style="cursor: pointer; height: 24px; width: 35px; display: inline-block; background-color: #03afd9; color: #fff; margin-left: 6px; line-height: 24px; text-align: center;">重置</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

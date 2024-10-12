@@ -1,0 +1,146 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>农业大数据研究与管理平</title>
+    <script type="text/javascript" src="js/jquery.min.js"></script>
+    <script type="text/javascript" src="js/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="js/jquery.cookie.js"></script>
+    <link rel="icon" type="image/x-icon" href="image/logo.ico" />
+    <style>
+
+        /* 基本样式 */
+        /* 基本容器样式 */
+        .container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            background: url(image/log/bg_bottom.png) no-repeat center;
+            background-size: cover;
+            padding: 10px;
+        }
+
+        .title_content {
+            text-align: center;
+            font-size: 1.8em;
+            margin-top:20px;
+            /*margin-bottom: 15px;*/
+        }
+
+        /* 使用grid布局使图标自动排列 */
+        .parentR {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr); /* 3列 */
+            grid-gap: 15px; /* 控制图标之间的间距 */
+            justify-items: center; /* 图标居中 */
+            align-items: center;
+            margin-top: 70px;
+        }
+
+        /* 单个功能板块样式 */
+        .guide {
+            text-align: center;
+            transition: transform 0.3s;
+            margin-top: 30px;
+        }
+
+            .guide img {
+                width: 70px; /* 设置图标大小为60px */
+                height: 70px;
+            }
+
+            .guide p {
+                margin-top: 8px;
+                font-size: 1em;
+            }
+
+            .guide a {
+                text-decoration: none;
+                color: darkslategrey;
+            }
+
+            /* 鼠标悬停时的放大效果 */
+            .guide:hover {
+                transform: scale(1.1);
+            }
+
+        /* 移动端适配 */
+        @media only screen and (max-width: 600px) {
+            .parentR {
+                grid-template-columns: repeat(2, 1fr); /* 在较小屏幕上调整为2列 */
+                grid-gap: 10px;
+            }
+
+            .guide img {
+                width: 50px; /* 缩小图标的大小 */
+                height: 50px;
+            }
+
+            .guide p {
+                font-size: 0.9em; /* 调整文字大小 */
+            }
+
+            .title_content {
+                font-size: 1.5em; /* 调整标题大小 */
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="title_content">农业大数据研究与管理平台</div>
+        <div class="parentR">
+
+
+
+            <div class="guide roate-1">
+                <a href="index.html?param=6">
+                    <img src="image/log/farming.png" alt="">
+                    <p>轮作休耕监测系统</p>
+                </a>
+            </div>
+            <div class="guide roate-2">
+                <a href="index.html?param=9">
+                    <img src="image/log/maintain.png" alt="">
+                    <p>管理维护系统</p>
+                </a>
+            </div>
+            <div class="guide roate-3">
+                <a href="index.html?param=5">
+                    <img src="image/log/analyze.png" alt="">
+                    <p>智能农情分析系统</p>
+                </a>
+            </div>
+            <div class="guide roate-4">
+                <a href="show/index.html">
+                    <img src="image/log/bigdata.png" alt="">
+                    <p>大数据服务平台</p>
+                </a>
+            </div>
+            <div class="guide roate-5">
+                <a href="index.html?param=8">
+                    <img src="image/log/monitor.png" alt="">
+                    <p>地面监测系统</p>
+                </a>
+            </div>
+            <div class="guide roate-5">
+                <a href="index.html?param=8">
+                    <img src="image/log/name04.png" alt="">
+                    <p>个人中心</p>
+                </a>
+            </div>
+        </div>
+        <div class="page_back">
+            <!--<img src="image/log/back1.png" alt="">-->
+        </div>
+    </div>
+    <script>
+        $(".page_back").click(function () {
+            $.removeCookie("usertoken");
+            location.href = location.href.substring(0, location.href.lastIndexOf('/')) + "/login.html";
+        })
+    </script>
+</body>
+
+</html>

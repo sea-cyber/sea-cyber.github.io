@@ -1,0 +1,758 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>报警统计</title>
+    <link rel="stylesheet" href="../../theme/default/easyui.css" />
+    <link rel="stylesheet" type="text/css" href="../../theme/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/app.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/icon.css" />
+    <link type="text/css" href="../../css/dev.css" rel="stylesheet" />
+    <script type="text/javascript" src="../../js/jquery.min.js"></script>
+    <script type="text/javascript" src="../../js/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="../../js/easyui-lang-zh_CN.js"></script>
+    <script type="text/javascript" src="../../js/linq.min.js"></script>
+    <script type="text/javascript" src="../../js/data.util.js"></script>
+    <script type="text/javascript" src="../../js/highcharts.js"></script>
+    <script type="text/javascript" src="../../js/highcharts-more.js"></script>
+    <script type="text/javascript" src="../../js/solid-gauge.js"></script>
+    <script type="text/javascript" src="../../js/drilldown.js"></script>
+    <script type="text/javascript" src="../../js/jquery.dev.control.js"></script>
+    <script type="text/javascript" src="../../js/dev.ui.js"></script>
+    <script type="text/javascript" src="../../js/guid.js"></script>
+    <script type="text/javascript" src="../../js/highcharts-zh_CN.js"></script>
+    <style type="text/css">
+        .Button {
+            background-color: #16dbbb;
+            height: 27px;
+            width: 60px;
+            border: 1px solid #16dbbb;
+            margin-top: 4px;
+            display: inline-block;
+            text-align: center;
+            /*position: relative;*/
+        }
+
+            .Button:hover {
+                background-color: #5227de;
+                border: 1px solid #5227de;
+                cursor: pointer;
+            }
+
+        .Button:active {
+            background-color: #210097;
+            border: 1px solid #210097;
+            cursor: pointer;
+        }
+
+        .Title {
+            width: 85px;
+            text-align: right;
+            line-height: 26px;
+            height: 26px;
+            display: inline-block;
+            float: left;
+            margin-top: 4px;
+        }
+
+            .Title .Icon {
+                width: 16px;
+                height: 16px;
+                display: inline-block;
+                margin-top: 5px;
+            }
+
+            .Title .Text {
+                display: inline-block;
+                float: right;
+                padding-right: 5px;
+                width: 50px;
+                line-height: 32px;
+            }
+    </style>
+    <script type="text/javascript">
+        var Dev = window.top.window.dev, orgId = Dev.cookie.user.orgid;
+        var parent;
+        var box;
+        var countType;
+        var viewChangedKey;
+        var statData;
+        var districtconfig = Dev.App.Config.Extend.StaticInfo.District;
+        var districts;
+        var legendsconfig = Dev.App.Config.Extend.StaticInfo.Legend;
+        var legends, legendcontrol;
+        var statWin;
+        var drilldown = [];
+        var oldlever;
+        var colorData;
+        var con;
+        var flashDialog;
+        var paramType;
+        function WidgetCommunication(s) { //部件通讯
+            parent = s.parent;
+            if (!Dev.IsNull(s.param) && !Dev.IsNull(s.param.DeviceType)) paramType = s.param.DeviceType;
+            /*初始化按钮*/
+            $(".Button").click(function () {
+                if (!Dev.IsNull(legendcontrol)) legendcontrol.SetVisible(false);
+                var tag = $(this).attr("tag");
+                if (tag == "count") {
+                    $("#errorMsg").html("");
+                    countType = $("#countType").prop("$this").GetValue();
+                    if (Dev.IsNull(countType)) {
+                        $("#errorMsg").html("请选择统计方式!");
+                        return;
+                    }
+                    queryData();
+                }
+                if (tag == "clear") {
+                    searchClear();
+                }
+            });
+            var countTypeControl = $("#countType").prop("$this");
+            $("#devicetype").parent().parent().hide();
+            countTypeControl.bind("onSelectChanged", function (n, m) {
+                if (!Dev.IsNull(paramType)) $("#searchType").css("display", "none");
+                else {
+                    if (countTypeControl.GetValue() === "NO") {
+                        $("#devicetype").parent().parent().show();
+                    } else {
+                        $("#devicetype").parent().parent().hide();
+                        $("#devicetype").prop("$this").SetValue("");
+                    }
+                }
+            });
+            var typeArr = Enumerable.From(Dev.GetDicData(["DangerType"])).Select("x=> x.data").ToArray();
+            typeArr.unshift("不限");
+            $("#type").prop("$this").SetData(typeArr);
+            $(window).resize(function () {
+                resize();
+            });
+            Dev.App.LeftPanel.Header.css("background", "#14cdad");
+            Dev.App.BottomPanel.bind("onResize", function () {
+                if (!Dev.IsNull(box)) box.SetSize({
+                    Width: Dev.App.BottomPanel.Target.width(),
+                    Height: (Dev.App.BottomPanel._Height - 28)
+                });
+                resize();
+            });
+            /*初始化统计图窗口*/
+            Dev.App.BottomPanel.bind("onToolClick", function (s, e) {
+                var id = e.ToolItem.ID;
+                if (id === "btnStatist") {
+                    //统计图
+                    if (Dev.IsNull(statData)) return;
+                    //弹出窗体
+                    if (Dev.IsNull(statWin)) {
+                        statWin = new Dev.Window({
+                            ID: "alarmstat",
+                            IconCls: 'icon-statgraph',
+                            Title: "报警统计图",
+                            Parent: Dev.App.FillPanel.Target,
+                            Maximizable: true,
+                            Modal: true,
+                            Draggable: true,
+                            HAlign: 'center',
+                            VAlign: 'center',
+                            Resizable: false,
+                            Content: initchartData(),
+                            Height: 320,
+                            Width: 500
+                        });
+                        statWin.bind("onResize", function (s, e) {
+                            //改变统计图大小
+                            var winheight = statWin.Height;
+                            var winwidth = statWin.Width;
+                            var chartdiv = $(".chartDiv", statWin.Target);
+                            chartdiv.css({ "width": (winwidth - 2) + "px", "height": (winheight - 32) + "px" });
+                            var chart = $("#chart", chartdiv);
+                            if (Dev.IsNull(chart) || chart.length == 0) return;
+                            if (!Dev.IsNull($(chart[0]).highcharts())) $(chart[0]).highcharts().setSize(winwidth - 2, winheight - 32, false);
+                        });
+                    }
+                    else {
+                        statWin.SetContent(initchartData());
+                        statWin.Open();
+                    }
+                } else if (id === "btnExport") {
+                    Dev.exportExcelByUrl(Dev.GetSystemUrlByRelID("Service") + "caution/export/" + countType+"/"+orgId, con);
+                }
+            });
+            //获取统计相关的配置文件
+            if (!Dev.IsNull(districtconfig)) {
+                if (Dev.IsNull(districtconfig.length)) districts = [Dev.ObjClone(districtconfig)];
+                else districts = districtconfig.clone();
+            }
+            if (!Dev.IsNull(legendsconfig)) {
+                if (Dev.IsNull(legendsconfig.length)) legends = [Dev.ObjClone(legendsconfig)];
+                else legends = legendsconfig.clone();
+            }
+            legends = Enumerable.From(legends).Where('s=>s.Type=="alarm"').ToArray();//筛选alarm
+            viewChangedKey = Dev.App.Map.getView().on("change:resolution", function (evt) {
+                //获取当前的比例尺分辨率
+                if (Dev.IsNull(statData)) return;
+                if (Dev.IsNull(districts)) return;
+                var lever = getlever();
+                if (Dev.IsNull(lever) || oldlever == lever) return;
+                oldlever = lever;
+                getdata(statData, lever);
+            });
+            flashDialog = new Dev.Messager({ Height: 95, Width: 200, AutoShow: false, Type: "question", Timeout: 1500, ButtonVisible: false, AutoVisible: true, Effect: "normal" });
+            /*释放*/
+            countTypeControl.SetValue("TYPE");
+            parent.one("onClosing", function () {
+                Dev.App.BottomPanel.SetHeight(262);
+                Dev.App.BottomPanel.unbind("onResize");
+                Dev.App.BottomPanel.unbind("onToolClick");
+                if (!Dev.IsNull(viewChangedKey)) {
+                    Dev.App.Map.getView().unByKey(viewChangedKey);
+                    viewChangedKey = null;
+                }
+                Dev.App.BottomPanel.ClearTool();
+                Dev.App.BottomPanel.Content.empty();
+                Dev.App.BottomPanel.SetVisible(false);
+                Dev.App.LeftPanel.SetVisible(false);
+                if (!Dev.IsNull(statWin)) {
+                    statWin.unbind("onResize");
+                    statWin.Close();
+                    statWin.Destroy();
+                    statWin = null;
+                }
+                if (!Dev.IsNull(box)) box = null;
+                if (!Dev.IsNull(legendcontrol)) {
+                    legendcontrol.SetVisible(false);
+                    legendcontrol.Target.remove();
+                    legendcontrol = null;
+                }
+                var countTypeControl = $("#countType").prop("$this");
+                if (!Dev.IsNull(countTypeControl)) {
+                    countTypeControl.unbind("onSelectChanged");
+                    countTypeControl = null;
+                }
+                Dev.MapUtils.ClearFeature("tempGraphicLayer");
+            });
+            if (!Dev.IsNull(paramType)) $("#searchType").css("display", "none");
+        }
+        /*将空key转换成“其他”*/
+        var fields = ["province", "city", "county", "town", "key"];
+        function fomatOther(data) {
+            for (var i = 0; i < data.length; i++) {
+                for (var j = 0; j < fields.length; j++) {
+                    if (Dev.IsNull(data[i][fields[j]])) data[i][fields[j]] = "其它";
+                }
+            }
+            return data;
+        }
+
+        /*查询*/
+        function queryData() {
+            countType = $("#countType").prop("$this").GetValue();
+            con = getcondition();
+            $.ajax({
+                url: Dev.GetSystemUrlByRelID("Service") + "caution/countByCondition/" + countType + "/" + orgId,
+                type: "POST",
+                contentType: 'application/json',
+                dataType: 'json',
+                data: con,
+                success: function (result) {
+                    if (result.statusCode != 200 || Dev.IsNull(result.data)) {
+                        flashDialog.Alert("统计失败！", "error");
+                        return;
+                    }
+                    if (result.data.length == 0) {
+                        flashDialog.Alert("没有统计数据！", "info");
+                        $("#errorMsg").html("没有统计数据!");
+                        Dev.App.BottomPanel.SetVisible(false);
+                        return;
+                    }
+                    result.data = fomatOther(result.data);
+                    /*初始化表格数据*/
+                    initData(result.data);
+                    /*统计图数据*/
+                    statData = result.data;
+                    /*行政区数据*/
+                    colorData = result.data;
+                    /*初始化图例*/
+                    if (Dev.IsNull(legendcontrol)) initlegend();
+                    else legendcontrol.SetVisible(true);
+                    /*获取当前行政区划*/
+                    var lever = getlever();
+                    if (Dev.IsNull(lever)) lever = "TOWN";
+                    Dev.App.Map.getView().setZoom(4);
+
+                    //Dev.App.Map.getView().setCenter([104.2663955688479, 29.93828368186953], Dev.App.Map.getSize());
+                    var curr_center = [104.2663955688479, 29.93828368186953];
+                    var mapproj = Dev.App.Map.getView().getProjection();
+                    if (mapproj.getCode() != Dev.App.Config.SystemMap.DataEPSG) curr_center = Dev.proj.transform(curr_center, Dev.App.Config.SystemMap.DataEPSG, mapproj.getCode());
+                    Dev.App.Map.getView().setCenter(curr_center, Dev.App.Map.getSize());
+                    getdata(colorData, lever);
+                },
+                error: function () {
+                    flashDialog.Alert("网络异常，请重试！", "error");
+                }
+            });
+        }
+
+        /*获取查询条件*/
+        function getcondition() {
+            var con = "AND 1=1";
+            var type = $("#type").prop("$this").GetValue();
+            if (!Dev.IsNull(type) && type != "不限") con += " AND \"TYPE\"='" + type + "'";
+            var state = $("#state").prop("$this").GetValue();
+            if (!Dev.IsNull(state) && state != "不限") con += " AND \"STATE\"='" + state + "'";
+            if (!Dev.IsNull(paramType)) con += " AND \"DEVICETYPE\"='" + paramType + "'";
+            else {
+                var devicetype = $("#devicetype").prop("$this").GetValue();
+                if (!Dev.IsNull(devicetype) && devicetype != "不限") { con += " AND \"DEVICETYPE\"= '" + devicetype + "'"; }
+            }
+            var time1 = $("#tasktime1").datebox("getValue");
+            var time2 = $("#tasktime2").datebox("getValue");
+            if (!Dev.IsNull(time1) && !Dev.IsNull(time2)) {
+                var t1 = new Date(time1.replace(/-/g, "/"));
+                var t2 = new Date(time2.replace(/-/g, "/"));
+                if (t1.getTime() > t2.getTime()) {
+                    var temp = time1;
+                    time1 = time2;
+                    time2 = temp;
+                }
+            }
+            if (!Dev.IsNull(time1)) con += " AND \"LOCATIONTIME\">='" + time1 + " 00:00:00'";
+            if (!Dev.IsNull(time2)) con += " AND \"LOCATIONTIME\"<='" + time2 + " 23:59:59'";
+            return con;
+        }
+
+        /*重置搜索条件*/
+        function searchClear() {
+            clearbottompanel();
+            //清空选项框
+            $("#devicetype").prop("$this").SetValue("");
+            $("#countType").prop("$this").SetValue("");
+            $("#type").prop("$this").SetValue("");
+            $("#state").prop("$this").SetValue("");
+            $("#tasktime1").datebox("setValue", "");
+            $("#tasktime2").datebox("setValue", "");
+        }
+
+        /*清空BottomPanel */
+        function clearbottompanel() {
+            Dev.MapUtils.ClearFeature("tempGraphicLayer");
+            statData = null;
+            if (!Dev.IsNull(legendcontrol)) legendcontrol.SetVisible(false);
+            Dev.App.BottomPanel.ClearTool();
+            Dev.App.BottomPanel.Content.empty();
+            Dev.App.BottomPanel.SetVisible(false);
+        }
+
+        //初始化数据列表
+        function initData(data) {
+            if (Dev.IsNull(data) || data.length == 0) return;
+            if (Dev.App.BottomPanel.Visible != true) {
+                Dev.App.BottomPanel.SetVisible(true);
+                Dev.App.BottomPanel.Header.css({
+                    "background": "#14cdad",
+                    "color": "#fcfcfc",
+                    "font-weight": "bold"
+                });
+                Dev.App.BottomPanel.SetIconCls("machine-carmanage");
+                Dev.App.BottomPanel.SetTitle("报警统计列表");
+                //添加工具
+                Dev.App.BottomPanel.RemoveTool("btnStatist");
+                Dev.App.BottomPanel.AddTool([{
+                    ID: 'btnExport', IconCls: 'icon-export-white', TipTitle: '导出'
+                }, { ID: 'btnStatist', IconCls: 'icon-statgraph', TipTitle: '报警统计图' }]);
+            }
+            Dev.App.BottomPanel.Content.empty();
+
+            var div = $('<div style="width:100%;height:100%;"></div>')
+            Dev.App.BottomPanel.Add(div);
+            //显示数据
+            box = new Dev.Box({ HasBorder: false });
+            box.Target.css({
+                width: Dev.App.BottomPanel.Target.width() + "px",
+                height: (Dev.App.BottomPanel._Height - 28) + "px"
+            });
+            box.Target.appendTo(div);
+            var devicetype = $("#devicetype").prop("$this").GetValue();
+            var table;
+            if (Dev.IsNull(paramType) && (countType.toLowerCase() === "no" && (Dev.IsNull(devicetype) || devicetype === "不限"))) {
+                table = $('<table class="statInfo" cellspacing="0" cellpadding="0" width="100%"><tr><th>省</th><th>市</th><th>县</th><th>乡</th><th>设备类型</th><th>名称</th><th>报警次数</th><th>比例</th></tr></table>');
+            } else {
+                table = $('<table class="statInfo" cellspacing="0" cellpadding="0" width="100%"><tr><th>省</th><th>市</th><th>县</th><th>乡</th><th>名称</th><th>报警次数</th><th>比例</th></tr></table>');
+            }
+            //总行数
+            var provincedata = Enumerable.From(data).GroupBy('s=>s.province').ToArray();
+            var isprorow = false, iscityrow = false, iscountyrow = false, istownrow = false, isdtrow = false;
+            for (var i = 0; i < provincedata.length; i++) {
+                isprorow = true;
+                var provincerowcount = provincedata[i].source.length;
+                var provincename = provincedata[i].source[0].province;
+                var citys = Enumerable.From(provincedata[i].source).GroupBy('s=>s.city').ToArray();
+                for (var j = 0; j < citys.length; j++) {
+                    iscityrow = true;
+                    var cityrowcount = citys[j].source.length;
+                    var cityname = citys[j].source[0].city;
+                    var county = Enumerable.From(citys[j].source).GroupBy('s=>s.county').ToArray();
+                    for (var k = 0; k < county.length; k++) {
+                        iscountyrow = true;
+                        var countyrowcount = county[k].source.length;
+                        var countyname = county[k].source[0].county;
+                        var town = Enumerable.From(county[k].source).GroupBy('s=>s.town').ToArray();
+                        for (var l = 0; l < town.length; l++) {
+                            istownrow = true;
+                            var townrowcount = town[l].source.length;
+                            var townname = town[l].source[0].town;
+                            if (Dev.IsNull(paramType) && (countType.toLowerCase() === "no" && (Dev.IsNull(devicetype) || devicetype === "不限"))) {//按设备统计
+                                var devicetypes = Enumerable.From(town[l].source).GroupBy('s=> s.devicetype').ToArray();
+                                for (var n = 0; n < devicetypes.length; n++) {
+                                    isdtrow = true;
+                                    var dtrowcount = devicetypes[n].source.length;
+                                    var dtname = devicetypes[n].source[0].devicetype;
+                                    for (var m = 0; m < devicetypes[n].source.length; m++) {
+                                        var tr = $('<tr></tr>').appendTo(table);
+                                        if (isprorow) { tr.append($('<td rowspan="' + provincerowcount + '">' + (Dev.IsNull(provincename) ? "-" : provincename) + '</td>')); isprorow = false; }
+                                        if (iscityrow) { tr.append($('<td rowspan="' + cityrowcount + '">' + (Dev.IsNull(cityname) ? "-" : cityname) + '</td>')); iscityrow = false; }
+                                        if (iscountyrow) { tr.append($('<td rowspan="' + countyrowcount + '">' + (Dev.IsNull(countyname) ? "-" : countyname) + '</td>')); iscountyrow = false; }
+                                        if (istownrow) { tr.append($('<td rowspan="' + townrowcount + '">' + (Dev.IsNull(townname) ? "-" : townname) + '</td>')); istownrow = false; }
+                                        if (isdtrow) { tr.append($('<td rowspan="' + dtrowcount + '">' + (Dev.IsNull(dtname) ? "-" : dtname) + '</td>')); isdtrow = false; }
+                                        var name = "key";
+                                        tr.append($('<td>' + (Dev.IsNull(devicetypes[n].source[m][name]) ? "—" : devicetypes[n].source[m][name]) + '</td>'));
+                                        tr.append($('<td>' + devicetypes[n].source[m].count + '</td>'));
+                                        tr.append($('<td>' + devicetypes[n].source[m].ratio + '</td>'));
+                                    }
+                                }
+                            } else {
+                                for (var m = 0; m < town[l].source.length; m++) {
+                                    var tr = $('<tr></tr>').appendTo(table);
+                                    if (isprorow) { tr.append($('<td rowspan="' + provincerowcount + '">' + (Dev.IsNull(provincename) ? "-" : provincename) + '</td>')); isprorow = false; }
+                                    if (iscityrow) { tr.append($('<td rowspan="' + cityrowcount + '">' + (Dev.IsNull(cityname) ? "-" : cityname) + '</td>')); iscityrow = false; }
+                                    if (iscountyrow) { tr.append($('<td rowspan="' + countyrowcount + '">' + (Dev.IsNull(countyname) ? "-" : countyname) + '</td>')); iscountyrow = false; }
+                                    if (istownrow) { tr.append($('<td rowspan="' + townrowcount + '">' + (Dev.IsNull(townname) ? "-" : townname) + '</td>')); istownrow = false; }
+                                    var name = "key";
+                                    tr.append($('<td>' + (Dev.IsNull(town[l].source[m][name]) ? "—" : town[l].source[m][name]) + '</td>'));
+                                    tr.append($('<td>' + town[l].source[m].count + '</td>'));
+                                    tr.append($('<td>' + town[l].source[m].ratio + '</td>'));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            box.SetContent(table);
+        }
+
+        /*初始化统计图数据*/
+        function initchartData() {
+            var chartdiv = $('<div class="chartDiv"></div>');
+            drilldown = [];
+            var chart = $('<div id="chart"></div>').appendTo(chartdiv);
+            var seriesdata = Enumerable.From(statData).GroupBy('s=>s.province').ToArray();
+            var series = [{ name: "省", data: [], type: "pie", tag: "报警次数" }];
+            for (var i = 0; i < seriesdata.length; i++) {
+                var count = Enumerable.From(seriesdata[i]).Sum('s=>s.count');
+                series[0].data.push({ name: seriesdata[i].source[0].province, y: count, drilldown: "province" + i });
+                getdrilldown(seriesdata[i].source, "province", "province" + i);
+            }
+            chart.highcharts({
+                chart: {
+                    events: {
+                        drilldown: function (e) {
+                            var c = this;
+                            var drilldownid = e.point.drilldown;
+                            var drilldownlineid = "line" + e.point.drilldown;
+                            var newseries = Enumerable.From(drilldown).Where('s=>s.id=="' + drilldownid + '" || s.id=="' + drilldownlineid + '"').ToArray();
+                            for (var i = 0; i < newseries.length; i++) c.addSingleSeriesAsDrilldown(e.point, newseries[i]);
+                            c.applyDrilldown();
+                            return false;
+                        }
+                    }
+                },
+                title: null,
+                xAxis: {
+                    type: 'category'
+                },
+
+                yAxis: [
+                    {
+                        title: { text: '报警次数(次)' }
+                    }
+                ],
+                credits: { enabled: false },
+                series: series,
+                drilldown: {
+                    //series: drilldown
+                    series: []
+                },
+                plotOptions: {
+                    pie: {
+                        allowPointSelect: true, //选中某块区域是否允许分离
+                        cursor: 'pointer',
+                        dataLabels: {
+                            enabled: true,
+                            format: '{point.name}{point.y}({point.percentage:.1f} %)'
+                        },
+                        showInLegend: true
+                    }
+                },
+                legend: {
+                    enabled: false
+                }
+            });
+            return chartdiv;
+        }
+
+        /*下钻*/
+        function getdrilldown(data, levername, id) {
+            var groupname;
+            var sname;
+            if (levername == "province") {
+                groupname = "city";
+                sname = "市";
+            }
+            if (levername == "city") {
+                groupname = "county";
+                sname = "县";
+            }
+            if (levername == "county") {
+                groupname = "town";
+                sname = "乡";
+            }
+            if (levername == "town") {
+                groupname = "key";
+                sname = "报警次数";
+            }
+            if (levername == "key") {
+                sname = "设备";
+            }
+            var currdata = { name: sname, id: id, data: [], type: "pie", tag: "报警次数" };
+            drilldown.push(currdata);
+            if (!Dev.IsNull(groupname)) {
+                var seriesdata = Enumerable.From(data).GroupBy('s=>s.' + groupname.toLowerCase()).ToArray();
+                for (var i = 0; i < seriesdata.length; i++) {
+                    var drowdownname = "";
+                    if (groupname == "city") drilldownname = "county";
+                    if (groupname == "county") drilldownname = "town";
+                    var count = Enumerable.From(seriesdata[i].source).Sum('s=>s.count');
+                    currdata.data.push({
+                        name: seriesdata[i].source[0][groupname.toLowerCase()],
+                        y: count,
+                        drilldown: id + drilldownname + i
+                    });
+                    getdrilldown(seriesdata[i].source, groupname, id + drilldownname + i);
+                }
+            }
+            else {
+                for (var i = 0; i < data.length; i++) {
+                    var name = countType.toLowerCase();
+                    currdata.data.push({ name: data[i][name], y: data[i].count });
+                }
+            }
+        }
+
+        /*设置bottomPanel*/
+        function resize() {//bottomPanel 的Size发生改变
+            if (!Dev.IsNull(box)) box.SetSize({
+                Width: Dev.App.BottomPanel.Target.width(),
+                Height: (Dev.App.BottomPanel.Height - 28)
+            });
+        }
+
+        //初始化图例
+        function initlegend() {
+            legendcontrol = new Dev.UCLegend({ Left: 5 });
+            legendcontrol.SetData(legends);
+            legendcontrol.SetVisible(true);
+        }
+
+        //辅助函数
+        function getlever() {//获取当前地图的比例尺对应的行政区划
+            var lever;
+            var resolution = Dev.MapUtils.GetScaleByResolution(Dev.App.Map.getView().getResolution(), Dev.App.Map);
+            for (var i = 0; i < districts.length; i++) {
+                var maxscale = null, minscale = null;
+                if (!Dev.IsNull(districts[i].MaxScale)) maxscale = parseFloat(districts[i].MaxScale);
+                if (!Dev.IsNull(districts[i].MinScale)) minscale = parseFloat(districts[i].MinScale);
+                if (!Dev.IsNull(maxscale) && !Dev.IsNull(minscale) && resolution >= minscale && resolution <= maxscale) {
+                    lever = districts[i].GroupField;
+                    break;
+                }
+                if (!Dev.IsNull(minscale) && Dev.IsNull(maxscale) && resolution >= minscale) {
+                    lever = districts[i].GroupField;
+                    break;
+                }
+                if (!Dev.IsNull(maxscale) && Dev.IsNull(minscale) && resolution <= maxscale) {
+                    lever = districts[i].GroupField;
+                    break;
+                }
+            }
+            return lever;
+        }
+
+        //地图上渲染统计数据
+        function getdata(data, lever) {
+            Dev.MapUtils.ClearFeature("tempGraphicLayer");
+            var newdata = [];
+            for (var i = 0; i < data.length; i++) {
+                /*过滤空值*/
+                if (data[i].province == null || data[i].city == null || data[i].county == null || data[i].town == null) {
+                    continue;
+                }
+                var tempdata = null;
+                if (lever.toLowerCase() == "province") tempdata = Enumerable.From(newdata).Where('s=>s.province=="' + data[i].province + '"').FirstOrDefault();
+                if (lever.toLowerCase() == "city") tempdata = Enumerable.From(newdata).Where('s=>s.province=="' + data[i].province + '" && s.city=="' + data[i].city + '"').FirstOrDefault();
+                if (lever.toLowerCase() == "county") tempdata = Enumerable.From(newdata).Where('s=>s.province=="' + data[i].province + '" && s.city=="' + data[i].city + '" && s.county=="' + data[i].county + '"').FirstOrDefault();
+                if (lever.toLowerCase() == "town") tempdata = Enumerable.From(newdata).Where('s=>s.province=="' + data[i].province + '" && s.city=="' + data[i].city + '" && s.county=="' + data[i].county + '" && s.town=="' + data[i].town + '"').FirstOrDefault();
+                if (!Dev.IsNull(tempdata)) {
+                    var index = Enumerable.From(newdata).IndexOf(tempdata);
+                    newdata[index].data.push(data[i]);
+                    continue;
+                }
+                var con = "";
+                if (lever.toLowerCase() == "province") con = "PROVINCE='" + data[i].province + "'";
+                if (lever.toLowerCase() == "city") con = "PROVINCE='" + data[i].province + "' AND CITY='" + data[i].city + "'";
+                if (lever.toLowerCase() == "county") con = "PROVINCE='" + data[i].province + "' AND CITY='" + data[i].city + "' AND COUNTY='" + data[i].county + "'";
+                if (lever.toLowerCase() == "town") con = "PROVINCE='" + data[i].province + "' AND CITY='" + data[i].city + "' AND COUNTY='" + data[i].county + "' AND TOWN='" + data[i].town + "'";
+                var feature = Dev.getfeaturebylever(lever.toLowerCase(), con);
+                if (Dev.IsNull(feature)) continue;
+                newdata.push({
+                    province: data[i].province,
+                    city: data[i].city,
+                    county: data[i].county,
+                    town: data[i].town,
+                    data: [data[i]],
+                    feature: feature
+                });
+            }
+            if (Dev.IsNull(newdata) || newdata.length == 0) return;
+            var featrues = [];
+            for (var i = 0; i < newdata.length; i++) {
+                var currdatas = newdata[i].data;
+                var count = Enumerable.From(currdatas).Sum('s=>s.count');
+                //配置颜色
+                var selectlegend;
+                for (var j = 0; j < legends.length; j++) {
+                    var maxvalue = null, minvalue = null;
+                    if (!Dev.IsNull(legends[j].MinValue)) minvalue = parseFloat(legends[j].MinValue);
+                    if (!Dev.IsNull(legends[j].MaxValue)) maxvalue = parseFloat(legends[j].MaxValue);
+                    if (!Dev.IsNull(maxvalue) && Dev.IsNull(minvalue) && count <= maxvalue) {
+                        selectlegend = legends[j];
+                        break;
+                    }
+                    if (!Dev.IsNull(minvalue) && Dev.IsNull(maxvalue) && count > minvalue) {
+                        selectlegend = legends[j];
+                        break;
+                    }
+                    if (!Dev.IsNull(minvalue) && !Dev.IsNull(maxvalue) && count > minvalue && count <= maxvalue) {
+                        selectlegend = legends[j];
+                        break;
+                    }
+                }
+                var style = new Dev.style.Style({
+                    fill: new Dev.style.Fill({ color: selectlegend.Fill.Color }),
+                    stroke: new Dev.style.Stroke({
+                        color: selectlegend.Border.Color,
+                        width: parseInt(selectlegend.Border.Width)
+                    }),
+                    text: new Dev.style.Text({
+                        text: newdata[i][lever.toLowerCase()] + "(" + count + "次)",
+                        font: "15px serif",
+                        fill: new Dev.style.Fill({ color: [255, 255, 255, 1] }),
+                    })
+                });
+                var currfeature = newdata[i].feature;
+                currfeature.setStyle(style);
+                featrues.push(currfeature);
+            }
+            Dev.MapUtils.AddFeatures(featrues, "tempGraphicLayer", null, Dev.App.Map);
+            //添加图例
+
+        }
+
+
+    </script>
+</head>
+<body>
+    <form id="export-form" style="display: none" method="post">
+        <input name="condition" />
+    </form>
+    <div style="height: 100%; width: 100%; position: relative;">
+        <!--查询条件-->
+        <div style="height: 50%; width: 100%; position: relative;">
+            <!--统计方式-->
+            <div style="width: 300px; height: 35px; top: 0px;">
+                <div class="Title">
+                    <span class="Text">统计方式</span>
+                </div>
+                <div style="width: 208px; height: 35px; line-height: 38px; float: left;">
+                    <div id="countType" class="dev-combobox" style="width: 208px; display: inline-block; margin-top: 8px;"
+                        opt='{"Required":"true","TextField":"data","ValueField":"id","TipInfo":"请选择","Data":[{"data":"按设备统计","id":"NO"},{"data":"按报警类型统计","id":"TYPE"}],"IsOverShow":true,"Padding":"5px","TextAlign":"left","BodyCSS": { "background-color": "transparent"}}'>
+                    </div>
+                </div>
+            </div>
+            <div id="searchType" style="width: 300px; height: 35px; top: 0px;">
+                <div class="Title">
+                    <span class="Text">设备类型</span>
+                </div>
+                <div style="width: 208px; height: 35px; line-height: 38px; float: left;">
+                    <div id="devicetype" class="dev-combobox" style="width: 208px; display: inline-block; margin-top: 8px;"
+                        opt='{"TextField":"Text","ValueField":"Type","TipInfo":"请选择","Data":[{"Text":"-不限-","Type":"不限"},{"Text":"农机","Type":"农机"},{"Text":"无人机","Type":"无人机"}],"IsOverShow":true,"Padding":"5px","TextAlign":"left","BodyCSS": { "background-color": "transparent"}}'>
+                    </div>
+                </div>
+            </div>
+            <!--统计条件-->
+            <div style="height: 35px; width: 100%;">
+                <div class="Title">
+                    <span class="Text">报警类型</span>
+                </div>
+                <div style="width: 208px; height: 35px; line-height: 38px; float: left;">
+                    <div id="type" class="dev-combobox" style="width: 208px; display: inline-block; margin-top: 8px;"
+                        opt='{"TipInfo":"请选择","IsOverShow":true,"Padding":"5px","TextAlign":"left","BodyCSS": { "background-color": "transparent"}}'>
+                    </div>
+                </div>
+            </div>
+            <div style="height: 35px; width: 100%;">
+                <div class="Title">
+                    <div></div>
+                    <span class="Text">报警状态</span>
+                </div>
+                <div style="width: 208px; height: 35px; line-height: 38px; float: left;">
+                    <div id="state" class="dev-combobox" style="width: 208px; display: inline-block; margin-top: 8px;"
+                        opt='{"TextField":"data","ValueField":"id","TipInfo":"请选择","Data":[{"data":"不限","id":"不限"},{"data":"已被处理","id":"1"},{"data":"未被处理","id":"0"}],"IsOverShow":true,"Padding":"5px","TextAlign":"left","BodyCSS": { "background-color": "transparent"}}'>
+                    </div>
+                </div>
+            </div>
+            <div style="height: 35px; width: 100%;">
+                <div class="Title">
+                    <span class="Text">时&nbsp;&nbsp;间</span>
+                </div>
+                <div style="width: 94px; height: 35px; line-height: 38px; display: inline-block; float: left;">
+                    <input id="tasktime1" class="easyui-datebox" data-options="width:94,height:24,editable:false" />
+                </div>
+                <div style="width: 20px; text-align: center; line-height: 26px; height: 26px; display: inline-block; float: left; margin-top: 4px;">
+                    <span>至</span>
+                </div>
+                <div style="width: 94px; height: 35px; line-height: 38px; display: inline-block; float: left;">
+                    <input id="tasktime2" class="easyui-datebox" data-options="width:94,height:24,editable:false" />
+                </div>
+            </div>
+            <!--查询按钮-->
+            <div style="width: 100%; height: 35px;">
+                <div id="errorMsg"
+                    style="height: 35px; width: 100px; line-height: 35px; display: inline-block; color: red; padding-left: 10px;">
+                </div>
+                <div class="Button" style="float: right; margin-right: 7px;" tag="clear">
+                    <div class="machine-reset"
+                        style="height: 16px; width: 16px; margin-top: 4px; margin-left: 5px; display: inline-block; float: left;">
+                    </div>
+                    <span style="color: #fcfcfc; line-height: 29px;">重&nbsp;置</span>
+                </div>
+                <div class="Button" style="float: right; margin-right: 10px;" tag="count">
+                    <div class="icon-statgraph"
+                        style="height: 16px; width: 16px; margin-top: 4px; margin-left: 5px; display: inline-block; float: left;">
+                    </div>
+                    <span style="color: #fcfcfc; line-height: 29px;">统&nbsp;计</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

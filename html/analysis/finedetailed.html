@@ -1,0 +1,761 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>详细信息</title>
+    <link rel="stylesheet" href="../../theme/default/easyui.css" />
+    <link rel="stylesheet" type="text/css" href="../../theme/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/app.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/icon.css" />
+    <link type="text/css" href="../../css/dev.css" rel="stylesheet" />
+    <script type="text/javascript" src="../../js/jquery.min.js"></script>
+    <script type="text/javascript" src="../../js/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="../../js/easyui-lang-zh_CN.js"></script>
+    <script type="text/javascript" src="../../js/linq.min.js"></script>
+    <script type="text/javascript" src="../../js/data.util.js"></script>
+    <script type="text/javascript" src="../../js/jquery.dev.control.js"></script>
+    <script type="text/javascript" src="../../js/highcharts.js"></script>
+    <style type="text/css">
+        .rotations {
+            width: 100%;
+            height: 100%;
+        }
+
+        #timeline {
+            list-style: none;
+            margin: 10px 0 30px 100px;
+            padding-left: 30px;
+            border-left: 8px solid #eee9dc;
+        }
+
+            #timeline li {
+                margin: 0;
+                position: relative;
+            }
+
+            #timeline p {
+                margin: 0 0 15px;
+            }
+
+        .date {
+            margin-top: -10px;
+            top: 50%;
+            left: -120px;
+            font-size: 0.95em;
+            line-height: 20px;
+            position: absolute;
+        }
+
+        .circle {
+            margin-top: -10px;
+            top: 50%;
+            left: -44px;
+            width: 10px;
+            height: 10px;
+            background: #48b379;
+            border: 5px solid #eee9dc;
+            border-radius: 50%;
+            display: block;
+            position: absolute;
+        }
+
+        .content {
+            max-height: 20px;
+            padding: 50px 20px 0;
+            border-color: transparent;
+            border-width: 2px;
+            border-style: solid;
+            border-radius: 0.5em;
+            position: relative;
+        }
+
+            .content:before, .content:after {
+                content: "";
+                width: 0;
+                height: 0;
+                border: solid transparent;
+                position: absolute;
+                pointer-events: none;
+                right: 100%;
+            }
+
+            .content:before {
+                border-right-color: inherit;
+                border-width: 20px;
+                top: 50%;
+                margin-top: -20px;
+            }
+
+            .content:after {
+                border-right-color: #FFFFFF;
+                border-width: 17px;
+                top: 50%;
+                margin-top: -17px;
+            }
+
+            .content p {
+                max-height: 0;
+                color: transparent;
+                text-align: justify;
+                word-break: break-all;
+                hyphens: auto;
+                overflow: hidden;
+            }
+
+        label {
+            font-size: 1.3em;
+            position: absolute;
+            z-index: 100;
+            cursor: pointer;
+            top: 25px;
+            left: 5px;
+            transition: transform 0.2s linear;
+        }
+
+        .radio {
+            display: none;
+        }
+
+            .radio:checked + .relative label {
+                cursor: auto;
+                transform: translateX(15px);
+            }
+
+            .radio:checked + .relative .circle {
+                background: #f98262;
+            }
+
+            .radio:checked ~ .content {
+                max-height: 30px;
+                border-color: #eee9dc;
+                margin-right: 20px;
+                transform: translateX(10px);
+                transition: max-height 0.4s linear, border-color 0.5s linear, transform 0.2s linear;
+            }
+
+                .radio:checked ~ .content p {
+                    max-height: 200px;
+                    color: #000000;
+                    transition: color 0.3s linear 0.3s;
+                }
+
+            .radio:checked + .relative .date {
+                font-weight: 600;
+            }
+
+        .Row span {
+            float: left;
+            display: block;
+            padding: 7px 8px;
+            margin-top: 10px;
+            margin-left: 14px;
+            border-radius: 4px;
+            background: #efefef;
+            font-size: 12px;
+        }
+    </style>
+    <script type="text/javascript">
+        var Dev = window.top.window.dev;
+        var parent, tabi, layerinfo, d, piclist3, legendcontrol, piclist1;
+        var tabControl;
+        function WidgetCommunication(s) {//部件通讯
+            parent = s.parent;
+            parent.isfirst = parent.isfirst1 = parent.isfirst2 = parent.isfirst3 = parent.isfirst4 = parent.isfirst5 = true;
+            parent.tabi = 0;
+            //初始化信息选项卡
+            initTab();
+            parent.initTab = function () { initTab() };
+            parent.tabselect = function (index) {
+                d = parent.datap;
+                clearL();
+                if (index == 0 || index == 2) {
+                    layerinfo = layerType("decision");//种植信息、长势信息
+                }
+                else if (index == 5)
+                    layerinfo = layerType("produce");//产量
+                else if (index == 3)
+                    layerinfo = layerType("bch");//病虫害
+                else if (index == 1)
+                    layerinfo = layerType("moisture");//土壤墒情
+                else if (index == 4)
+                    layerinfo = layerType("fertilizer");//施肥
+                AddWMS(layerinfo[0], true, d.MASSIFID == undefined ? d.massifid : d.MASSIFID);
+                initLegend(layerinfo[0]);
+                if (index == 0 && parent.isfirst) {
+                    $("#massifarea").html("地块面积：" + Dev.SqrtMetersToMu(d.FARMAREA == undefined ? d.farmlandarea : d.FARMAREA, 1) + "亩");
+                    $("li", $("#timeline")).remove();
+                    $.ajax({
+                        type: "POST",
+                        data: { massifId: d.MASSIFID == undefined ? d.massifid : d.MASSIFID },
+                        url: Dev.GetSystemUrlByRelID("Service") + "crop/findCropByMassifId",
+                        success: function (response) {
+                            if (response.statusCode != 200 || Dev.IsNull(response.data)) {
+                                return;
+                            }
+                            var data = response.data;
+                            if (Dev.IsNull(data)) return;
+                            for (var i = 0; i < data.length; i++) {
+                                var li = $("<li class='work'><input class='radio' id='work" + i + "' name='works' type='radio' /></li>").appendTo($("#timeline"));
+                                var relative = $("<div class='relative'></div>").appendTo(li);
+                                var label = $("<label for='work" + i + "'></label>").appendTo(relative);
+                                $("<span class='date'>" + Dev.GetDateString(data[i].cropTypeEntity.cropdate, true) + "</span>").appendTo(relative);
+                                if (data[i].cropTypeEntity.id.indexOf(layerinfo[0].PlantDate.replace(/[-]/g, "")) != -1) {
+                                    $("#work" + i + "", li).attr("checked", "checked");
+                                    label.text("(当期)" + data[i].cropTypeEntity.croptype);
+                                    $("#plantarea").html("种植面积：" + Dev.SqrtMetersToMu(data[i].cropTypeEntity.croparea, 1) + "亩");
+                                    $("#Span1").html("种植作物：" + data[i].cropTypeEntity.croptype);
+                                    //loadCrorPic(data[i].attid);
+                                }
+                                else {
+                                    label.text(data[i].cropTypeEntity.croptype);
+                                }
+                                $("<span class='circle'></span>").appendTo(relative);
+                                $("<div class='content'><p>面积：" + Dev.SqrtMetersToMu(data[i].cropTypeEntity.croparea, 1) + "亩</p></div>").appendTo(li);
+                            }
+                        },
+                        error: function (e) {
+                            //flashDialog.Alert("请求失败", "error");
+                        }
+                    });
+                    parent.isfirst = false;
+                }
+                else if (index == 2 && parent.isfirst1) {
+                    var xgrowth = [];
+                    var chartgrowth = [];
+                    $.ajax({
+                        type: "POST",
+                        data: { tableName: layerinfo[0].TypeName.split(':')[1], massifId: d.MASSIFID == undefined ? d.massifid : d.MASSIFID },
+                        url: Dev.GetSystemUrlByRelID("Service") + "growth/findAvgAreaAndHisNdvi",
+                        success: function (response) {
+                            if (!Dev.IsNull(response.data2)) {
+                                var datagrowth = response.data2;
+                                for (var i = 0; i < datagrowth.length; i++) {
+                                    if (datagrowth[i].GRIDCODE == 1)
+                                        $("#Span2").html("长势好:" + Dev.SqrtMetersToMu(datagrowth[i].AREA * 1000000, 1) + "亩,占比" + datagrowth[i].RATE);
+                                    if (datagrowth[i].GRIDCODE == 2)
+                                        $("#Span3").html("长势持平:" + Dev.SqrtMetersToMu(datagrowth[i].AREA * 1000000, 1) + "亩,占比" + datagrowth[i].RATE);
+                                    if (datagrowth[i].GRIDCODE == 3)
+                                        $("#Span4").html("长势差:" + Dev.SqrtMetersToMu(datagrowth[i].AREA * 1000000, 1) + "亩,占比" + datagrowth[i].RATE);
+                                }
+                            }
+                            if (!Dev.IsNull(response.data1)) {
+                                var responsechart = response.data1;
+                                for (var i = 0; i < responsechart.length; i++) {
+                                    chartgrowth.push(responsechart[i].NDVI);
+                                    xgrowth.push(responsechart[i].CROPDATE);
+                                }
+                                $("#chartgrowth").highcharts(hchart(chartgrowth, xgrowth, "植被指数"));
+                            }
+                            if (!Dev.IsNull(response.data3)) {
+                                var attids = response.data3;
+                                loadGrowthPic(attids);
+                            }
+                            else {
+                                piclist3 = null;
+                                $("[name='pageIndex']", $("#growthdiv")).text(0 + "/" + 0);
+                                $("#picview3", $("#growthdiv")).css({ "background-image": "", "background-size": "contain" });
+                                $(".imgviewer3", $("#growthdiv")).prop("bg_file", null);
+                            }
+                        },
+                        error: function (e) {
+                            //flashDialog.Alert("请求失败", "error");
+                        }
+                    });
+                    parent.isfirst1 = false;
+                }
+                else if (index == 5 && parent.isfirst2) {
+                    var xyield = [];
+                    var chartyield = [];
+                    $.ajax({
+                        type: "POST",
+                        data: { tableName: layerinfo[0].TypeName.split(':')[1], massifId: d.MASSIFID == undefined ? d.massifid : d.MASSIFID },
+                        url: Dev.GetSystemUrlByRelID("Service") + "yield/findAvgAndHistoryYield",
+                        success: function (response) {
+                            if (!Dev.IsNull(response.data2)) {
+                                var datayield = response.data2;
+                                $("#Span20").html("平均单产：" + datayield[0].AVERAGE + "kg");
+                                $("#Span8").html("增(减)产率：" + datayield[0].AVGINCREASE);
+                                var avgi = datayield[0].AVGINCREASE;
+                                if (!Dev.IsNull(avgi))
+                                    var increase = parseFloat($.trim(avgi.replace('%', '')));
+                                if (increase > 0.11) {
+                                    $("#Span21").html("作物预估等级：丰年");
+                                    $("#Span21").css("background", "#00FF00");
+                                }
+                                else if (0.04 < increase && increase <= 0.11) {
+                                    $("#Span21").html("作物预估等级：偏丰年");
+                                    $("#Span21").css("background", "#7CC623");
+                                }
+                                else if (0 < increase && increase <= 0.04) {
+                                    $("#Span21").html("作物预估等级：持平略增");
+                                    $("#Span21").css("background", "#22F1E0");
+                                }
+                                else if (-0.04 <= increase && increase <= 0) {
+                                    $("#Span21").html("作物预估等级：持平略减");
+                                    $("#Span21").css("background", "#FFFF00");
+                                }
+                                else if (-0.11 <= increase && increase < -0.04) {
+                                    $("#Span21").html("作物预估等级：偏欠年");
+                                    $("#Span21").css("background", "#EA6B48");
+                                }
+                                else {
+                                    $("#Span21").html("作物预估等级：欠年");
+                                    $("#Span21").css("background", "#FF0000");
+                                }
+                            }
+                            if (!Dev.IsNull(response.data1)) {
+                                var responsechart = response.data1;
+                                for (var i = 0; i < responsechart.length; i++) {
+                                    chartyield.push(responsechart[i].AVERAGE);
+                                    xyield.push(responsechart[i].CROPDATE);
+                                }
+                                $("#Div10").highcharts(hchart(chartyield, xyield, "平均单产(kg)"));
+                            }
+                        },
+                        error: function (e) {
+                            //flashDialog.Alert("请求失败", "error");
+                        }
+                    });
+                    parent.isfirst2 = false;
+                }
+                else if (index == 3 && parent.isfirst3) {
+                    layerinfo = layerType("bch");
+                    var xaxis = [];
+                    var chartdata = [];
+                    $.ajax({
+                        type: "POST",
+                        data: { tableName: layerinfo[0].TypeName.split(':')[1], massifId: d.MASSIFID == undefined ? d.massifid : d.MASSIFID },
+                        url: Dev.GetSystemUrlByRelID("Service") + "pests/findHistoryPestNum",
+                        success: function (response) {
+                            if (Dev.IsNull(response.data)) {
+                                return;
+                            }
+                            if (!Dev.IsNull(response.data.data2)) {
+                                var datapest = response.data.data2[0]
+                                $("#Span6").html("叶绿素含量：" + datapest.CHLOROP + "SPAD");
+                                $("#Span7").html("日平均气温：" + datapest.AVERAGET + "℃");
+                                $("#Span10").html("病虫害数量：" + datapest.PESTNUM + "只");
+                            }
+                            var data = response.data.data1;
+                            for (var i = 0; i < data.length; i++) {
+                                chartdata.push(data[i].PESTNUM);
+                                xaxis.push(data[i].CROPDATE);
+                            }
+                            $("#chartpests").highcharts(hchart(chartdata, xaxis, "病虫害数量(只)"));
+                        },
+                        error: function (e) {
+                            //flashDialog.Alert("请求失败", "error");
+                        }
+                    });
+                    parent.isfirst3 = false;
+                }
+                else if (index == 1 && parent.isfirst4) {
+                    var xsoil = [];
+                    var chartsoil = [];
+                    $.ajax({
+                        type: "POST",
+                        data: { tableName: layerinfo[0].TypeName.split(':')[1], massifId: d.MASSIFID == undefined ? d.massifid : d.MASSIFID },
+                        url: Dev.GetSystemUrlByRelID("Service") + "soil/findHisWaterContentAndArea",
+                        success: function (response) {
+                            if (!Dev.IsNull(response.data2)) {
+                                var datasoil = response.data2[0];
+                                $("#Span17").html("土壤相对含水量：" + datasoil.RELATIVE);
+                                if (datasoil.RELATIVE > 80) {
+                                    $("#Span18").html("相对含水量过多");
+                                    $("#Span18").css("background", "#00FFFF");
+                                }
+                                else if (datasoil.RELATIVE > 60 && datasoil.RELATIVE <= 80) {
+                                    $("#Span18").html("相对含水量适宜");
+                                    $("#Span18").css("background", "#00FF00");
+                                }
+                                else if (datasoil.RELATIVE > 55 && datasoil.RELATIVE <= 60) {
+                                    $("#Span18").html("相对含水量轻旱");
+                                    $("#Span18").css({ "background": "#FFFF00", "color": "black" });
+                                }
+                                else if (datasoil.RELATIVE > 45 && datasoil.RELATIVE <= 55) {
+                                    $("#Span18").html("相对含水量中旱");
+                                    $("#Span18").css("background", "#E27000");
+                                }
+                                else if (datasoil.RELATIVE > 40 && datasoil.RELATIVE <= 45) {
+                                    $("#Span18").html("相对含水量重旱");
+                                    $("#Span18").css({ "background": "#7D4000", "color": "black" });
+                                }
+                                else if (datasoil.RELATIVE <= 40) {
+                                    $("#Span18").html("相对含水量极旱");
+                                    $("#Span18").css({ "background": "#FF0000", "color": "white" });
+                                }
+                            }
+                            if (!Dev.IsNull(response.data1)) {
+                                var responsechart = response.data1;
+                                for (var i = 0; i < responsechart.length; i++) {
+                                    chartsoil.push(responsechart[i].RELATIVE);
+                                    xsoil.push(responsechart[i].CROPDATE);
+                                }
+                                $("#soilchart").highcharts(hchart(chartsoil, xsoil, "土壤相对含水量"));
+                            }
+                        },
+                        error: function (e) {
+                            //flashDialog.Alert("请求失败", "error");
+                        }
+                    });
+                    parent.isfirst4 = false;
+                }
+                else if (index == 4 && parent.isfirst5) {
+                    var xfert = [];
+                    var chartfert = [];
+                    $.ajax({
+                        type: "POST",
+                        data: { tableName: layerinfo[0].TypeName.split(':')[1], massifId: d.MASSIFID == undefined ? d.massifid : d.MASSIFID },
+                        url: Dev.GetSystemUrlByRelID("Service") + "fertility/findAvgIndexAndHisIndex",
+                        success: function (response) {
+                            if (!Dev.IsNull(response.data2)) {
+                                var datafert = response.data2[0];
+                                var n = datafert.N == null ? 0 : datafert.N.toFixed(3);
+                                var p = datafert.P == null ? 0 : datafert.P.toFixed(3);
+                                var k = datafert.K == null ? 0 : datafert.K.toFixed(3);
+                                var nt = datafert.NUTRIENT == null ? 0 : datafert.NUTRIENT.toFixed(3);
+                                $("#Span11").html("氮含量(N)：" + n);
+                                $("#Span12").html("磷含量(P)：" + p);
+                                $("#Span13").html("钾含量(K)：" + k);
+                                $("#Span14").html("综合养分指数：" + nt);
+                                if (datafert.NUTRIENT >= 95) {
+                                    $("#Span15").html("养分极高");
+                                    $("#Span15").css("background", "#00FF00");
+                                }
+                                else if (datafert.NUTRIENT >= 75 && datafert.NUTRIENT < 95) {
+                                    $("#Span15").html("养分高");
+                                    $("#Span15").css("background", "#00A884");
+                                }
+                                else if (datafert.NUTRIENT >= 50 && datafert.NUTRIENT < 75) {
+                                    $("#Span15").html("养分中等");
+                                    $("#Span15").css("background", "#22F1E0");
+                                }
+                                else if (datafert.NUTRIENT >= 30 && datafert.NUTRIENT < 50) {
+                                    $("#Span15").html("养分低");
+                                    $("#Span15").css("background", "#FFAA01");
+                                }
+                                else if (datafert.NUTRIENT < 30) {
+                                    $("#Span15").html("养分极低");
+                                    $("#Span15").css({ "background": "#FF0000", "color": "white" });
+                                }
+                            }
+                            if (!Dev.IsNull(response.data1)) {
+                                var responsechart = response.data1;
+                                for (var i = 0; i < responsechart.length; i++) {
+                                    chartfert.push(responsechart[i].NUTRIENT);
+                                    xfert.push(responsechart[i].CROPDATE);
+                                }
+                                $("#fertchart").highcharts(hchart(chartfert, xfert, "综合养分指数"));
+                            }
+                        },
+                        error: function (e) {
+                            //flashDialog.Alert("请求失败", "error");
+                        }
+                    });
+                    parent.isfirst5 = false;
+                }
+            }
+            parent.tabselect(parent.tabi);
+            parent.bind("onClosing", function () {
+                //进行释放
+                if (!Dev.IsNull(legendcontrol)) {
+                    legendcontrol.Target.remove();
+                    legendcontrol = null;
+                }
+                //parent.tabControl.unbind("onSelected");
+                //tabControl.unbind("onSelected");
+                clearL();
+            });
+        }
+        //初始化所有详细信息选项卡
+        function initTab() {
+            $(".rotations").empty();
+            var items = [{ ID: "basicdiv1", Name: "种植信息", Content: $("#basicdiv"), Width: $(window).width() - 2, Height: $(window).height() - 26 },
+                { ID: "basicdiv5", Name: "墒情数据", Content: $("#soildiv"), Width: $(window).width() - 2, Height: $(window).height() - 26 },
+               { ID: "basicdiv2", Name: "长势情况", Content: $("#growthdiv"), Width: $(window).width() - 2, Height: $(window).height() - 26 },
+               { ID: "basicdiv4", Name: "病虫害情况", Content: $("#pestdiv"), Width: $(window).width() - 2, Height: $(window).height() - 26 },
+           { ID: "basicdiv6", Name: "施肥情况", Content: $("#fertdiv"), Width: $(window).width() - 2, Height: $(window).height() - 26 },
+           { ID: "basicdiv3", Name: "产量预估", Content: $("#yielddiv"), Width: $(window).width() - 2, Height: $(window).height() - 26 }];
+            var showItems = [];
+            for (var i = 0; i < items.length; i++) {
+                showItems.push(items[i]);
+            }
+            parent.tabControl = tabControl = new Dev.Tab({
+                ID: "finetab",
+                Width: $(window).width(),
+                Height: $(window).height(),
+                TabNormalCls: "liveNormalTabCls",
+                TabSelectedCls: "liveSelectedTabCls",
+                Items: showItems
+            });
+            tabControl.bind("onSelected", function (element, index) {
+                if (element.target.parentElement.parentElement.id == "growthtab") {
+                    return;
+                }
+                parent.tabi = index.index;
+                parent.tabselect(parent.tabi);
+            });
+            tabControl.Layout();
+            $(".rotations").append(tabControl.Target);
+            initGrowthTab();
+        }
+        //初始化所有详细信息选项卡
+        function initGrowthTab() {
+            var items = [{ ID: "chartgro", Name: "走势情况", Content: $("#chartgrowth"), Width: 400, Height: 344 },
+                { ID: "imgviewer", Name: "图片信息", Content: $(".imgviewer3"), Width: 400, Height: 344 }];
+            var growthItems = [];
+            for (var i = 0; i < items.length; i++) {
+                growthItems.push(items[i]);
+            }
+            var tabC = new Dev.Tab({
+                ID: "growthtab",
+                Width: $(window).width(),
+                Height: 350,
+                TabNormalCls: "liveNormalTabCls",
+                TabSelectedCls: "liveSelectedTabCls",
+                Items: growthItems
+            });
+            tabC.Layout();
+            $("#Div2").empty();
+            $("#Div2").append(tabC.Target);
+            initimg();
+        }
+        //添加WMS
+        function AddWMS(layerinfo, visible, id) {
+            //判断该图层是否存在
+            Dev.MapUtils.RemoveLayer(layerinfo.ID, Dev.App.Map);
+            var param = {
+                Map: Dev.App.Map,
+                ID: layerinfo.ID,
+                Url: Dev.GetSystemUrlByRelID(layerinfo.Url),
+                Layers: layerinfo.TypeName,
+                Visible: Dev.IsNull(visible) ? false : visible,
+                ServerType: layerinfo.ServerType,
+                // EPSG: 'EPSG:4326',
+                EPSG: Dev.App.Config.SystemMap.DisplayEPSG,
+                CQLFilter: " MASSIFID=" + id
+            };
+            if (!Dev.IsNull(layerinfo.SldLegend)) {
+                param.Sldbody = Dev.GetSLDString(layerinfo.TypeName, Dev.LegendToRule(layerinfo.SldLegend));
+            }
+            Dev.MapLoad.AddWMSLayer(param);
+        }
+        //加载作物图片
+        function loadCrorPic(attid) {
+            var url = Dev.GetSystemUrlByRelID("Service") + "file/att/" + attid;
+            $.ajax({
+                url: url,
+                type: "GET",
+                contentType: 'application/json',
+                success: function (result) {
+                    if (result.statusCode != 200 || Dev.IsNull(result.data)) return;
+                    var piclist = result.data;
+                    piclist1 = piclist;
+                    if (Dev.IsNull(piclist) || piclist.length == 0) {
+                        $("#Div1").css({ "background-image": "", "background-size": "contain" });
+                        return;
+                    }
+                    $("#indexpic").text("共有" + piclist.length + "张图片，点击浏览");
+                    $("#Div1").css({ "background-image": "url(" + piclist[0].path + ")", "background-size": "contain" });
+                    $("#Div1").attr("title", "点击预览");
+                }
+            });
+        }
+        //加载长势图片
+        function loadGrowthPic(attids) {
+            var url = Dev.GetSystemUrlByRelID("Service") + "file/atts/" + attids;
+            $.ajax({
+                url: url,
+                type: "GET",
+                contentType: 'application/json',
+                success: function (result) {
+                    if (result.statusCode != 200 || Dev.IsNull(result.data)) return;
+                    var piclist = result.data;
+                    piclist3 = piclist;
+                    if (Dev.IsNull(piclist) || piclist.length == 0) {
+                        piclist3 = null;
+                        $("[name='pageIndex']", $("#growthdiv")).text(0 + "/" + 0);
+                        $("#picview3", $("#growthdiv")).css({ "background-image": "", "background-size": "contain" });
+                        $(".imgviewer3", $("#growthdiv")).prop("bg_file", null);
+                        return;
+                    }
+                    $("[name='pageIndex']", $("#growthdiv")).text(1 + "/" + piclist.length);
+                    $("#picview3", $("#growthdiv")).css({ "background-image": "url(" + piclist[0].path + ")", "background-size": "contain" });
+                    $(".imgviewer3", $("#growthdiv")).prop("bg_file", piclist[0]);
+                }
+            });
+        }
+        //图片绑定鼠标事件
+        function initimg() {
+            //长势图片
+            $('.ImgBtn', $("#growthdiv")).css("display", "none");
+            $(".imgviewer3", $("#growthdiv")).mouseover(function () {
+                $('.ImgBtn', $("#growthdiv")).css("display", "block");
+            }).mouseleave(function () {
+                $('.ImgBtn', $("#growthdiv")).css("display", "none");
+            });
+            $("#picview3", $("#growthdiv")).bind("click", function () {
+                if (Dev.IsNull(piclist3) || piclist3.length == 0) return;
+                var previewimg = [];
+                for (var i = 0; i < piclist3.length; i++) previewimg.push(piclist3[i].path);
+                var curfile = $(".imgviewer3", $("#growthdiv")).prop("bg_file");
+                var curIndex = Enumerable.From(piclist3).IndexOf(curfile);
+                Dev.PreViewPics(previewimg, curIndex);
+            });
+            $(".ImgBtn", $("#growthdiv")).bind("click", function () {
+                if (piclist3.length == 0) return;
+                var currfile = $(".imgviewer3", $("#growthdiv")).prop("bg_file");
+                if (Dev.IsNull(currfile)) return;
+                var index = Enumerable.From(piclist3).IndexOf(currfile);
+                if (index < 0) return;
+                if ($(this).hasClass("PicLeft3")) {
+                    if (index == 0) return;
+                    --index;
+                    $("[name='pageIndex']", $(this).parent()).text(index + 1 + "/" + piclist3.length);
+                }
+                if ($(this).hasClass("PicRight3")) {
+                    if (index >= piclist3.length - 1) return;
+                    ++index;
+                    $("[name='pageIndex']", $(this).parent()).text(index + 1 + "/" + piclist3.length);
+                }
+                $("#picview3", $("#growthdiv")).css({ "background-image": "url(" + piclist3[index].path + ")" });
+                $(".imgviewer3", $("#growthdiv")).prop("bg_file", piclist3[index]);
+            });
+        }
+        function hchart(chartdata, xaxis, title) {
+            var hightc1 = {
+                chart: {
+                    borderWidth: 1,
+                    backgroundColor: 'rgba(4,155,199,0)',
+                    type: 'line',
+                    zoomType: 'xy',
+                    style: {
+                        color: "#ffffff"
+                    },
+                },
+                title: {
+                    text: "历年走势",
+                    style: { "color": "#000000" }
+                },
+                yAxis: {
+                    title: {
+                        text: title
+                    }
+                },
+                xAxis: {
+                    categories: xaxis
+                },
+                legend: {
+                    enabled: false
+                },
+                tooltip: {
+                    headerFormat: '<b>{point.x}</b><br />',
+                    pointFormat: title + ': {point.y}'
+                },
+                credits: { enabled: false },
+                series: [{ data: chartdata }]
+            };
+            return hightc1;
+        }
+        //辅助函数
+        function resize() {
+        }
+        function layerType(Type) {
+            return Enumerable.From(parent.layerinfo).Where('s=>s.Type.indexOf("' + Type + '")>=0').ToArray();
+        }
+        //清除统计图以及图层
+        function clearL() {
+            if (!Dev.IsNull(layerinfo) && layerinfo.length > 0) {
+                Dev.MapUtils.RemoveLayer(layerinfo[0].ID, Dev.App.Map);
+            }
+        }
+        //初始化图例
+        function initLegend(layerinfo) {
+            if (Dev.IsNull(legendcontrol)) {
+                legendcontrol = new Dev.UCLegend({ Bottom: 20, Left: 5 });
+            }
+            if (!Dev.IsNull(layerinfo.SldLegend)) {
+                var legends;
+                if (Dev.IsNull(layerinfo.SldLegend.length)) legends = [Dev.ObjClone(layerinfo.SldLegend)];
+                else legends = layerinfo.SldLegend.clone();
+                legends.unshift({ Text: "全部" });
+                legendcontrol.SetVisible(true);
+                legendcontrol.SetData(legends);
+            }
+        }
+    </script>
+</head>
+<body style="height: 100%; width: 100%">
+    <div class="rotations"></div>
+    <div id="basicdiv" class="MachineEdit" style="width: 100%; height: 100%;">
+        <div class="Row" style="width: 500px; height: 50px;">
+            <span id="massifarea" class="sp">地块面积:null</span><span id="plantarea" class="sp">种植面积:null</span><span id="Span1" class="sp">种植作物:null</span>
+        </div>
+        <div style="width: 500px; height: 345px; overflow-y: auto;">
+            <ul id='timeline'>
+            </ul>
+        </div>
+        <div id="indexpic" style="display: none; width: 190px; top: 100px; left: 300px; text-align: center; position: absolute; height: 30px;"></div>
+        <div id="Div1" style="display: none; width: 190px; height: 150px; top: 130px; left: 300px; position: absolute; background-position: center; background-size: cover; cursor: pointer;" title="暂无图片">
+        </div>
+    </div>
+    <div id="growthdiv" class="MachineEdit" style="height: 100%; width: 100%;">
+        <div class="Row" id="zs" style="width: 500px; height: 50px;">
+            <span id="Span2" class="sp" style="margin-left: 2px;">长势好:null</span><span id="Span3" class="sp" style="margin-left: 2px;">长势持平:null</span><span id="Span4" class="sp" style="margin-left: 2px;">长势差:null</span>
+        </div>
+        <div id="Div2" name="_picture" style="width: 500px; height: 350px;">
+            <div class="imgviewer3"
+                style="cursor: pointer; width: 100%; height: 100%; position: relative; background-repeat: no-repeat; background-position: center;">
+                <div name="pageIndex" style="width: 100%; margin-top: 30px; text-align: center"></div>
+                <div id="picview3"
+                    style="width: 70%; height: 70%; left: 15%; top: 15%; position: absolute; background-repeat: no-repeat; background-position: center;"
+                    title="点击预览">
+                </div>
+                <div class="PicLeft3 ImgBtn"
+                    style="background-image: url('../../image/agri/leftbtn.png'); background-repeat: no-repeat; background-position: center; width: 24px; height: 24px; position: absolute; left: 10px; top: 120px; background-size: cover;">
+                </div>
+                <div class="PicRight3 ImgBtn"
+                    style="background-image: url('../../image/agri/rightbtn.png'); background-repeat: no-repeat; background-position: center; width: 24px; height: 24px; position: absolute; right: 10px; top: 120px; background-size: cover;">
+                </div>
+            </div>
+            <div id="chartgrowth" style="width: 100%; height: 320px;"></div>
+        </div>
+    </div>
+    <div id="yielddiv" style="height: 100%; width: 100%;">
+        <div class="Row" style="width: 500px; height: 50px;">
+            <span id="Span20" class="sp">平均单产:null</span><span id="Span8" class="sp">增(减)产率:null</span><span id="Span21" class="sp">作物预估等级:null</span>
+        </div>
+        <div class="Row" id="Div8" style="width: 500px; height: 350px;">
+            <div id="Div10" style="width: 100%; height: 344px;"></div>
+        </div>
+    </div>
+    <div id="pestdiv" style="height: 100%; width: 100%;">
+        <div class="Row" id="Div3" style="width: 500px; height: 45px;">
+            <span id="Span6" class="sp">叶绿素含量:null</span><span id="Span7" class="sp">日平均气温:null</span><span id="Span10" class="sp">病虫害数量:null</span>
+        </div>
+        <div class="Row" id="Div5" style="width: 500px; height: 350px;">
+            <div id="chartpests" style="width: 100%; height: 344px;"></div>
+        </div>
+    </div>
+    <div id="soildiv" style="height: 100%; width: 100%;">
+        <div class="Row" style="width: 500px; height: 50px;">
+            <span id="Span17" class="sp">土壤相对含水量:null</span><span id="Span18" class="sp">墒情等级:null</span>
+        </div>
+        <div class="Row" id="Div9" style="width: 500px; height: 350px;">
+            <div id="soilchart" style="width: 100%; height: 344px;"></div>
+        </div>
+    </div>
+    <div id="fertdiv" style="height: 100%; width: 100%;">
+        <div class="Row" style="width: 500px; height: 50px;">
+            <span id="Span11" class="sp">氮含量(N):null</span><span id="Span12" class="sp">磷含量(P):null</span><span id="Span13" class="sp">钾含量(K):null</span>
+        </div>
+        <div class="Row" style="width: 500px; height: 50px;">
+            <span id="Span14" class="sp">综合养分指数:null</span><span id="Span15" class="sp">施肥等级</span>
+        </div>
+        <div class="Row" id="Div7" style="width: 500px; height: 300px;">
+            <div id="fertchart" style="width: 100%; height: 294px;"></div>
+        </div>
+    </div>
+</body>
+</html>

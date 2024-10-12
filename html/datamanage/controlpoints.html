@@ -1,0 +1,1048 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>控制点管理</title>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+    <link rel="stylesheet" href="../../theme/default/easyui.css"/>
+    <link rel="stylesheet" type="text/css" href="../../theme/icon.css"/>
+    <link rel="stylesheet" type="text/css" href="../../css/app.css"/>
+    <link rel="stylesheet" type="text/css" href="../../css/main.css"/>
+    <link rel="stylesheet" type="text/css" href="../../css/icon.css"/>
+    <link type="text/css" href="../../css/dev.css" rel="stylesheet"/>
+    <script type="text/javascript" src="../../js/jquery.min.js"></script>
+    <script type="text/javascript" src="../../js/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="../../js/easyui-lang-zh_CN.js"></script>
+    <script type="text/javascript" src="../../js/linq.min.js"></script>
+    <script type="text/javascript" src="../../js/data.util.js"></script>
+    <script type="text/javascript" src="../../js/jquery.form.js"></script>
+    <script type="text/javascript" src="../../js/jquery.dev.control.js"></script>
+    <script type="text/javascript" src="../../js/dev.ui.js"></script>
+    <script type="text/javascript" src="../../js/guid.js"></script>
+    <style type="text/css">
+        .content {
+            height: 100%;
+            width: 100%;
+            position: relative;
+        }
+
+        .Title {
+            width: 75px;
+            text-align: right;
+            line-height: 38px;
+            height: 38px;
+            display: inline-block;
+            float: left;
+        }
+
+        .Title .Icon {
+            width: 16px;
+            height: 16px;
+            display: inline-block;
+            margin-top: 12px;
+        }
+
+        .Title .Text {
+            display: inline-block;
+            float: right;
+            /*width: 49px;*/
+            padding-right: 5px;
+        }
+
+        .content .SearchDiv {
+            width: 195px;
+            height: 38px;
+            display: inline-block;
+            margin-left: 0px;
+            margin-right: 0px;
+        }
+
+        .content .Button {
+            width: 60px;
+            height: 26px;
+            float: left;
+            margin-top: 7px;
+            background-color: #16dbbb;
+            /*border-radius: 5px;*/
+            text-align: center;
+            border: 1px solid #16dbbb;
+            display: inline-block;
+            margin-left: 5px;
+        }
+
+        .content .Button:hover {
+            background-color: #5227de;
+            border: 1px solid #5227de;
+            cursor: pointer;
+        }
+
+          .content .Button:active {
+                background-color: #210097;
+                border: 1px solid #210097;
+                cursor: pointer;
+            }
+
+        .datagrid-row {
+            height: 28px;
+        }
+    </style>
+    <script type="text/javascript">
+        var Dev = window.top.window.dev;
+        var dataGrid, pageIndex = 1, pageSize = 5;
+        var searchName;
+        var parent;
+        var editWin;
+        var dialog1;
+        var dialog = new Dev.Messager({ AutoShow: false, Type: "question", Timeout: 1000, ButtonVisible: false, AutoVisible: true, Effect: "normal" });
+        var oldid, updateid;     //oldid修改之前的农机id
+        var cDate;        //创建时间
+        var isadd = true;            //新增/修改 标识符
+        var startDate;
+        var endDate;
+        var form;
+        var updateAttId;
+        var updateImage = {
+            'first': false,
+            'second': false,
+            'third': false,
+            'firstImage': '',
+            'secondImage': '',
+            'thirdImage': '',
+            'firstId': '',
+            'secondId': '',
+            'thirdId': ''
+        };
+        function WidgetCommunication(s) {   //部件通讯
+            parent = s.parent;
+            Dev.App.BottomPanel.SetHeight(262);
+            Dev.App.BottomPanel.Header.css({ "background": "#14cdad", "color": "#fcfcfc", "font-weight": "bold" });
+            Dev.App.BottomPanel.SetIconCls("icon-locationwhite");
+            initDataGrid();
+            resize();
+            searchName = $("#machineNum").prop("$this");
+            var dicdata = Dev.GetDicData(["referenceType"]);
+            var state = $("#state").prop("$this");
+            if (!Dev.IsNull(state)) state.SetData(dicdata);
+            $(window).resize(function () {
+                resize();
+            });
+            $(".Button").click(function () {
+                var tag = $(this).attr("tag");
+                if (tag === "add") {
+                    isadd = true;          //isadding
+                    editClear();
+                    if (Dev.IsNull(editWin)) {                    //添加窗体
+                        editWin = new Dev.Window({
+                            ID: "editMachineWin",
+                            IconCls: 'machine-carmanage',
+                            Title: "控制点新增",
+                            Parent: Dev.App.FillPanel.Target,
+                            Maximizable: false,
+                            Modal: false,
+                            Draggable: true,
+                            HAlign: 'center',
+                            VAlign: 'center',
+                            Resizable: false,
+                            Content: $("#EditDiv"),
+                            Height: 440,
+                            Width: 500
+                        });
+                    }else {
+                        $("#name", editWin.Target).prop("$this").SetReadOnly(false); //名称可修改
+                        editWin.SetTitle("控制点新增");
+                        editWin.Open();
+                    }
+                    imgBindMouse();
+                    $("#errorlog", editWin.Target).html("");        //清空提示区
+                }
+                if (tag === "search") search();
+                if (tag === "clear") {
+                    searchClear();
+                    search();
+                }
+                ;
+                if (tag === "deletes") deletes();
+                if (tag === "save") saveInfo();
+                if (tag === "cancel") editWin.Close();
+                if (tag === "down") downLoad();
+            });
+            dialog1 = new Dev.Messager({AutoShow: false, Type: "question"});
+            parent.one("onClosing", function () {
+                Dev.App.BottomPanel.SetHeight(262);
+                if (!Dev.IsNull(dataGrid)) {
+                    dataGrid.Target.unbind("onSelectPage");
+                    dataGrid.Target.unbind("onPageSizeChange");
+                    dataGrid = null;
+                }
+                if (!Dev.IsNull(editWin)) {
+                    editWin.Close();
+                    editWin.Destroy();
+                    editWin = null;
+                }
+            });                //页面释放
+        }
+        // 导入
+        function importFile(dom) {
+            var file = dom.files[0];
+            var fileName = file.name;
+            var extStart = fileName.lastIndexOf(".");
+            var ext = fileName.substring(extStart, fileName.length).toUpperCase();
+            var ispic = (ext === ".XLS" || ext === ".XLSX");
+            if (!ispic) {
+                dialog.Alert("请选择Excel文档", "info");
+                return $(dom).val("");
+            }
+            var form = new FormData();
+            form.append("file", file);
+            $.ajax({
+                type: "post",
+                url: Dev.GetSystemUrlByRelID("Service") + "reference/import",
+                data: form,
+                processData: false, //注意一定要设置为false
+                contentType: false, // contentType也需要设置成false
+                success: function (response) {
+                    if (response == null || response.statusCode != 200) {
+                        return dialog.Alert("网络超时，请稍候再试！", "error");
+                    }
+                    dialog.Alert("成功导入 " + response.data + " 条数据", "success");
+                    pageIndex = 1;
+                    search();
+                },
+                error: function (e) {
+                    return dialog.Alert("网络超时，请稍候再试！", "error");
+                }
+            });
+            $(dom).val("");
+        }
+        // 下载模板
+        function downLoad() {
+            Dev.exportExcelByUrl(Dev.GetSystemUrlByRelID("Service") + "reference/down", null);
+        }
+        /**
+         * 鼠标滑过选择图片的样式
+         */
+        function imgBindMouse() {
+            $("[id='imgpreviwe1']", $(".MachineEdit", Dev.App.FillPanel.Target)).mouseover(function () {
+                $("[id='btons1']", $(".MachineEdit", Dev.App.FillPanel.Target)).css({ "opacity": "1" });
+            }).mouseleave(function () {
+                $("[id='btons1']", $(".MachineEdit", Dev.App.FillPanel.Target)).css({ "opacity": "0" });
+            });
+            $("[id='btons1']", $(".MachineEdit", Dev.App.FillPanel.Target)).mouseover(function () {
+                $("[id='btons1']", $(".MachineEdit", Dev.App.FillPanel.Target)).css({ "opacity": "1" });
+            }).mouseleave(function () {
+                $("[id='btons1']", $(".MachineEdit", Dev.App.FillPanel.Target)).css({ "opacity": "0" });
+            });
+
+            $("[id='imgpreviwe2']", $(".MachineEdit", Dev.App.FillPanel.Target)).mouseover(function () {
+                $("[id='btons2']", $(".MachineEdit", Dev.App.FillPanel.Target)).css({ "opacity": "1" });
+            }).mouseleave(function () {
+                $("[id='btons2']", $(".MachineEdit", Dev.App.FillPanel.Target)).css({ "opacity": "0" });
+            });
+            $("[id='btons2']", $(".MachineEdit", Dev.App.FillPanel.Target)).mouseover(function () {
+                $("[id='btons2']", $(".MachineEdit", Dev.App.FillPanel.Target)).css({ "opacity": "1" });
+            }).mouseleave(function () {
+                $("[id='btons2']", $(".MachineEdit", Dev.App.FillPanel.Target)).css({ "opacity": "0" });
+            });
+
+            $("[id='imgpreviwe3']", $(".MachineEdit", Dev.App.FillPanel.Target)).mouseover(function () {
+                $("[id='btons3']", $(".MachineEdit", Dev.App.FillPanel.Target)).css({ "opacity": "1" });
+            }).mouseleave(function () {
+                $("[id='btons3']", $(".MachineEdit", Dev.App.FillPanel.Target)).css({ "opacity": "0" });
+            });
+            $("[id='btons3']", $(".MachineEdit", Dev.App.FillPanel.Target)).mouseover(function () {
+                $("[id='btons3']", $(".MachineEdit", Dev.App.FillPanel.Target)).css({ "opacity": "1" });
+            }).mouseleave(function () {
+                $("[id='btons3']", $(".MachineEdit", Dev.App.FillPanel.Target)).css({ "opacity": "0" });
+            });
+
+            $("#photo1", $(".MachineEdit", Dev.App.FillPanel.Target)).bind("change", function () {
+                uploadPhoto(this, "photo1");
+            });
+            $("#photo2", $(".MachineEdit", Dev.App.FillPanel.Target)).bind("change", function () {
+                uploadPhoto(this, "photo2");
+            });
+            $("#photo3", $(".MachineEdit", Dev.App.FillPanel.Target)).bind("change", function () {
+                uploadPhoto(this, "photo3");
+            });
+        }
+        /**
+         * 选择图片并预览
+         * @param dom 文件filedom
+         * @param id  显示的地方
+         */
+        function uploadPhoto(dom, id) {
+            var file;
+            var preview;
+            if (dom.files.length == 0) return;
+            file = dom.files[0];
+            //验证大小
+            if (file.size > 20480000) {
+                dialog.Alert("文件最大为20M", "error");
+                clearImage(dom);
+                return;
+            }
+            if (!alertCheckType(file.name)) {
+                clearImage(dom);
+                return;
+            }
+            if (id == "photo1") {
+                preview = $("#imgpreviwe1", $(".MachineEdit", Dev.App.FillPanel.Target));
+                if (!isadd){
+                    updateImage.first = true;
+                    updateImage.firstImage = file;
+                }
+            } else if (id == "photo2") {
+                preview = $("#imgpreviwe2", $(".MachineEdit", Dev.App.FillPanel.Target));
+                if (!isadd){
+                    updateImage.second = true;
+                    updateImage.secondImage = file;
+                }
+            } else if (id == "photo3") {
+                preview = $("#imgpreviwe3", $(".MachineEdit", Dev.App.FillPanel.Target));
+                if (!isadd){
+                    updateImage.third = true;
+                    updateImage.thirdImage = file;
+                }
+            }
+            preview.attr("src", window.URL.createObjectURL(file));
+        }
+        /**
+         * 清空input file中的文件
+         * 兼容 ie firefox chrome
+         * @param dom file dom
+         */
+        function clearImage(dom) {
+            var fileDom = $(dom);
+            fileDom.after(fileDom.clone().val(""));
+            fileDom.remove();
+        }
+        /**
+         * 检测照片格式
+         * @param image 图片名称
+         */
+        function checkType(image){
+            var extStart = image.lastIndexOf(".");
+            var ext = image.substring(extStart, image.length).toUpperCase();
+            return ext == ".PNG" || ext == ".GIF" || ext == ".JPG" || ext == ".JPEG";
+        }
+        /**
+         * 根据检测结果做出相应的操作
+         * @param image 图片名称
+         */
+        function alertCheckType(image) {
+            var result = checkType(image);
+            if (!result) {
+                dialog.Alert("图片限于png，gif，jpeg，jpg格式！", "error");
+            }
+            return result;
+        }
+        /**
+         * 初始化DataGrid
+         */
+        function initDataGrid() {
+            if (Dev.IsNull(dataGrid)) {
+                $("#gridDiv").empty();
+                var columns = [
+                    {field: "ck", width: 30, align: 'center', title: '勾选', sortable: false, checkbox: true},
+                    {field: "name", width: 50, align: 'center', title: '名称', sortable: false},
+                    {field: "longitude", width: 50, align: 'center', title: '经度', sortable: false},
+                    {field: "latitude", width: 50, align: 'center', title: '纬度', sortable: false},
+                    {field: "altitude", width: 30, align: 'center', title: '高程', sortable: false},
+                    {field: "x", width: 50, align: 'center', title: '东坐标', sortable: false},
+                    {field: "y", width: 50, align: 'center', title: '北坐标', sortable: false},
+                    {field: "hrms", width: 50, align: 'center', title: '水平残次', sortable: false},
+                    {field: "vrms", width: 50, align: 'center', title: '垂直残次', sortable: false},
+                    {field: "pdop", width: 70, align: 'center', title: '空间分布因子', sortable: false},
+                    {field: "state", width: 30, align: 'center', title: '状态', sortable: false},
+                    {field: "delay", width: 40, align: 'center', title: '延迟', sortable: false},
+                    {field: "antennahigh", width: 40, align: 'center', title: '天线高', sortable: false},
+                    {
+                        field: "inputdate", width: 100, align: 'center', title: '采集时间', sortable: false,
+                        formatter: function (value, row, index) {
+                            return Dev.GetDateString(value);
+                        }
+                    },       //自行提供
+                    {
+                        field: "_oprate",
+                        width: 50,
+                        align: 'center',
+                        title: '操作',
+                        sortable: false,
+                        formatter: function (value, row, index) {
+                            return '<a href="javascript:void(0)" style="color:blue;margin-left:6px;"onclick="update(\'' + row.id + '\',\'' + index + '\')"><img src="../../image/agri/update.png"/></a>'
+                                + '&nbsp;&nbsp;<a href="javascript:void(0)" style="color:blue;margin-left:6px;" onclick="deleteinfo(\'' + index + '\')"><img src="../../image/agri/delete.png"/></a>';
+                        }
+                    },
+                ];
+                dataGrid = new UCDataGrid(Dev, {
+                    PageIndex: pageIndex, PageSize: pageSize, RowNumbers: false, ID: "machineGrid", pagequery: false, IsSizeSelect: true
+                });
+                $("#gridDiv").append(dataGrid.Target);
+                dataGrid.Layout(columns);
+                bindData();       //绑定切换页面函数之前需要执行一次查询 zxz
+                dataGrid.Target.bind("onSelectPage", function (s, e) {
+                    pageIndex = e.index;
+                    bindData();
+                });
+                dataGrid.Target.bind("onClickRow", function (s, e) {
+                    var row = e.Row;
+                    highlight(row);
+                });
+                dataGrid.Target.bind("onPageSizeChange", function (s, e) {
+                    if (Dev.IsNull(e)) return;
+                    pageIndex = 1;
+                    pageSize = e;
+                    bindData();
+                });
+            }
+        }
+
+        function showpagedata(data) {
+            if (!Dev.IsNull(pointkey)) {
+                Dev.App.Map.unByKey(pointkey);
+                pointkey = null;
+            }
+            Dev.MapUtils.ClearFeature("tempGraphicLayer");
+            if (Dev.IsNull(data) || data.length == 0) return;
+            var features = [];
+            for (var i = 0; i < data.length; i++) {
+                var x = data[i].longitude;
+                var y = data[i].latitude;
+                if (!Dev.IsNullAll(data[i].rlongtitude)) x = data[i].rlongtitude;
+                if (!Dev.IsNullAll(data[i].rlatitude)) y = data[i].rlatitude;
+                var c_p = new Dev.Feature(new Dev.geom.Point([parseFloat(x), parseFloat(y)]));
+                //添加样式
+                var iconsrc = Dev.App.Root + "image/agri/locationwhite.png";
+                //if (data[i].onlinestate == "1") iconsrc = Dev.App.Root + "image/agri/location.png";
+                c_p.setStyle(new Dev.style.Style({
+                    fill: new Dev.style.Fill({ color: [236, 179, 73, 0.2] }),
+                    image: new Dev.style.Icon({
+                        src: iconsrc
+                    })
+                }));
+                features.push(c_p);
+            }
+            var extend = Dev.getExtentByFeatures(features);
+            var mapproj = Dev.App.Map.getView().getProjection();
+            if (mapproj.getCode() != Dev.App.Config.SystemMap.DataEPSG) extend = Dev.proj.transformExtent(extend, Dev.App.Config.SystemMap.DataEPSG, mapproj.getCode());
+            if (!Dev.IsNull(extend)) Dev.App.Map.getView().fit(extend, Dev.App.Map.getSize());
+            Dev.MapUtils.ClearAndAddFeatures(features, "tempGraphicLayer");
+        }
+        var pointkey;
+        function highlight(row) {
+            if (!Dev.IsNull(pointkey)) {
+                Dev.App.Map.unByKey(pointkey);
+                pointkey = null;
+            }
+            var x = row.longitude;
+            var y = row.latitude;
+            if (!Dev.IsNullAll(row.rlongtitude)) x = row.rlongtitude;
+            if (!Dev.IsNullAll(row.rlatitude)) y = row.rlatitude;
+            var feature = new Dev.Feature({
+                id: "devicehighlight",
+                geometry: new Dev.geom.Point([parseFloat(x), parseFloat(y)])
+            });
+            pointkey = Dev.MapUtils.PointSymbolStyle(feature, 1, 'rgba(0, 255, 0, 1)', Dev.App.Map);
+            var center_p = [parseFloat(x), parseFloat(y)];
+            var mapproj = Dev.App.Map.getView().getProjection();
+            if (mapproj.getCode() != Dev.App.Config.SystemMap.DataEPSG) center_p = Dev.proj.transform(center_p, Dev.App.Config.SystemMap.DataEPSG, mapproj.getCode());
+            Dev.App.Map.getView().centerOn(center_p, Dev.App.Map.getSize(), [Dev.App.Map.getSize()[0] / 2, Dev.App.Map.getSize()[1] / 2]);
+        }
+
+        /**
+         * 获取查询条件
+         */
+        function getCondition() {
+            var condition = " 1=1 ";
+            if (!Dev.IsNull(searchName)) {
+                var mNo = searchName.GetValue();
+                if (!Dev.IsNull(mNo) && mNo.length > 0) condition += " AND ( \"NAME\"  LIKE '%" + $.trim(mNo) + "%'"
+                    + " OR " + "UPPER( \"NAME\" )  LIKE " + "UPPER('%" + $.trim(mNo) + "%')" + " OR "
+                    + "LOWER( \"NAME\" )  LIKE " + "LOWER('%" + $.trim(mNo) + "%'))";       //大小写不敏感
+            }
+            if (!Dev.IsNull(startDate)) {
+                condition += " AND \"INPUTDATE\">='" + startDate + "'";
+            }
+            if (!Dev.IsNull(endDate)) {
+                condition += " AND \"INPUTDATE\"<='" + endDate + "'";
+            }
+            condition += " ORDER BY \"INPUTDATE\" DESC";
+            return condition;
+        }
+        /**
+         * 获取查询数据
+         */
+        function search() {
+            pageIndex = 1;
+            startDate = $("#uploadtime1").datetimebox('getValue');
+            endDate = $("#uploadtime2").datetimebox('getValue');
+            var startGreaterEnd = !Dev.IsNull(startDate) && !Dev.IsNull(endDate) && startDate > endDate;
+            if (startGreaterEnd) {
+                var index = startDate;
+                startDate = endDate;
+                endDate = index;
+            }
+            bindData();
+        }
+        /**
+         * 绑定DataGrid数据
+         */
+        function bindData() {
+            $.ajax({
+                type: "POST",
+                data: getCondition(),
+                contentType: "application/json",
+                url: Dev.GetSystemUrlByRelID("Service") + "reference/" + "getbyfilter/" + pageIndex + "/" + pageSize,
+                success: function (result) {
+                    if (!result.statusCode == 200) return;
+                    dataGrid.Load(result.data.dataSource, result.data.pageInfo);
+                    showpagedata(result.data.dataSource);
+                }
+            });
+        }
+        /**
+         * 新增或更新的<b>保存</b>处理
+         */
+        function saveInfo() {
+            var textcontrol = $(".dev-textbox", $(".MachineEdit", Dev.App.FillPanel.Target));
+            var numbercontrol = $('.dev-numberbox', $(".MachineEdit", Dev.App.FillPanel.Target));
+            var comboboxcontrol = $(".dev-combobox", $(".MachineEdit", Dev.App.FillPanel.Target));
+
+            var model = {};
+            var isUnique = 1;    //是否唯一标志
+            var rename;
+            var erEmpty = [], er2long = [], itemName;
+            for (var i = 0; i < textcontrol.length; i++) {
+                var tag = $(textcontrol[i]).attr("name");
+                var value = $(textcontrol[i]).prop("$this").GetValue().replace(/\s/g, '');
+                if (tag == "remark") {           //不需要做非空验证的item
+                   // form[tag] = value;
+                    form.append(tag, value);
+                    continue;
+                }
+                else {
+                    var maxlength = $(textcontrol[i]).attr("maxlength");      //长度验证
+                    if (!Dev.IsNull(maxlength)) maxlength = parseInt(maxlength);
+                    itemName = $(textcontrol[i])[0].innerText;      //项目名称，带有特殊字符
+                    itemName = itemName.replace(/[^\u4e00-\u9fa5]/gi, "");  //提取中文
+                    if (value.length > maxlength) er2long += "\"" + itemName + "\"";
+                    if (value.length == 0) erEmpty += "\"" + itemName + "\"";
+                    else {
+                        if (tag == "name"){
+                            rename = value;
+                        }
+                        form.append(tag, value);
+                    }
+                }
+            }
+
+            for (var i = 0; i < numbercontrol.length; i++) {
+                var tag = $(numbercontrol[i]).attr("name");
+                var maxlength = $(numbercontrol[i]).attr("maxlength");
+                var value = $(numbercontrol[i]).prop("$this").GetValue().replace(/\s/g, '');
+                if (!Dev.IsNull(maxlength)) maxlength = parseInt(maxlength);
+
+                itemName = $(numbercontrol[i])[0].innerText;
+                itemName = itemName.replace(/[^\u4e00-\u9fa5]/gi, "");
+                if (value.length > maxlength) er2long += "\"" + itemName + "\"";
+                if (value.length == 0) erEmpty += "\"" + itemName + "\"";
+                form.append(tag, value);
+            }
+            for (var i = 0; i < comboboxcontrol.length; i++) {
+                var tag = $(comboboxcontrol[i]).attr("name");
+                var value = $(comboboxcontrol[i]).prop("$this").GetText();          //获取combobox选定值
+                itemName = $(comboboxcontrol[i])[0].innerText.substring(0, $(comboboxcontrol[i])[0].innerText.indexOf("*"));
+                //项目名称X项目XX*XXX
+                itemName = itemName.replace(/[^\u4e00-\u9fa5]/gi, "");      //提取中文
+                if (value.length > maxlength) er2long += "\"" + itemName + "\"";
+                if (value.length == 0) erEmpty += "\"" + itemName + "\"";
+                form.append(tag, value);
+            }
+            var pathMethod;
+            var mydate = new Date();
+            form.append('inputdate', mydate);
+            if (isadd) {
+                if (!Dev.IsNull(rename)) {        //唯一性检查
+                    $.ajax({
+                        type: "POST",
+                        async: false,
+                        data: {'condition': "\"NAME\"='" + rename +"'"},
+                        url: Dev.GetSystemUrlByRelID("Service") + "reference/count",
+                        //  "no"='1'
+                        success: function (result) {        //查询成功存在后台返回空数据
+                            if (result.statusCode == 200 && result.data != 0) {
+                                isUnique = 0;
+                                dialog.Alert("名称\"" + rename + "\"已存在，请重新命名!", "error");
+                            }
+                        }
+                    })
+                }
+                form.append('attid', Guid.NewGuid().ToString("N"));
+                $("input[name='devfile']", $(".MachineEdit", Dev.App.FillPanel.Target)).each(function () {
+                    var file = this.files[0];
+                    if (!Dev.IsNull(file) && checkType(file.name)) {
+                        form.append("devfile", file);
+                    }
+                })
+                pathMethod = "addre";
+            }
+            else {
+                form.append('attid', updateAttId);
+                form.append('id', oldid);  //如果是修改，需要获取旧的id（主键信息）
+                pathMethod = "updatere";
+                if (updateImage.first && checkType(updateImage.firstImage.name)){
+                    form.append('devfile', updateImage.firstImage);
+                    if (!Dev.IsNull(updateImage.firstId)) {
+                        form.append('deleteId', updateImage.firstId);
+                    }
+                }
+                if (updateImage.second && checkType(updateImage.secondImage.name)){
+                    form.append('devfile', updateImage.secondImage);
+                    if (!Dev.IsNull(updateImage.secondId)) {
+                        form.append('deleteId', updateImage.secondId);
+                    }
+                }
+                if (updateImage.third && checkType(updateImage.thirdImage.name)){
+                    form.append('devfile', updateImage.thirdImage);
+                    if (!Dev.IsNull(updateImage.thirdId)) {
+                        form.append('deleteId', updateImage.thirdId);
+                    }
+                }
+            }   //区别新增还是更新
+            if (er2long.length > 0) er2long += "长度过长!";
+            if (erEmpty.length > 0) erEmpty += "不能为空!";
+            $("#errorlog", editWin.Target).html(erEmpty + "\n" + er2long);
+            if (er2long.length + erEmpty.length !== 0 || isUnique !== 1) return;
+
+            $.ajax({
+                type: "POST",
+                data: form,
+                url: Dev.GetSystemUrlByRelID("Service") + "reference/" + pathMethod,
+                contentType: false,
+                processData: false, //注意一定要设置为false
+                success: function (result) {
+                    if (!result.statusCode == 200 || model.length == 0) return;
+                    if (pathMethod == "updatere"){
+                        dialog.Alert("修改成功!", "info");
+                    } else {
+                        pageIndex = 1;
+                        dialog.Alert("新增成功!", "info");
+                    }
+                    bindData();
+                },
+                error: function (msg) {
+                    if (pathMethod == "addre") dialog.Alert("新增失败!", "error")
+                    else dialog.Alert("修改失败!", "error");
+                }
+            })
+            editWin.Close();
+        }
+        /**
+         * 搜索框清空
+         */
+        function searchClear() {
+            $("#uploadtime1").datebox("setValue", "");
+            $("#uploadtime2").datebox("setValue", "");
+            var textcontrol = $(".dev-textbox");
+            for (var i = 0; i < textcontrol.length; i++) $(textcontrol[i]).prop("$this").Clear();
+        }    //清除所有查询条件，重置
+        /**
+         * 编辑操作，显示编辑视窗
+         * @param id
+         * @param index
+         */
+        function update(id, index) {
+            isadd = false;         //isModify
+            updateid = id;
+            dataGrid.DataGrid.datagrid("selectRow", index);
+            var row = dataGrid.DataGrid.datagrid("getSelected");
+            cDate = row.createdate;         //存储修改前 农机的时间信息
+            oldid = row.id;
+            if (Dev.IsNull(row) || row.length == 0) return;
+            if (Dev.IsNull(editWin)) {
+                editWin = new Dev.Window({
+                    ID: "editMachineWin",
+                    IconCls: 'machine-trackedit',
+                    Title: "控制点修改",
+                    Parent: Dev.App.FillPanel.Target,
+                    Maximizable: false,
+                    Modal: false,
+                    Draggable: true,
+                    HAlign: 'center',
+                    VAlign: 'center',
+                    Resizable: false,
+                    Height: 440,
+                    Content: $("#EditDiv"),
+                    Width: 500
+                });
+            }
+            else {
+                editWin.SetTitle("控制点修改");
+                editWin.Open();
+            }
+            editClear();
+            imgBindMouse();
+            $("#errorlog", editWin.Target).html("");
+            $("#name", editWin.Target).prop("$this").SetReadOnly(true); //名称不可修改
+            loadData1(row);
+        }
+        /**
+         * 批量删除事件触发
+         */
+        function deletes() {
+            var rows = dataGrid.DataGrid.datagrid("getChecked");
+            var curRowNo = dataGrid.DataGrid.datagrid("getData").total;    //获取已有的数据行数
+            if (curRowNo == rows.length && pageIndex != 1) pageIndex -= 1; //如果没删完，保持在本页，删完回到上一页。
+            if (Dev.IsNull(rows) || rows.length == 0) {
+                dialog.Alert("请选择需要删除的数据!", "info");
+                return;
+            }
+            dialog1.Confirm('确认要删除所有勾选记录吗？', function (r) {
+                if (!r) return;
+                requestDelete(rows)
+            }, "question");
+        }
+        /**
+         * 单行删除事件触发
+         * @param index 选中行
+         */
+        function deleteinfo(index) {
+            dataGrid.DataGrid.datagrid("selectRow", index);
+            var row = dataGrid.DataGrid.datagrid("getSelected");
+            var rows = [];
+            rows.push(row);
+            var curRowNo = dataGrid.DataGrid.datagrid("getData").total;       //获取已有的数据行数
+            if (curRowNo == 1 && pageIndex != 1) pageIndex -= 1;                //删光则返回上一页
+            if (Dev.IsNull(row)) return;
+            dialog1.Confirm('确认要删除选中记录吗？', function (r) {
+                if (!r) return;
+                requestDelete(rows);
+            }, "question");
+        }  //删除
+
+        /**
+         * 请求服务器去删除选中rows
+         * @param rows 选中删除的rows
+         */
+        function requestDelete(rows) {
+            $.ajax({
+                type: "POST",
+                data: JSON.stringify(rows),
+                contentType: "application/json",
+                url: Dev.GetSystemUrlByRelID("Service") + "reference/" + "deletere",
+                success: function (re) {
+                    if (re == null || !re.statusCode == 200){
+                        dialog.Alert("删除失败！", "error");
+                        return;
+                    }
+                    dialog.Alert("删除成功！", "success", search());
+                },
+                error: function (e) {
+                    dialog.Alert("网络连接超时！", "error");
+                }
+            });
+        }
+        /**
+         * 自适应窗口
+         */
+        function resize() {
+            var height = $(window).outerHeight();
+            var gridheight = height - 40;
+            var gridwidth = parseInt($(window).width()) - 2;
+            if (gridwidth < 1200) {
+                gridwidth = 1200;
+                gridheight = parseInt(gridheight) - 16;
+            }
+            $("#searchDiv").width(gridwidth);
+            $("#gridDiv").height(gridheight).width(gridwidth);
+            if (!Dev.IsNull(dataGrid)) dataGrid.Resize(gridwidth, gridheight);
+        }
+
+        /**
+         * 清空
+         */
+        function editClear() {
+            form = new FormData();
+            var textcontrol = $(".dev-textbox", $(".MachineEdit", Dev.App.FillPanel.Target));
+            var numbercontrol = $(".dev-numberbox", $(".MachineEdit", Dev.App.FillPanel.Target));
+            var comboboxcontrol = $(".dev-combobox", $(".MachineEdit", Dev.App.FillPanel.Target));
+
+            for (var i = 0; i < textcontrol.length; i++) {
+                var currcontrol = $(textcontrol[i]).prop("$this");
+                currcontrol.Clear();
+                if (!Dev.IsNull(currcontrol.SetLengthTip)) currcontrol.SetLengthTip("");
+            }
+            for (var i = 0; i < numbercontrol.length; i++) {
+                var currcontrol = $(numbercontrol[i]).prop("$this");
+                currcontrol.Clear();
+            }
+            for (var i = 0; i < comboboxcontrol.length; i++) {
+                var currcontrol = $(comboboxcontrol[i]).prop("$this");
+                currcontrol.SetValue("");
+            }
+            $("[id^='imgpreviwe']", $(".MachineEdit", Dev.App.FillPanel.Target)).each(function () {
+                $(this).attr("src", "image/authorization/default.jpg");
+            });
+            $("input[name='devfile']", $(".MachineEdit", Dev.App.FillPanel.Target)).each(function () {
+                $(this).val("");
+            });
+        }
+
+        /**
+         * 加载更新信息
+         * @param model 选中的Row
+         */
+        function loadData1(model) {
+            updateAttId = model.attid;
+            var textcontrol = $(".dev-textbox", $(".MachineEdit", Dev.App.FillPanel.Target));
+            var numbercontrol = $('.dev-numberbox', $(".MachineEdit", Dev.App.FillPanel.Target));
+            var comboboxcontrol = $(".dev-combobox", $(".MachineEdit", Dev.App.FillPanel.Target));
+
+            for (var i = 0; i < textcontrol.length; i++) {
+                var tag = $(textcontrol[i]).attr("name");
+                var currcontrol = $(textcontrol[i]).prop("$this");
+                currcontrol.SetValue(model[tag]);
+            }
+            for (i = 0; i < numbercontrol.length; i++) {
+                tag = $(numbercontrol[i]).attr("name");
+                currcontrol = $(numbercontrol[i]).prop("$this");
+                currcontrol.SetValue(model[tag]);
+            }
+            for (i = 0; i < comboboxcontrol.length; i++) {
+                tag = $(comboboxcontrol[i]).attr("name");
+                currcontrol = $(comboboxcontrol[i]).prop("$this");
+                currcontrol.SetText(model[tag]);        //combobox  
+            }
+            getImages(model.attid);
+        }
+
+        /**
+         * 获取文件
+         * @param attId 关联编号
+         */
+        function getImages(attId) {
+            $.ajax({
+                type: "get",
+                url: Dev.cookie.baseUri + "file/att/" + attId + "?" + new Date().getTime(),
+                success: function (response) {
+                    if (response == null || response.statusCode != 200) {return;}
+                    var data = response.data;
+                    if (data == null || data.length == 0) {return;}
+                    loadImages(data);
+                }
+            })
+        }
+
+        /**
+         * 更新window加载图片
+         * @param paths 服务返回的数据数组
+         */
+        function loadImages(paths) {
+            paths.forEach(function (value, index) {
+                $("[id='imgpreviwe" + (parseInt(index) + 1) + "']", $(".MachineEdit", Dev.App.FillPanel.Target))
+                    .attr("src", value.path);
+                if (index == 0) {
+                    updateImage.firstId = value.id;
+                }
+                if (index == 1) {
+                    updateImage.secondId = value.id;
+                }
+                if (index == 2) {
+                    updateImage.thirdId = value.id;
+                }
+            })
+        }
+    </script>
+</head>
+<body>
+<div id="content" class="content">
+    <div style="height: 100%; width: 100%; left: 0%; position: absolute; overflow: auto;overflow-y: hidden">
+        <div id="searchDiv"
+             style="height: 38px; width: 100%; border-left: 1px solid #ddd; position: relative; min-width: 1200px;">
+            <div style="height: 38px; position: absolute; left: 0px;">
+                <div class="SearchDiv">
+                    <div id="machineNum" class="dev-textbox" style="z-index: 2; width: 190px; display: inline-block;"
+                         opt='{"TipInfo":"请输入控制点名称","HeaderCSS":{"padding":"0px","width":"75px"},"IsOverShow":true,"Padding":"0px","TextAlign":"left","BodyCSS": { "background-color": "transparent","margin-top":"8px","margin-right":"8px"},"Title":"<div class=\"Title\"><div class=\"Icon machine-carnum\"></div><span class=\"Text\">名称</span></div>"}'></div>
+                </div>
+                <div class="SearchDiv" style="width: 209px;">
+                    <div style="width: 75px; height: 38px; line-height: 38px; text-align: right; display: inline-block; float: left;">
+                        <div class="icon-calendar"
+                             style="height: 16px; width: 16px; display: inline-block; float: left; margin-left: 5px; margin-top: 11px;">
+                        </div>
+                        <span style="height: 40px; line-height: 40px; width: 49px; float: right;">采集时间</span>
+                    </div>
+                    <div style="width: 120px; height: 40px; line-height: 38px; padding: 0px 5px; display: inline-block;
+                     float: left; margin-top: 0px; margin-left: 3px">
+                        <input id="uploadtime1" class="easyui-datebox"
+                               data-options="width:120,height:24,editable:false"/>
+                    </div>
+                </div>
+                <div class="SearchDiv">
+                    <div style="width: 16px; height: 38px; display: inline-block; line-height: 40px; text-align: center; float: left;">
+                        至
+                    </div>
+                    <div style="width: 120px; height: 38px; line-height: 38px; padding: 0px 5px; display: inline-block;
+                    float: left; margin-top: 0px;">
+                        <input id="uploadtime2" class="easyui-datebox"
+                               data-options="editable:false,width:120,height:24,validType:'equaldDate[\'#uploadtime1\']'"/>
+                    </div>
+                </div>
+            </div>
+            <div style="width: 448px; height: 100%; position: absolute; right: 0px; z-index: 2; top: -2px;">
+                <div class="Button" tag="search" style="margin-left: 10px;">
+                    <div class="machine-query"
+                         style="height: 16px; width: 16px; margin-top: 6px; margin-left: 5px; display: inline-block; float: left;"></div>
+                    <span style="line-height: 28px; color: #fcfcfc;">查&nbsp;询</span>
+                </div>
+                <div class="Button" tag="clear">
+                    <div class="machine-reset"
+                         style="height: 16px; width: 16px; margin-top: 6px; margin-left: 5px; display: inline-block; float: left;"></div>
+                    <span style="line-height: 28px; color: #fcfcfc;">重&nbsp;置</span>
+                </div>
+                <div class="Button" tag="add">
+                    <div class="machine-add"
+                         style="height: 16px; width: 16px; margin-top: 6px; margin-left: 5px; display: inline-block; float: left;"></div>
+                    <span style="line-height: 28px; color: #fcfcfc;">新&nbsp;增</span>
+                </div>
+                <div class="Button" tag="down" style="width: 75px;">
+                    <div class="icon-export-white"
+                         style="height: 16px; width: 16px; margin-top: 6px; margin-left: 5px; display: inline-block; float: left;"></div>
+                    <span style="line-height: 28px; color: #fcfcfc;">下载模板</span>
+                </div>
+                <div class="Button" tag="adds" style="position:relative">
+                    <div class="machine-add"
+                         style="height: 16px; width: 16px; margin-top: 6px; margin-left: 5px; display: inline-block; float: left;"></div>
+                    <span style="line-height: 28px; color: #fcfcfc;">导&nbsp;入</span>
+                    <input type="file" id="file" onchange="importFile(this);"  style="cursor: pointer; position: absolute; font-size: 0;right: 0;top: 0;opacity: 0;width: 60px;height: 26px;">
+                </div>
+                <div class="Button" tag="deletes" style="width: 75px;">
+                    <div class="machine-deletes"
+                         style="height: 16px; width: 16px; margin-top: 6px; margin-left: 5px; display: inline-block; float: left;"></div>
+                    <span style="line-height: 28px; color: #fcfcfc;">批量删除</span>
+                </div>
+            </div>
+        </div>
+        <div id="gridDiv" style="width: 100%; border-left: 1px solid #ddd; border-top: 1px solid #ddd;"></div>
+    </div>
+</div>
+<div id="EditDiv" class="MachineEdit" style="height: 405px; overflow: hidden; position: absolute; margin-top: 0px;">
+    <div class="Row">
+        <div class="Cell">
+            <div id="name" class="dev-textbox" name="name" style="width: 239px; height: 24px; margin-top: 6px;"
+                maxlength='128'
+                opt='{"Required":true, "TipInfo":"64位以内","HeaderCSS":{"padding":"0px","width":"85px"},"IsOverShow":true,"Padding":"0px 5px","Title":"<div class=\"Title\"><span>名称</span></div>"}'>
+            </div>
+        </div>
+        <div class="Cell">
+            <div class="dev-textbox" name="altitude" style="width: 239px; height: 24px; margin-top: 6px;" maxlength='64'
+                opt='{"Required":true, "TipInfo":"64位以内","HeaderCSS":{"padding":"0px","width":"85px"},"IsOverShow":true,"Padding":"0px 5px","Title":"<div class=\"Title\"><span>高程</span></div>"}'>
+            </div>
+        </div>
+
+    </div>
+    <div class="Row">
+        <div class="Cell">
+            <div class="dev-numberbox" name="latitude" style="width: 239px; height: 24px; float: left; margin-top: 6px;"
+                maxlength="64"
+                opt='{"Required":true,"Precision":14,"Min":0,"Max":90, "TipInfo":"36位以内","Precision":4,  "HeaderCSS":{"padding":"0px","width":"85px"},"Padding":"0px 5px","Title":"<div class=\"Title\"><span>纬度</div>"}'>
+            </div>
+        </div>
+        <div class="Cell">
+            <div class="dev-numberbox" name="longitude" style="width: 239px; height: 24px; margin-top: 6px;"
+                maxlength="64"
+                opt='{"Required":true,"Precision":14,"Min":0,"Max":180,"TipInfo":"36位以内","Precision":4,  "HeaderCSS":{"padding":"0px","width":"85px"},"Padding":"0px 5px","Title":"<div class=\"Title\"><span>经度</div>"}'>
+            </div>
+        </div>
+
+        <!--<div class="Icon Iconunable controlPoint-select" tag="selectPoint"
+             style="height: 20px; width: 23px; float: left; margin-top: 8px; margin-left: 8px; display: inline-block;"></div>-->
+    </div>
+    <div class="Row">
+        <div class="Cell">
+            <div class="dev-textbox" name="x" style="width: 239px; height: 24px; margin-top: 6px;" maxlength="64"
+                 opt='{"Required":true, "TipInfo":"36位以内","Precision":0,  "HeaderCSS":{"padding":"0px","width":"85px"},"Padding":"0px 5px","Title":"<div class=\"Title\"><span>东坐标</div>"}'></div>
+        </div>
+        <div class="Cell">
+            <div class="dev-textbox" name="y" style="width: 239px; height: 24px; margin-top: 6px;" maxlength="64"
+                 opt='{"Required":true, "TipInfo":"36位以内","Precision":0,  "HeaderCSS":{"padding":"0px","width":"85px"},"Padding":"0px 5px","Title":"<div class=\"Title\"><span>北坐标</div>"}'></div>
+        </div>
+    </div>
+    <div class="Row">
+        <div class="Cell">
+            <div class="dev-textbox" name="hrms" style="width: 239px; height: 24px; margin-top: 6px;" maxlength="36"
+                 opt='{"Required":true, "TipInfo":"36位以内","Precision":0,  "HeaderCSS":{"padding":"0px","width":"85px"},"Padding":"0px 5px","Title":"<div class=\"Title\"><span>水平残次</div>"}'></div>
+        </div>
+        <div class="Cell">
+            <div class="dev-textbox" name="vrms" style="width: 239px; height: 24px; margin-top: 6px;" maxlength="36"
+                 opt='{"Required":true, "TipInfo":"36位以内","Precision":0,  "HeaderCSS":{"padding":"0px","width":"85px"},"Padding":"0px 5px","Title":"<div class=\"Title\"><span>垂直残次</div>"}'></div>
+        </div>
+    </div>
+    <div class="Row">
+        <div class="Cell">
+            <div class="dev-textbox" name="pdop" style="width: 239px; height: 24px; margin-top: 6px;" maxlength="36"
+                 opt='{"Required":true, "TipInfo":"36位以内","Precision":0,  "HeaderCSS":{"padding":"0px","width":"85px"},"Padding":"0px 5px","Title":"<div class=\"Title\"><span>空间分布因子</div>"}'></div>
+        </div>
+        <div class="Cell">
+            <div id="state" class="dev-combobox" name="state"
+                 style="width: 239px; margin-top: 5px;"
+                 opt='{"Required":true,"TextField":"data","ValueField":"id","TipInfo":"请选择","HeaderCSS":{"padding":"0px 5px","width":"80px", "text-align": "RIGHT"},"IsOverShow":true,"Padding":"0px 5px","TextAlign":"left","BodyCSS": { "background-color": "transparent" },"Title":"<div class=\"Title\"><span>状态</span></div>"}'>
+            </div>
+        </div>
+    </div>
+    <div style="height: 60px; width: 100%; border-bottom: 1px solid #ddd;">
+        <div class="dev-textbox" name="remark" style="z-index: 2; width: 488px; height: 55px; margin-top: 6px;"
+             maxlength='120'
+             opt='{"MaxLength":120,"TipInfo":"120位以内","Type":"multi-text","HeaderCSS":{"padding":"0px","width":"85px"},"IsOverShow":true,"Padding":"5px","Title":"<div class=\"Title\">备&nbsp;&nbsp;注</div>"}'></div>
+    </div>
+    <div style="height: 107px; width: 100%; border-bottom: 1px solid #ddd; padding-top: 5px">
+        <div style="width: 80px; height: 100px; float: left; text-align: center; line-height: 100px;">预览图片</div>
+        <div style="margin-left: 5px; border: solid 1px #aec9eb; height: 100px; width: 100px; float: left; position: relative;">
+            <img id="imgpreviwe1" src="image/authorization/default.jpg"
+                 style="width: 100px; height: 100px; position: absolute; top: 0px;" />
+            <div id="btons1"
+                 style="position: absolute; width: 100px; background-color: rgba(0,0,0,0.4); opacity: 0; height: 25px; text-align: center; line-height: 25px; z-index: 10; bottom: 0px; cursor: pointer;">
+                <span style="color: white; width: 58px; cursor: pointer;">选择图片</span>
+                <div style="filter: alpha(opacity=0); opacity: 0; position: absolute; bottom: 0px; cursor: hand;">
+                    <input
+                            type="file" name="devfile" id="photo1" style="cursor: pointer;" />
+                </div>
+            </div>
+        </div>
+        <div style="margin-left: 49px; border: solid 1px #aec9eb; height: 100px; width: 100px; float: left; position: relative;">
+            <img id="imgpreviwe2" src="image/authorization/default.jpg"
+                 style="width: 100px; height: 100px; position: absolute; top: 0px;" />
+            <div id="btons2"
+                 style="position: absolute; width: 100px; background-color: rgba(0,0,0,0.4); opacity: 0; height: 25px; text-align: center; line-height: 25px; z-index: 10; bottom: 0px; cursor: pointer;">
+                <span style="color: white; width: 58px; cursor: pointer;">选择图片</span>
+                <div style="filter: alpha(opacity=0); opacity: 0; position: absolute; bottom: 0px; cursor: hand;">
+                    <input
+                            type="file" name="devfile" id="photo2" style="cursor: pointer;" />
+                </div>
+            </div>
+        </div>
+        <div style="margin-left: 48px; border: solid 1px #aec9eb; height: 100px; width: 100px; float: left; position: relative;">
+            <img id="imgpreviwe3" src="image/authorization/default.jpg"
+                 style="width: 100px; height: 100px; position: absolute; top: 0px;" />
+            <div id="btons3"
+                 style="position: absolute; width: 100px; background-color: rgba(0,0,0,0.4); opacity: 0; height: 25px; text-align: center; line-height: 25px; z-index: 10; bottom: 0px; cursor: pointer;">
+                <span style="color: white; width: 58px; cursor: pointer;">选择图片</span>
+                <div style="filter: alpha(opacity=0); opacity: 0; position: absolute; bottom: 0px; cursor: hand;">
+                    <input
+                            type="file" name="devfile" id="photo3" style="cursor: pointer;" />
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="errorlog"
+         style="width: 200px;height: 30px;overflow: auto; display: inline-block; float: left; margin-top: 6px; margin-left: 20px; color: red"></div>
+    <div class="Submit">
+        <div class="Button" tag="save">
+            <span style="line-height: 26px; color: #fcfcfc;">保&nbsp;&nbsp;存</span>
+        </div>
+        <div class="Button" tag="cancel">
+            <span style="line-height: 26px; color: #fcfcfc;">取&nbsp;&nbsp;消</span>
+        </div>
+    </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,179 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>详细信息</title>
+    <link rel="stylesheet" href="../../theme/default/easyui.css"/>
+    <link rel="stylesheet" type="text/css" href="../../theme/icon.css"/>
+    <link rel="stylesheet" type="text/css" href="../../css/app.css"/>
+    <link rel="stylesheet" type="text/css" href="../../css/main.css"/>
+    <link rel="stylesheet" type="text/css" href="../../css/icon.css"/>
+    <link type="text/css" href="../../css/dev.css" rel="stylesheet"/>
+    <script type="text/javascript" src="../../js/jquery.min.js"></script>
+    <script type="text/javascript" src="../../js/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="../../js/easyui-lang-zh_CN.js"></script>
+    <script type="text/javascript" src="../../js/data.util.js"></script>
+    <script type="text/javascript" src="../../js/jquery.dev.control.js"></script>
+    <style type="text/css">
+       .detail-container{
+           position: fixed;
+           width: 100%;
+           height: 100%;
+           box-sizing: border-box;
+
+       }
+
+        .detail-row{
+            position: relative;
+            width: 100%;
+            height: 35px;
+            border-bottom: 1px solid #dddddd;
+            line-height: 35px;
+            text-align: center;
+        }
+        .detail-left {
+            position: absolute;
+            display: inline-block;
+            left: 0;
+            height: 100%;
+            width: 50%;
+        }
+        .detail-right {
+            position: absolute;
+            display: inline-block;
+            right: 0;
+            height: 100%;
+            width: 50%;
+        }
+
+        .detail-title{
+            position: absolute;
+            left: 0;
+            height: 100%;
+            width: 65px;
+            border-left: 1px solid #dddddd;
+            border-right: 1px solid #dddddd;
+
+        }
+
+        .detail-content{
+            position: absolute;
+            left: 65px;
+            right: 0;
+            height: 100%;
+            padding: 0 10px;
+            text-align: left;
+            text-overflow: ellipsis;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+    </style>
+
+</head>
+
+<body style="height: 100%; width: 100%">
+
+<div class="detail-container">
+    <div class="detail-row">
+        <div class="detail-left">
+            <div class="detail-title">设备编号</div>
+            <div name="no" class="detail-content detailval" title=""></div>
+        </div>
+        <div class="detail-right">
+            <div class="detail-title">组织机构</div>
+            <div name="org_name" class="detail-content detailval" title=""></div>
+        </div>
+    </div>
+    <div class="detail-row">
+        <div class="detail-left">
+            <div class="detail-title">无人机品牌</div>
+            <div name="brand" class="detail-content detailval" title=""></div>
+        </div>
+        <div class="detail-right">
+            <div class="detail-title">序列号</div>
+            <div name="no" class="detail-content detailval" title=""></div>
+        </div>
+    </div>
+    <div class="detail-row">
+        <div class="detail-left">
+            <div class="detail-title">无人机类型</div>
+            <div name="type" class="detail-content detailval" title=""></div>
+        </div>
+        <div class="detail-right">
+            <div class="detail-title">无人机型号</div>
+            <div name="spec" class="detail-content detailval" title=""></div>
+        </div>
+    </div>
+    <div class="detail-row">
+        <div class="detail-left">
+            <div class="detail-title">经度</div>
+            <div name="rlongtitude" class="detail-content detailval" title=""></div>
+        </div>
+        <div class="detail-right">
+            <div class="detail-title">纬度</div>
+            <div name="rlatitude" class="detail-content detailval" title=""></div>
+        </div>
+    </div>
+    <div class="detail-row" style="height: 40px">
+        <div class="detail-title"  style="line-height: 40px">无人机用途</div>
+        <div class="detail-content" title="">
+            <textarea name="use" readonly="readonly" style="width: 100%;height: 100%;"></textarea>
+        </div>
+    </div>
+    <div class="detail-row"  style="height: 80px">
+        <div class="detail-title" style="line-height: 80px">备注</div>
+        <div class="detail-content" title="">
+            <textarea name="remark" readonly="readonly" style="width: 100%;height: 100%;"></textarea>
+        </div>
+    </div>
+
+
+</div>
+
+<script type="text/javascript">
+    var Dev = window.top.window.dev;
+    var parent;
+
+    function WidgetCommunication(s) {//部件通讯
+        parent = s.parent;
+        var showdata = s.param.showdata;
+        if (Dev.IsNull(showdata.rlatitude)) showdata.rlatitude = showdata.latitude;
+        if (Dev.IsNull(showdata.rlongtitude)) showdata.rlongtitude = showdata.longitude;
+        $(".detailval").each(function (index, dom) {
+            var name = $(this).attr("name");
+            if (name === "org_name") {
+                getOrgnameById(showdata["orgid"], $(dom));
+                return true}
+            $(this).text((!Dev.IsNull(showdata[name]))?showdata[name]:"");
+        });
+        $("textarea").each(function () {
+            var name = $(this).attr("name");
+            this.value = showdata[name];
+        });
+        parent.one("onClosing", function () {
+
+        });
+
+    }
+
+    function getOrgnameById(orgid, $this) {
+        var url = Dev.GetSystemUrlByRelID("Service") + "organize/getOrganizeNameById/" + orgid;
+        $.ajax({
+            url: url,
+            type: "get",
+            dataType: 'json',
+            success: function (result) {
+                var orgname = result.data;
+                $this.text(orgname);
+                $this.attr("title", orgname);
+
+            }
+        });
+    }
+
+
+
+</script>
+</body>
+</html>

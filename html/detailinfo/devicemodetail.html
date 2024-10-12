@@ -1,0 +1,120 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>农机模型详细信息</title>
+    <link rel="stylesheet" type="text/css" href="../../theme/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/app.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/icon.css" />
+    <link type="text/css" href="../../css/dev.css" rel="stylesheet" />
+    <script type="text/javascript" src="../../js/jquery.min.js"></script>
+    <script type="text/javascript" src="../../js/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="../../js/easyui-lang-zh_CN.js"></script>
+    <script type="text/javascript" src="../../js/linq.min.js"></script>
+    <script type="text/javascript" src="../../js/data.util.js"></script>
+    <script type="text/javascript" src="../../js/jquery.dev.control.js"></script>
+    <style type="text/css">
+        .leftinfo {
+            height: 215px;
+            width: 500px;
+            display: inline-block;
+            float: left;
+        }
+
+            .leftinfo .item {
+                height: 35px;
+                width: 248px;
+                border-bottom: 1px dashed #ddd;
+                display: inline-block;
+                float: left;
+            }
+
+                .leftinfo .item .title {
+                    width: 95px;
+                    height: 35px;
+                    padding-right: 5px;
+                    text-align: right;
+                    display: inline-block;
+                    float: left;
+                    line-height: 35px;
+                }
+
+                .leftinfo .item .value {
+                    width: 141px;
+                    height: 35px;
+                    padding-left: 5px;
+                    display: inline-block;
+                    line-height: 35px;
+                    overflow-x: hidden;
+                    overflow-y: auto;
+                }
+
+        .part {
+            border-right: 1px dashed #ddd;
+        }
+    </style>
+    <script type="text/javascript">
+        var Dev = window.top.window.dev;
+        var parent, id;
+        function WidgetCommunication(s) {//部件通讯
+            parent = s.parent;
+            id = s.param.id;
+            //初始化tab
+            $(".title").css("color", "grey");
+            getData();
+        }
+        //获取当前数据
+        function getData() {
+            $.ajax({
+                type: "get",
+                url: Dev.cookie.baseUri + "deviceModel/getbyfilter/\"ID\"=\'" + id + "\'",
+                success: function (response) {
+                    loadData(response.data[0]);
+                }
+            });
+        }
+        function loadData(data) {
+            if (Dev.IsNull(data)) return;
+            $.each(data, function (e, o) {
+                var curr = $('div[name="' + e + '"]');
+                if (!Dev.IsNull(curr) && curr.length > 0) {
+                    if (e == "mintrunradius" || e == "wheelbase" || e == "antheight") o = o + "(m)";
+                    curr.html(o);
+                }
+            });
+            //显示行政区
+        }
+    </script>
+</head>
+<body>
+    <div style="height: 350px; width: 500px;">
+        <div class="leftinfo">
+            <div class="item">
+                <div class="title">农机类型</div>
+                <div name="type" class="value part"></div>
+            </div>
+            <div class="item">
+                <div class="title">农机型号</div>
+                <div name="spec" class="value"></div>
+            </div>
+            <div class="item" >
+                <div class="title">厂商</div>
+                <div name="vendor" class="value part" ></div>
+            </div>
+            <div class="item">
+                <div class="title">最小转弯半径(m)</div>
+                <div name="mintrunradius" class="value "></div>
+            </div>
+            <div class="item">
+                <div class="title">轴距(m)</div>
+                <div name="wheelbase" class="value part"></div>
+            </div>
+            <div class="item">
+                <div class="title">天线高(m)</div>
+                <div name="antheight" class="value "></div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

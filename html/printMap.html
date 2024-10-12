@@ -1,0 +1,93 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="../theme/default/easyui.css" />
+    <link rel="stylesheet" type="text/css" href="../theme/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../css/app.css" />
+    <link rel="stylesheet" type="text/css" href="../css/icon.css" />
+    <script type="text/javascript" src="../js/jquery.min.js"></script>
+    <script type="text/javascript" src="../js/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="../js/jquery.easyui.ex.js"></script>
+    <!--<script src="../js/html2canvas.js"></script>-->
+    <script type="text/javascript">
+        var Dev = window.top.window.dev;
+        var parent;
+        function WidgetCommunication(s) {//部件通讯
+            parent = s.parent;
+            //var mapElem = Dev.App.MapPanel.MapDOM; //
+            //html2canvas(mapElem, {
+            //    useCORS: true,
+            //    onrendered: function (canvas) {
+            //        $("#mapimg").attr("src", canvas.toDataURL("image/png"));
+            //    }
+            //});
+            //var img = Dev.App.MapPanel.MapDOM;
+            //$("#mapimg").html(img[0].children[0]);
+            //$("#btnPrint").linkbutton({
+            //    onClick: function () {
+            //        $("#btns").css({ "opacity": "0", "filter": "alpha(opacity = 0)" });
+            //        window.print();
+            //        $("#btns").css({ "opacity": "1", "filter": "alpha(opacity = 100)" });
+            //    },
+            //    BgColor: '#006685',
+            //    Color: '#fff'
+            //});
+            //parent.bind("onClosing", function () {
+            //    Dev.App.MapPanel.MapDOM.prepend($('#mapimg')[0].children);
+            //});
+            //Dev.App.MapPanel.bind("onResize", function () {
+            //    var width = Dev.App.MapPanel.MapDOM.width();
+            //    var height = Dev.App.MapPanel.MapDOM.height();
+            //    parent.Width = width - 1;
+            //    parent.Height = height;
+            //});
+
+            var canvas = Dev.App.MapPanel.MapDOM;
+            var canvas3d = Dev.App.MapPanel.MapDOM3D;
+            if (Dev.App.MapPanel.MapDOM.css('display') != "none" && Dev.App.MapPanel.MapDOM3D.css('display') == "none") {
+                $("#mapimg").html(canvas[0].children[0]);
+                $("#btns").css({ "opacity": "0", "filter": "alpha(opacity = 0)" });
+                window.print();
+                setTimeout(function () {
+                    canvas.prepend($('#mapimg')[0].children);
+                    parent.Destroy();
+                }, 600);
+            }
+            else if (Dev.App.MapPanel.MapDOM.css('display') == "none" && Dev.App.MapPanel.MapDOM3D.css('display') != "none") {
+                $("#mapimg").html(canvas3d[0].children['0'].children['0'].children['0'].children['0']);
+                $("#btns").css({ "opacity": "0", "filter": "alpha(opacity = 0)" });
+                window.print();
+                setTimeout(function () {
+                    $(canvas3d[0].children['0'].children['0'].children[0]).prepend($('#mapimg')[0].children);
+                    parent.Destroy();
+                }, 600);
+            }
+            else if (Dev.App.MapPanel.MapDOM.css('display') != "none" && Dev.App.MapPanel.MapDOM3D.css('display') != "none") {
+                $(canvas[0].children[0]).css({ "width": "50%", "float": "left" });
+                $(canvas3d[0].children[0]).css({ "width": "50%", "float": "left" });
+                $("#mapimg").append(canvas[0].children[0]);
+                $("#mapimg").append(canvas3d[0].children['0'].children['0'].children['0'].children['0']);
+                $("#btns").css({ "opacity": "0", "filter": "alpha(opacity = 0)" });
+                window.print();
+                setTimeout(function () {
+                    canvas.prepend($("#mapimg")[0].children[0]);
+                    $(canvas3d[0].children['0'].children['0'].children[0]).prepend($("#mapimg")[0].children);
+                    $(canvas[0].children[0]).css({ "width": "100%", "float": "none" });
+                    $(canvas3d[0].children[0]).css({ "width": "100%", "float": "none" });
+                    parent.Destroy();
+                }, 600);
+            }
+        }
+    </script>
+</head>
+<body id="testbody" style="text-align: center;">
+    <div id="mapprint" style="width: 100%; height: 100%; overflow: hidden; position: absolute; left: 0px; -ms-touch-action: none;">
+        <div id="mapimg" style="left: 0px; top: 0px; position: absolute;"></div>
+    </div>
+    <div id="btns" style="position: absolute; width: 100%; opacity: 1; filter: alpha(opacity=100); height: 35px; text-align: left; left: 0px;">
+        <a id="btnPrint" class="easyui-linkbutton" style="margin-top: 2px; margin-left: 2px;">打印</a>
+    </div>
+</body>
+</html>

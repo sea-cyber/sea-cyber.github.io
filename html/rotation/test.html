@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<div id="container" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
+
+<script type="text/javascript" src="../../js/jquery.min.js"></script>
+<script src="http://code.highcharts.com/highcharts.js"></script>
+<script src="http://code.highcharts.com/modules/drilldown.js"></script>
+<script>
+    $.ajax({
+        type: "get",
+        url: "http://192.168.19.242:8081/devframe-server/file/config/file",
+        //url: "http://58.49.122.250:8000/download/layertreeconfig.xml",
+        //dataType: "application/xml",
+        success: function (e) {
+            console.log(e);
+        },
+        error: function (e) {
+            alert("cuowu ");
+        }
+    });
+</script>
+
+</body>
+</html>

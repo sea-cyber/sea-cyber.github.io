@@ -1,0 +1,505 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>查询</title>
+    <link rel="stylesheet" href="../../theme/default/easyui.css" />
+    <link rel="stylesheet" type="text/css" href="../../theme/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/app.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/orchard.css" />
+    <script type="text/javascript" src="../../js/jquery.min.js"></script>
+    <script type="text/javascript" src="../../js/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="../../js/easyui-lang-zh_CN.js"></script>
+    <script src="../../js/linq.min.js"></script>
+    <script type="text/javascript" src="../../js/data.util.js"></script>
+    <script src="../../js/jquery.dev.control.js"></script>
+    <script type="text/javascript" src="../../js/dev.ui.js"></script>
+
+    <script type="text/javascript" type="text/javascript">
+        var Dev = window.top.window.dev;
+        var parent;
+        var draw, drawing = false, drawfeature;
+        var dataGrid, pageIndex = 1, pageSize = 2;
+        var searchalldata;
+        var mapclick;
+        var ajaxRequests = [];
+     
+        function WidgetCommunication(s) {
+            //index.html加载样式
+            parent = s.parent;
+            var cooperative_layer = Dev.MapUtils.GetLayer("cooplayer", Dev.App.Map); //获取合作社图层
+            if (!Dev.IsNull(cooperative_layer)) cooperative_layer.setVisible(false);//隐藏图层
+            var orchard_layer = Dev.MapUtils.GetLayer("orchardlayer", Dev.App.Map);//获取果园图层
+            if (!Dev.IsNull(orchard_layer)) orchard_layer.setVisible(true);//显示图层
+            Dev.OrchardTipClose();
+            $(".geomcombo").click(function () {
+                var querypopue = $(".querypopue", Dev.App.MapPanel.MapDOM);
+                if (querypopue.length == 0) Dev.App.MapPanel.MapDOM.append(initpopup());
+                else querypopue.css("display", "block");
+            });
+            $(".geomselect").mouseover(function () { $(".querypopue", Dev.App.MapPanel.MapDOM).css("display", "block"); }).mouseleave(function () { $(".querypopue", Dev.App.MapPanel.MapDOM).css("display", "none"); }).click(function () {
+                var tag = $("#selecteddraw", $(this)).attr("tag");
+                darwGeom(tag);
+            });
+            $(".geomcombo").mouseover(function () { $(".querypopue", Dev.App.MapPanel.MapDOM).css("display", "block"); }).mouseleave(function () { $(".querypopue", Dev.App.MapPanel.MapDOM).css("display", "none"); });
+            $(".querybtn").click(function () {//查询
+                clear();
+                //隐藏图层
+                var orchard_layer = Dev.MapUtils.GetLayer("orchardlayer", Dev.App.Map);//获取果园图层
+                if (!Dev.IsNull(orchard_layer)) orchard_layer.setVisible(false);//显示图层
+                Dev.OrchardTipClose();
+                queryAllData();
+                queryData();
+            });
+            mapclick = Dev.App.Map.on("singleclick", function (evt) {
+                var pixel = Dev.App.Map.getPixelFromCoordinate(evt.coordinate);
+                Dev.App.Map.forEachFeatureAtPixel(pixel, function (feature) {
+                    var selectfeatures = feature.getProperties().features;
+                    if (Dev.IsNull(selectfeatures) || selectfeatures.length > 1) return;
+                    var c_selectfeature = selectfeatures[0];
+                    //选中某行，并且
+                    if (!Dev.IsNull(dataGrid)) {
+                        var rows = dataGrid.DataGrid.datagrid("getData").rows;
+                        var row = Enumerable.From(rows).Where('s=>s.id=="' + c_selectfeature.getId() + '"').FirstOrDefault();
+                        if (!Dev.IsNull(row)) {
+                            var index = Enumerable.From(rows).IndexOf(row);
+                            dataGrid.DataGrid.datagrid("selectRow", index);
+                            Dev.App.Map.getView().setCenter(c_selectfeature.getGeometry().getCoordinates());
+                        }
+                    }
+                    showdetail(c_selectfeature.getProperties(), c_selectfeature.getGeometry().getCoordinates());
+                });
+            });
+            parent.one("onClosing", function () {
+                if (ajaxRequests.length > 0) {
+                    for (var i = 0; i < ajaxRequests.length; i++) {
+                        ajaxRequests[i].abort();
+                        ajaxRequests.splice(i, 1);
+                    }
+                }
+                $(".querypopue", Dev.MapPanel.MapDOM).remove();
+                $(".querybtn").unbind("click");
+                if (!Dev.IsNull(mapclick)) { Dev.App.Map.unByKey(mapclick); mapclick = null; }
+                clearcluster();
+                if (!Dev.IsNull(ucMapTip)) ucMapTip.Close();
+                if (!Dev.IsNull(draw)) {
+                    draw.Target.unbind("onDrawCompleted");
+                    draw.Stop(); draw.Destroy(); draw = null;
+                }
+                drawfeature = null;
+                Dev.MapUtils.ClearFeature("tempDrawLayer");
+                if (!Dev.IsNull(dataGrid)) {
+                    dataGrid.Target.unbind("onSelectPage");
+                    dataGrid.Target.unbind("onClickRow");
+                    dataGrid = null;
+                }
+                $("#orchardgrid", Dev.App.MapPanel.MapDOM).remove();
+                searchalldata = null;
+                var orchard_layer = Dev.MapUtils.GetLayer("orchardlayer", Dev.App.Map);//获取果园图层
+                if (!Dev.IsNull(orchard_layer)) orchard_layer.setVisible(false);//显示图层
+            });
+        }
+        function initpopup() {
+            var querypopue = $('<div class="querypopue" style="width: 33px;height: 122px; border-left: 1px solid #ddd; border-right: 1px solid #ddd; border-bottom: 1px solid #ddd;position: absolute; left: 303px; background-color: #fff; top: 53px;z-index:10005"></div>');
+            var icons = ["icon-draw-rect", "icon-draw-polygon", "icon-draw-circle", "icon-maptool-clearmap1"];
+            for (var i = 0; i < icons.length; i++) {
+                var bpanel = $('<div style="height: 30px;width: 33px;margin-top: 0px;" tag="' + icons[i] + '"><div class="' + icons[i] + '" style="height: 16px;width: 16px;margin-left: 8px; margin-top: 7px; float: left;"></div></div>');
+                querypopue.append(bpanel);
+                bpanel.mouseover(function () { $(this).css("background", "#dfeefe"); }).mouseleave(function () { $(this).css("background", ""); }).click(function () {
+                    var tag = $(this).attr("tag");
+                    var oldcss = $("#selecteddraw").attr("tag");
+                    //开始绘制
+                    if (tag == "icon-maptool-clearmap1") {
+                        if (!Dev.IsNull(draw)) draw.Stop();
+                        Dev.MapUtils.ClearFeature("tempDrawLayer");
+                        drawfeature = null; drawing = false;
+                    }
+                    else {
+                        $("#selecteddraw").removeClass(oldcss).addClass(tag).attr("tag", tag);
+                        darwGeom(tag);
+                    }
+                });
+                if (i < icons.length - 1) querypopue.append($('<div style=" height: 1px;width: 20px;background-color: #ddd; margin-left: 7px;"></div>'));
+            }
+            querypopue.mouseover(function () { $(this).css("display", "block"); }).mouseleave(function () { $(this).css("display", "none"); });
+            return querypopue;
+        }//初始化绘制图形种类
+        function darwGeom(drawtype) {
+            if (Dev.IsNull(drawtype)) return;
+            var type = "";
+            if (drawtype == "icon-draw-rect") type = "Box";
+            if (drawtype == "icon-draw-polygon") type = "Polygon";
+            if (drawtype == "icon-draw-circle") type = "Circle";
+            Dev.MapUtils.ClearFeature("tempDrawLayer");
+            if (Dev.IsNull(draw)) {
+                draw = new Dev.Draw({ Map: Dev.App.Map, Layer: Dev.MapUtils.GetTempLayer("tempDrawLayer"), State: "Query" });
+                draw.Target.unbind("onDrawCompleted");
+                draw.Target.bind("onDrawCompleted", function (sender, o) {
+                    drawing = false;
+                    drawfeature = o;
+                    draw.Stop();//画画停止
+                });
+            }
+            if (!drawing) {
+                drawing = true;
+                draw.Start(type);
+            }
+        }//绘制查询区域
+
+        //初始化datagrid
+        function initDataGrid() {
+            var griddiv = $('<div id="orchardgrid" style="width:320px;position:absolute;top:60px;left:20px;border:1px solid #ddd;"></div>').appendTo(Dev.App.MapPanel.MapDOM);
+            var closebtn = $('<div style="height: 20px; width: 20px;background-image: url(' + Dev.App.Root + 'image/l1.png);background-position: -400px -5px;background-color: #0099cc; border-radius: 10px; position: absolute;right: -8px;top: -8px;z-index: 10;"><div>').appendTo(griddiv);
+            closebtn.mouseover(function () {
+                $(this).css("background-color", "#ff0000");
+            }).mouseleave(function () {
+                $(this).css("background-color", "#0099cc");
+            }).click(function () {
+                clear();
+                Dev.MapUtils.ClearFeature("tempDrawLayer");
+                //清空文本框
+                $("#searchkey").prop("$this").SetValue("");
+                //显示全部图层
+                var orchard_layer = Dev.MapUtils.GetLayer("orchardlayer", Dev.App.Map);//获取果园图层
+                if (!Dev.IsNull(orchard_layer)) orchard_layer.setVisible(true);//显示图层
+            });
+            var gridView = $.extend({}, $.fn.datagrid.defaults.view, {
+                renderRow: function (target, fields, frozen, rowIndex, rowData) {
+                    var col = [];
+                    if (Dev.IsNull(rowData) || Dev.IsNull(rowData.orchardName)) return col.join('');
+                    //果园名称
+                    var name = rowData.orchardName + "(" + rowData.orchardType + ")";
+                    var address = rowData.village;
+                    name = dev.IsNull(name) ? "暂无信息" : name;
+                    address = dev.IsNull(address) ? "暂无信息" : address;
+                    col.push('<td>');
+                    col.push(' <div class="blockrow" tag="' + rowData.orchardname + '" style="width:357px; height: 60px; margin: 5px; position: relative;">');
+                    col.push(' <span style="width: 24px; height: 36px; position: absolute; left: 3px; top: 6px; background-image: url(image/poi_red.png)">');
+                    col.push('   <b style="font-size: 15px; color: white; position: absolute; left: 8px; top: 3px;">' + (rowIndex + 1) + '</b></span>');
+                    col.push(' <span style="position: absolute; left: 35px; top: 10px; color: blue;">' + name + '</span>');
+                    col.push(' <span style="position: absolute; left: 35px; top: 35px;">' + address + '</span>');
+                    col.push('</div>');
+                    col.push('</td>');
+                    return col.join('');
+                }
+            });//重绘datagrid行
+            dataGrid = new UCDataGrid(Dev, {
+                ID: "resultGrid",
+                View: gridView,
+                RowNumbers: false,
+                FitColumns: false,
+                ShowHeader: false,
+                PageIndex: pageIndex,
+                PageSize: pageSize,
+                pagequery: false,
+                SimplePageMsg: true
+            });
+            griddiv.append(dataGrid.Target);
+            dataGrid.Layout([]);
+            $(".datagrid-header", dataGrid.Target).css("border", "0px");
+            dataGrid.Target.bind("onSelectPage", function (s, e) {//翻页
+                pageIndex = e.index;
+                queryData();
+            });
+            dataGrid.Target.bind("onClickRow", function (s, e) {//选中行
+                Dev.App.Map.getView().setCenter([parseFloat(e.Row.longitude), parseFloat(e.Row.latitude)]);
+                showdetail(e.Row, [parseFloat(e.Row.longitude), parseFloat(e.Row.latitude)]);
+            });
+            dataGrid.Resize(320, 512);//设置列表高度
+        }
+        //查询分页数据
+        function queryData() {
+            var con = getcon1();
+            // var con = getcon;
+            var cajax = $.ajax({
+                url: Dev.GetSystemUrlByRelID("Service") + "orchard/getbyfilter/" + pageIndex + "/" + pageSize,
+                type: "Post",
+                contentType: 'application/json',
+                dataType: 'json',
+                data:con,
+                success: function (result) {
+                    if (result.statusCode != 200 || Dev.IsNull(result.data)) return;
+                    if (Dev.IsNull(dataGrid)) initDataGrid();
+                    else $("#orchardgrid", Dev.App.MapPanel.MapDOM).css("display", "block")
+                    dataGrid.Load(result.data.dataSource, result.data.pageInfo);
+                    setcenter(result.data.dataSource);
+                    //显示聚合数据
+                    //全部数据过滤掉已有的数据
+                    if (!Dev.IsNull(searchalldata) && searchalldata.length > 0) {
+                        initculture(searchalldata);
+                    }
+                }
+            });
+            ajaxRequests.push(cajax);
+        }
+        //查询所有数据
+        function queryAllData() {
+            var con = getcon1();
+            var cajax = $.ajax({
+                url: Dev.GetSystemUrlByRelID("Service") + "orchard/getbyfilter",
+                type: "Post",
+                async: false,
+                contentType: 'application/json',
+                dataType: 'json',
+                data: con,
+                success: function (result) {
+                    if (result.statusCode != 200 || Dev.IsNull(result.data)) return;
+                    searchalldata = result.data;
+                }
+            });
+            ajaxRequests.push(cajax);
+        }
+
+        /*显示详细信息*/
+        //显示详细信息
+        var ucMapTip = null;
+        function showdetail(featuredata, position) {
+            if (Dev.IsNull(featuredata) || Dev.IsNull(position)) return;
+            var varietydata = getorchardvariety(featuredata.orchardName);
+            var height = 100;
+            if (!Dev.IsNull(varietydata) && varietydata.length > 0) {
+                height += 25;
+                height += varietydata.length * 31;
+            }
+            if (ucMapTip == null) {
+                ucMapTip = new Dev.UCMapTip({
+                    ID: "mapTip",
+                    Title: "果园信息",
+                    Position: position,
+                    Width: 400,
+                    Height: height
+                });
+                ucMapTip.tipContent.one("onClosed", function () {
+                    ucMapTip = null;
+                });
+            }
+            else ucMapTip.SetPosition(position);
+            settipcontent(featuredata, varietydata);
+        }
+        function settipcontent(featuredata, varietydata) {
+            ucMapTip.Clear();
+            var content = $('<div style="width:100%;height:100%;"></div>');
+            var row1 = $('<div style="height:34px;width:100%;border-bottom:1px solid #ddd"></div>').appendTo(content);
+            var r1cell0 = $('<div style="height:34px;width:196px;border-right:1px solid #ddd;display:inline-block;float:left;"></div>').appendTo(row1);
+            var r1cell0title = $('<div style="height:34px;width:72px;display:inline-block;line-height:34px;padding-right:8px;float:left;text-align:right">果园名称</div>').appendTo(r1cell0);
+            var r1cell0value = $('<div style="height:34px;width:110px;display:inline-block;line-height:34px;">' + featuredata.orchardName + '</div>').appendTo(r1cell0);
+            var r1cell1 = $('<div style="height:34px;width:196px;display:inline-block;float:left;"></div>').appendTo(row1);
+            var r1cell1title = $('<div style="height:34px;width:72px;display:inline-block;line-height:34px;padding-right:8px;float:left;text-align:right">所在社区</div>').appendTo(r1cell1);
+            var r1cell1value = $('<div style="height:34px;width:110px;display:inline-block;line-height:34px;">' + featuredata.village + '</div>').appendTo(r1cell1);
+
+            var row2 = $('<div style="height:34px;width:100%;border-bottom:1px solid #ddd"></div>').appendTo(content);
+            var r2cell0 = $('<div style="height:34px;width:196px;border-right:1px solid #ddd;display:inline-block;float:left;"></div>').appendTo(row2);
+            var r2cell0title = $('<div style="height:34px;width:72px;display:inline-block;line-height:34px;padding-right:8px;float:left;text-align:right">果园类型</div>').appendTo(r2cell0);
+            var r2cell0value = $('<div style="height:34px;width:110px;display:inline-block;line-height:34px;">' + featuredata.orchardType + '</div>').appendTo(r2cell0);
+            var r2cell1 = $('<div style="height:34px;width:196px;display:inline-block;float:left;"></div>').appendTo(row2);
+            var r2cell1title = $('<div style="height:34px;width:72px;display:inline-block;line-height:34px;padding-right:8px;float:left;text-align:right">占地面积</div>').appendTo(r2cell1);
+            var r2cell1value = $('<div style="height:34px;width:110px;display:inline-block;line-height:34px;">' + featuredata.countArea + '</div>').appendTo(r2cell1);
+            if (!Dev.IsNull(varietydata) && varietydata.length > 0) {
+                var row3 = $('<div style="height:24px;line-height:24px;background-color:#fcfcfc;border-bottom:1px solid #ddd;"><span style="margin-left:20px;color:#0099cc;line-height:24px;">果园品种</span></div>').appendTo(content);
+                var row4 = $('<div style="height:30px;width:100%;border-bottom:1px solid #ddd;"><div style="width:calc(50% - 1px);height:30px;border-right:1px solid #ddd;display:inline-block;float:left;text-align:center;line-height:30px;">品种</div><div style="line-height:30px;width:50%;height:30px;display:inline-block;float:left;text-align:center;">面积</div></div>').appendTo(content);
+                for (var i = 0; i < varietydata.length; i++) {
+                    var currrow = $('<div style="height:30px;width:100%;border-bottom:1px solid #ddd;"><div style="width:calc(50% - 1px);height:30px;border-right:1px solid #ddd;display:inline-block;float:left;text-align:center;line-height:30px;">' + varietydata[i].fruitType + '</div><div style="line-height:30px;width:50%;height:30px;display:inline-block;float:left;text-align:center;">' + varietydata[i].area + '</div></div>').appendTo(content);
+                }
+            }
+            ucMapTip.Add(content);
+        }
+        function clearMapTip() {
+            if (!Dev.IsNull(ucMapTip)) {
+                ucMapTip.tipContent.unbind("onClosed");
+                ucMapTip.Clear();
+                ucMapTip.Close();
+                ucMapTip = null;
+            }
+        }
+        //获取品种信息
+        function getorchardvariety(orchardname) {
+            var varietydata;
+            var con = " 1=1 AND \"ORCHARDNAME\"='" + orchardname + "' ";
+            var cajax = $.ajax({
+                url: Dev.GetSystemUrlByRelID("Service") + "orchardVariety/getbyfilter",
+                type: "Post",
+                async: false,
+                contentType: 'application/json',
+                dataType: 'json',
+                data: con,
+                success: function (result) {
+                    varietydata = result.data;
+                }
+            });
+            ajaxRequests.push(cajax);
+            return varietydata;
+        }
+        /*显示详细信息*/
+
+        //地图上显示当前页点
+        function setcenter(data) {
+            Dev.MapUtils.RemoveFeatureLikeID("pagepoints", "tempGraphicLayer", Dev.App.Map);
+            if (Dev.IsNull(data)) return;
+            var features = [];
+            for (var i = 0; i < data.length; i++) {
+                var c_feature = new Dev.Feature(new Dev.geom.Point([parseFloat(data[i].longitude), parseFloat(data[i].latitude)]));
+                features.push(c_feature);
+            }
+            var extent = Dev.getExtentByFeatures(features);
+            var centerpoint = [(extent[0] + extent[2]) / 2, (extent[1] + extent[3]) / 2];
+            Dev.App.Map.getView().setCenter(centerpoint);
+        }
+        /*聚合显示数据*/
+        var currentResolution, maxFeatureCount, clustersource;
+        function initculture(lists) {
+            if (Dev.IsNull(lists) || lists.length == 0) return;
+            clearcluster();
+            var distance = 15;
+            var count = lists.count;
+            var features = new Array(count);
+            for (var i = 0; i < lists.length; i++) {
+                var currf = new Dev.Feature(new Dev.geom.Point([parseFloat(lists[i].longitude), parseFloat(lists[i].latitude)]));
+                currf.setProperties(lists[i]);
+                currf.setId(lists[i].id);
+                features[i] = currf;
+            }
+            clustersource = new Dev.source.Vector({ features: features });
+            var currsource = new Dev.source.Cluster({ distance: distance, source: clustersource });
+            var clusters = new Dev.layer.Vector({ id: "clusterlayer", source: currsource, style: styleFunction });
+            Dev.App.Map.addLayer(clusters);
+        }
+        function styleFunction(feature, resolution) {
+            if (resolution != currentResolution) {
+                calculateClusterInfo(resolution);
+                currentResolution = resolution;
+            }
+            var style;
+            var size = feature.get("features").length;
+            if (size > 1) {
+                var color = "rgba(255,0,0,0.5)";
+                var fillcolor = [255, 0, 0, Math.min(0.8, 0.4 + (size / maxFeatureCount))]
+                if (size > 100 && size < 200) {
+                    color = "rgba(255, 204, 0, 0.6)";
+                    fillcolor = [255, 153, 0, Math.min(0.8, 0.4 + (size / maxFeatureCount))]
+                }
+                if (size >= 200) {
+                    color = "rgba(0,255, 0, 0.6)";
+                    fillcolor = [0, 255, 0, Math.min(0.8, 0.4 + (size / maxFeatureCount))]
+                }
+                style = new Dev.style.Style({
+                    image: new Dev.style.Circle({
+                        fill: new Dev.style.Fill({ color: fillcolor }),
+                        stroke: new Dev.style.Stroke({ color: color, width: 1 }),
+                        radius: feature.get('radius'),
+                        points: 4
+                    }),
+                    text: new Dev.style.Text({
+                        text: size.toString(),
+                        fill: new Dev.style.Fill({ color: "#fff" }),
+                        stroke: new Dev.style.Stroke({ color: 'rgba(0, 0, 0, 0.6)', width: 3 })
+                    })
+                });
+            }
+            else {
+                var originalFeature = feature.get('features')[0];
+                //判断改feature 是否在datagrid中
+                var isdatapage = false;
+                var isselectrow = false;
+                var cindex = 0;
+                if (!Dev.IsNull(dataGrid)) {
+                    var rows = dataGrid.DataGrid.datagrid("getData").rows;
+                    var selectrow = dataGrid.DataGrid.datagrid("getSelected");
+                    var crow = Enumerable.From(rows).Where('s=>s.id=="' + originalFeature.getProperties().id + '"').FirstOrDefault();
+                    cindex = Enumerable.From(rows).IndexOf(crow);
+                    if (!Dev.IsNull(crow)) isdatapage = true;
+                    if (!Dev.IsNull(selectrow) && selectrow.id == originalFeature.getProperties().id) isselectrow = true;
+                }
+                if (isdatapage) {
+                    var iconurl = Dev.App.Root + "image/poi_red.png";
+                    if (isselectrow) iconurl = Dev.App.Root + "image/poi_blue.png";
+                    style = new Dev.style.Style({
+                        image: new Dev.style.Icon({ src: iconurl, anchor: [0.5, 1] }),
+                        text: new Dev.style.Text({
+                            text: (cindex + 1).toString(),
+                            font: "15px serif",
+                            fill: new Dev.style.Fill({ color: [255, 255, 255, 1] }),
+                            offsetX: 0,
+                            offsetY: -22
+                        })
+                    });
+                }
+                else {
+                    var color = "rgba(255, 0, 0, 1)";
+                    var attrs = originalFeature.getProperties();
+                   // attrs.orchardName
+                   // var k = "";
+                    style = new Dev.style.Style({
+                        image:new Dev.style.Icon({ src: Dev.App.Root + "image/agri/orchard.png" }),
+                        fill: new Dev.style.Fill({ color: [236, 179, 73, 0.2] }),
+                        text: new Dev.style.Text({ text: attrs.orchardName, font: "10px serif", offsetX: 5, offsetY: -20, fill: new Dev.style.Fill({ color: [255, 0, 0, 1] }) })
+                    });
+                }
+            }
+            return style;
+        }
+        function calculateClusterInfo(resolution) {
+            maxFeatureCount = 0;
+            var currlayer = Dev.MapUtils.GetLayer("clusterlayer", Dev.App.Map);
+            var features = currlayer.getSource().getFeatures();
+            var feature, radius;
+            for (var i = features.length - 1; i >= 0; i--) {
+                feature = features[i];
+                var originalFeatures = feature.get('features');
+                var extent = Dev.extent.createEmpty();
+                for (var j = 0; j < originalFeatures.length; j++) Dev.extent.extend(extent, originalFeatures[j].getGeometry().getExtent());
+                maxFeatureCount = Math.max(maxFeatureCount, originalFeatures.length);
+                feature.set('radius', 15);
+            }
+        }
+        function clearcluster() {//聚合数据清空
+            currentResolution = undefined;
+            maxFeatureCount = undefined;
+            if (!Dev.IsNull(clustersource)) clustersource.clear();
+            var haslayer = Dev.MapUtils.GetLayer("clusterlayer", Dev.App.Map);
+            if (!Dev.IsNull(haslayer)) Dev.MapUtils.RemoveLayer("clusterlayer");
+        }
+        /*聚合显示*/
+
+        //获取条件
+        function clear() {
+            clearMapTip();
+            clearcluster();
+            $("#orchardgrid", Dev.App.MapPanel.MapDOM).css("display", "none");
+        }
+        function getcon1() {
+            var searchkey = $("#searchkey").prop("$this").GetValue();
+            var geomwkt;
+            var con = " 1=1 ";
+            if (!Dev.IsNull(searchkey)) {
+                con += "  AND (\"ORCHARDNAME\" LIKE '%" + searchkey + "%' OR \"VILLAGE\" LIKE '%" + searchkey + "%' OR \"ORCHARDTYPE\" LIKE '%" + searchkey + "%')";
+            }
+            if (!Dev.IsNull(drawfeature)) {
+                con += " AND ST_Contains(ST_GeomFromText('" + Dev.GetWKTByFeature(drawfeature, false) + "'),st_point(to_number(\"LONGITUDE\",'999.999999999999'),to_number(\"LATITUDE\",'999.999999999999')))";
+            }
+            return con;
+        }
+    </script>
+</head>
+<body>
+    <div class="orchardquery">
+        <div class="content">
+            <div class="querycon">
+                <div class="inputdiv">
+                    <div id="searchkey" class="dev-textbox" style="z-index: 2; width: 280px;" opt='{"TipInfo":"请输入果园名称、品种、村社","IsOverShow":true,"Padding":"0px 5px","Border":"0px","Height":"33px","TextAlign":"left","BodyCSS": { "background-color": "transparent" }}'></div>
+                </div>
+                <div class="geomselect">
+                    <div id="selecteddraw" class="icon icon-draw-polygon" tag="icon-draw-polygon"></div>
+                </div>
+                <div class="geomcombo">
+                    <div class="icon-comboarrow" style="width: 5px; height: 3px; margin-top: 15px; margin-left: 2px;"></div>
+                </div>
+            </div>
+            <div class="querybtn">
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

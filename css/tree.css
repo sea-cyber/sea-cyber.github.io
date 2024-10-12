@@ -1,0 +1,54 @@
+﻿.devtree .tree .tree-node {
+    height: 25px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+    .devtree .tree .tree-node .tree-folder, .tree-file {
+        margin-top: 3px;
+    }
+
+    .devtree .tree .tree-node .tree-title {
+        font-size: 12px;
+        height: 25px;
+        line-height: 25px;
+        padding-left: 5px;
+        color: #fff;
+        font-family: SimSun, Arial, "Microsoft YaHei", 宋体;
+    }
+
+    .devtree .tree .tree-node .tree-expanded {
+        margin-top: 3px;
+        background-image: url("../theme/default/images/tree_icons1.png");
+    }
+
+    .devtree .tree .tree-node .tree-collapsed {
+        margin-top: 3px;
+        background-image: url("../theme/default/images/tree_icons1.png");
+    }
+
+.devtree .tree .tree-node-selected {
+    background: #008DBF;
+    color: #fff;
+}
+
+.devtree .tree .tree-node-proxy {
+    color: #fff;
+}
+
+.devtree .tree .tree-node-hover {
+    background: #0099CC;
+    color: #fff;
+}
+
+.devtree .tree .tree-node .tree-checkbox0 {
+    background: url('../theme/default/images/tree_icons1.png') no-repeat -208px -18px;
+}
+
+.devtree .tree .tree-node .tree-checkbox1 {
+    background: url('../theme/default/images/tree_icons1.png') no-repeat -224px -18px;
+}
+
+.devtree .tree .tree-node .tree-checkbox2 {
+    background: url('../theme/default/images/tree_icons1.png') no-repeat -240px -18px;
+}

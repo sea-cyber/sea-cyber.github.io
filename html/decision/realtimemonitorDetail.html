@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>实时监控</title>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../../theme/default/easyui.css" />
+    <link rel="stylesheet" type="text/css" href="../../theme/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/app.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/dev.css" />
+    <link rel="stylesheet" href="../../theme/fontico/css/font-ico.min.css" />
+    <script type="text/javascript" src="../../js/jquery.min.js"></script>
+    <script type="text/javascript" src="../../js/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="../../js/easyui-lang-zh_CN.js"></script>
+    <script type="text/javascript" src="../../js/linq.min.js"></script>
+    <script type="text/javascript" src="../../js/data.util.js"></script>
+    <script type="text/javascript" src="../../js/dev.ui.js"></script>
+    <script type="text/javascript" src="../../js/jquery.dev.control.js"></script>
+    <script type="text/javascript" src="../../js/highcharts.js"></script>
+    <script type="text/javascript" src="../../js/highcharts-more.js"></script>
+    <script type="text/javascript" src="../../js/solid-gauge.js"></script>
+
+    <style>
+
+        /*第一层*/
+        .firstfloor{
+            position: relative;
+            width: 100%;
+            /*border-bottom: 1px solid #0a0506;*/
+
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+        }
+
+        .firstfloor-left{
+            height: 600px;
+            /*width: 800px;*/
+            min-width: 350px;
+            max-width: 970px;
+            margin: 20px;
+            background-color: #ffffff;
+            border-radius: 5px;
+        }
+            .firstfloor-left-title{
+                width: 100%;
+                height: 35px;
+                text-align: center;
+                line-height: 35px;
+                font-size: 30px;
+                font-family: cursive;
+            }
+
+
+        /*第一层-右边-固定高宽*/
+        .firstfloor-right {
+            position: relative;
+            height: 600px;
+            min-width: 850px;
+            max-width: 850px;
+            margin: 20px;
+            border-radius: 5px;
+
+
+            display: flex;
+            justify-content: space-between;
+        }
+            .weather-air{
+                position: absolute;
+                left: 0;
+                height: 100%;
+                width: 560px;
+                /*background-color: #ffffff;*/
+
+            }
+                .weather-air-title{
+                    position: relative;
+                    margin: 0 5px;
+                    width: 545px;
+                    height: 35px;
+                    background-color: #0199cd;
+                    line-height: 35px;
+                    color: #ffffff;
+                    text-indent: 10px;
+
+                }
+            .weather-other {
+                position: absolute;
+                right: 0;
+                height: 100%;
+                width: 270px;
+                box-sizing: border-box;
+
+            }
+                .weather-other-title {
+                    position: relative;
+                    width: 100%;
+                    height: 35px;
+                    background-color: #0199cd;
+                    line-height: 35px;
+                    color: #ffffff;
+                    text-indent: 10px;
+
+
+                }
+
+
+
+
+        /*第二层*/
+        .secondfloor{
+            position: relative;
+            width: 100%;
+            height: auto;
+        }
+
+
+        .secondfloor-left{
+            position: absolute;
+            left: 30px;
+            right: 270px;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+
+        .secondfloor-left-title{
+            position: relative;
+            width: 100%;
+            height: 35px;
+            background-color: #0199cd;
+            margin:  5px 5px;
+            box-sizing: border-box;
+            color: #ffffff;
+            line-height: 35px;
+            text-indent: 10px;
+         }
+
+        .secondfloor-left > .weather-block{
+            height: 220px;
+            min-width: 180px;
+            max-width: 200px;
+            margin: 5px 5px;
+            background-color: #ffffff;
+            /*border-radius: 5px;*/
+            border: 1px solid #eeeeee;
+
+            /*flex: 1 1 0;*/
+        }
+        .secondfloor-left > .weather-block:first-of-type {
+            margin-left: 20px;
+        }
+
+        .secondfloor-right{
+            width: 220px;
+            position: absolute;
+            right: 30px;
+        }
+        .secondfloor-right > .weather-block {
+            height: 220px;
+            width: 220px;
+            margin: 10px 0;
+            background-color: #ffffff;
+            border: 1px solid #eeeeee;
+            /*border-radius: 5px;*/
+        }
+        .secondfloor-right-title{
+            width: 220px;
+            height: 35px;
+            background-color: #0199cd;
+            margin:  5px 0;
+            color: #ffffff;
+            line-height: 35px;
+            text-indent: 10px;
+            
+        }
+
+        .weather-block {
+            background-color: #ffffff;
+            cursor: pointer;
+        }
+
+
+        .realTimeData {
+            width: 90%;
+            /*min-width: 880px;*/
+            height: 70%;
+            position: absolute;
+            left: 5%;
+            top: 15%;
+            bottom: 5%;
+            border: 1px solid rgba(153, 153, 153, 0.36);
+        }
+
+
+    </style>
+
+</head>
+
+
+<body style="background-color: #EFEFF2; margin: 0; padding: 0;">
+
+<div style="position: relative;height: 100%;width: 100%;background-color: #f6f6f6f6;overflow-y: auto;">
+
+    <div class="firstfloor">
+
+        <!--视频-->
+        <div class="firstfloor-left">
+            <div class="firstfloor-left-title">
+
+            </div>
+        </div>
+
+        <!--空气相关-->
+        <div class="firstfloor-right">
+            <div class="weather-air">
+                <div class="weather-air-title">空气信息</div>
+                <div class="weather-block" name="freeairtemperature" data-datatype="FREEAIRTEMPERATURE" data-name="大气温度" style="position: relative;display: inline-block;width: 360px;height: 360px;box-sizing: border-box;margin: 5px;border: 1px solid #eeeeee;"></div>
+                <div style="position: relative;display: inline-block;width: 170px;height: 360px;box-sizing: border-box;margin: 5px;vertical-align: top;">
+                    <div class="weather-block" name="freeairhumidity" data-datatype="freeairhumidity" data-name="大气湿度" style="width: 100%;height: 170px;border: 1px solid #eeeeee;box-sizing: border-box;margin-bottom: 20px"></div>
+                    <div class="weather-block" name="freeairpressure" data-datatype="freeairpressure" data-name="大气压" style="width: 100%;height: 170px;border: 1px solid #eeeeee;box-sizing: border-box;"></div>
+                </div>
+                <div style="position: relative;box-sizing: border-box;width: 100%;display: flex;justify-content: space-around">
+                    <div class="weather-block" name="rain" data-datatype="rain" data-name="雨量" style="position:relative;display: inline-block;width: 170px;height: 170px;box-sizing: border-box;margin: 5px;border: 1px solid #eeeeee"></div>
+                    <div class="weather-block" name="windspeed" data-datatype="windspeed" data-name="风速" style="position:relative;display: inline-block;width: 170px;height: 170px;box-sizing: border-box;margin: 5px;border: 1px solid #eeeeee"></div>
+                    <div class="weather-block" name="winddirection" data-datatype="winddirection" data-name="风向" style="position:relative;display: inline-block;width: 170px;height: 170px;box-sizing: border-box;margin: 5px;border: 1px solid #eeeeee"></div>
+                </div>
+            </div>
+            <!--辐射-->
+            <div class="weather-other">
+                <div class="weather-other-title">光照信息</div>
+                <div class="weather-block" name="effectiveradiation" data-datatype="effectiveradiation" data-name="光合有效辐射" style="width: 100%;height: 267px;border: 1px solid #eeeeee;margin-top: 5px;"></div>
+                <div class="weather-block" name="totalradiation" data-datatype="totalradiation" data-name="总辐射" style="width: 100%;height: 267px;border: 1px solid #eeeeee;margin-top: 5px;"></div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="secondfloor">
+        <!--土壤相关-->
+        <div class="secondfloor-left">
+            <div class="secondfloor-left-title">土壤信息</div>
+
+            <div class="weather-block" name="soilhumidity1" data-datatype="soilhumidity1" data-name="土壤温度1"></div>
+            <div class="weather-block" name="soilhumidity2" data-datatype="soilhumidity2" data-name="土壤温度2"></div>
+            <div class="weather-block" name="soilhumidity3" data-datatype="soilhumidity3" data-name="土壤温度3"></div>
+            <div class="weather-block" name="soiltemperature1" data-datatype="soiltemperature1" data-name="土壤湿度1"></div>
+            <div class="weather-block" name="soiltemperature2" data-datatype="soiltemperature2" data-name="土壤湿度2"></div>
+            <div class="weather-block" name="soiltemperature3" data-datatype="soiltemperature3" data-name="土壤湿度3"></div>
+            <div class="weather-block" name="phvalue" data-datatype="phvalue" data-name="PH值"></div>
+
+        </div>
+        <!--液位-->
+        <div class="secondfloor-right">
+            <div class="secondfloor-right-title">其他</div>
+            <div class="weather-block" name="liquid" data-datatype="liquid" data-name="液位"></div>
+        </div>
+
+
+
+    </div>
+
+
+
+
+
+
+</div>
+
+
+
+
+<!--监测站点详细信息-->
+<div style="height: 50px;width: 50px;position: fixed;right: 0;bottom: 0;">
+    <button onclick="turn()" style="z-index: 100;">返回</button>
+</div>
+
+<input type="checkbox" style="position: fixed;left: 0;top: 0;">
+
+
+<!--选中气象当天折线图-->
+<div id="chartscontains" style="position: fixed;left: 10px; top: 450px;z-index: 100;width: 500px; height: 200px; border-top: 1px solid #ddd;background-color: #ffffff;">
+    <div id="realTimeData" class="realTimeData">
+    </div>
+    <div id="closeBtn" style="position: absolute;right: 0;width: 20px;height: 20px"><span class="fa fa-window-close" style="color: #6c6c6c;font-size: 15px;"></span></div>
+</div>
+
+
+
+
+
+<script type="text/javascript">
+    var Dev = window.top.window.dev;
+    var weatherconfig = Dev.App.Config.Extend.StaticInfo.Weather;
+    var parent;
+
+    var freeairtemperatureControl, rainControl, winddirectionControl, freeairhumidityControl, freeairpressureControl,
+        soilhumidity1Control, effectiveradiationControl, totalradiationControl, phvalueControl, soiltemperature1Control,
+        windspeedControl, liquidControl, soiltemperature2Control, soiltemperature3Control, soilhumidity2Control, soilhumidity3Control;
+    var selected;
+    var curSerialnumber, curIndepeid, curDataType, curName;
+
+
+    function WidgetCommunication(s) {//部件通讯
+        Dev.App.globalquery.SetVisible(false);
+
+        parent = s.parent;
+        var param = s.param;
+        var msg = param.msg;
+        var no = msg.no;
+        curIndepeid = msg.indepeid;
+        curSerialnumber = msg.serialnumber;
+        $(".firstfloor-left-title").text("监测站点 "+no);
+
+        $("#chartscontains").hide();
+        $("#closeBtn").click(function () {
+            $("#chartscontains").hide();
+        });
+        parent.one("onClosing", function () {
+            Dev.App.FillPanel.unbind("onResize");
+
+        });
+        resize();
+        Dev.App.FillPanel.bind("onResize", function () { resize(); });
+
+        initControl();
+        query(msg.indepeid, msg.serialnumber);
+
+
+    }
+
+    function turn() {
+
+        Dev.App.FillPanel.Remove("returnTag");
+        // Dev.App.FillPanel.Add(Dev.App.Root + "html/decision/realtimemonitor1.html");
+
+    }
+    
+    function resize() {
+        var windowWidth = window.innerWidth;
+        if (windowWidth < 1300) {/*1300*/
+            $(".firstfloor-left").width(850)
+        }else {
+            /*这里是用来解决IE下flex不能自适应变化宽度的问题
+            要调整firstfloor-left宽度只需要调整它的max-width就行，这里设置宽度对flex布局没用
+            */
+            $(".firstfloor-left").width(windowWidth - 960);
+        }
+
+    }
+
+    function initControl() {
+        //气温
+        freeairtemperatureControl = new UCThermometer(Dev, { CSS: { "left": "120px", "top": '20px' }, Width: 300, Height: 270,MinValue: -50, MaxValue: 100, ValueInterval: 5 });
+        $(".weather-block[name='freeairtemperature']").append($("<div style=\"position: absolute;width: 100%;height: 25px;line-height: 25px;text-align: center\">温度</div>"));
+        $("<div style='width: 100%;height: 100%;'></div>").append(freeairtemperatureControl.Target).appendTo($(".weather-block[name='freeairtemperature']"));
+        freeairtemperatureControl.Layout();
+
+        //1.2大气湿度
+        var $freeairhumidity = $("<div style='width: 160px;height: 150px;'></div>");
+        $freeairhumidity.highcharts({
+            chart: { type: 'gauge' },
+            credits: { enabled: false },
+            title: {
+                text: "大气湿度",
+                style: '#FFFFFF'
+            },
+            pane: {
+                startAngle: -150, endAngle: 150,
+                size: "100%"
+            },
+            yAxis: {
+                min: 0, max: 100, minorTickWidth: 1, minorTickLength: 5, minorTickPosition: 'inside',
+                minorTickColor: '#ababab', tickPixelInterval: 100, tickWidth: 2, tickPosition: 'inside',
+                tickLength: 15, tickColor: '#515151', tickWidth: 1,
+                labels: { step: 1, rotation: 'auto' },
+                title: { text: '%RH', y: 20 },
+                plotBands: [
+                    {
+                        from: 0,
+                        to: 33,
+                        color: '#0b86ee'
+                    }, {
+                        from: 33,
+                        to: 66,
+                        color: '#ff7f7f'
+                    }, {
+                        from: 66,
+                        to: 100,
+                        color: '#fe9024'
+                    }
+                ]
+            },
+            series: [{
+                name: '大气湿度',
+                data: [0],
+                tooltip: {
+                    // pointFormat: "<b>转速:{point.y}</b>r/min x100</b>"
+                },
+
+                dataLabels: {
+                    // format: "{y}r/min x100"
+                }
+
+            }]
+        }, function (c) {
+            freeairhumidityControl = c;
+        });
+        $(".weather-block[name='freeairhumidity']").append($freeairhumidity);
+
+        //大气压
+        var $freeairpressure = $("<div style='width: 160px;height: 150px;'></div>");
+        $freeairpressure.highcharts({
+            chart: { type: 'gauge' },
+            credits: { enabled: false },
+            title: {
+                text: "大气压",
+                style: '#FFFFFF'
+            },
+            pane: {
+                startAngle: -150, endAngle: 150,
+                size: "100%"
+            },
+            yAxis: {
+                min: 0, max: 1100, minorTickWidth: 1, minorTickLength: 5, minorTickPosition: 'inside',
+                minorTickColor: '#ababab', tickPixelInterval: 100, tickWidth: 2, tickPosition: 'inside',
+                tickLength: 15, tickColor: '#515151', tickWidth: 1,
+                labels: { step: 1, rotation: 'auto' },
+                title: { text: 'hpa', y: 20 },
+                plotBands: [
+                    {
+                        from: 10,
+                        to: 375,
+                        color: '#0b86ee'
+                    }, {
+                        from: 375,
+                        to: 750,
+                        color: '#ff7f7f'
+                    }, {
+                        from: 750,
+                        to: 1100,
+                        color: '#fe9024'
+                    }
+                ]
+            },
+            series: [{
+                name: '大气压',
+                data: [10],
+                tooltip: {
+                    // pointFormat: "<b>转速:{point.y}</b>r/min x100</b>"
+                },
+                dataLabels: {
+                    // format: "{y}r/min x100"
+                }
+            }]
+        }, function (c) {
+            freeairpressureControl = c;
+        });
+        $(".weather-block[name='freeairpressure']").append($freeairpressure);
+
+
+        //雨量
+        rainControl = new UCBottle(Dev, { CSS: { "left": "40px", "top": '25px' },Height: 110 , MaxValue: 25, MinValue: 0, Step: 1 });
+        $(".weather-block[name='rain']").append($("<div style=\"position: relative;width: 100%;height: 25px;line-height: 25px;text-align: center\">雨量</div>"));
+        $("<div style='width: 160px;height: 110px;'></div>").append(rainControl.Target).appendTo($(".weather-block[name='rain']"));
+        rainControl.Layout();
+
+        /*风速*/
+        var $windspeed = $("<div style='width: 165px;height: 130px;margin-top: 30px'></div>");
+        $windspeed.highcharts({
+            title: null,
+            chart: { type: 'solidgauge' },
+            tooltip: { enabled: true },
+            yAxis: {
+                min: 0, max: 70,
+                title: null,
+                stops: [
+                    [0.1, '#55BF3B'], // green
+                    [0.5, '#DDDF0D'], // yellow
+                    [0.9, '#DF5353'] // red
+                ],
+                // lineWidth: 0,
+                minorTickInterval: null,
+                tickPixelInterval: 400,
+                tickWidth: 0,
+                labels: { y: 25 }
+            },
+            credits: { enabled: false },
+            series: [{
+                name: '风速',
+                data: [0],
+                dataLabels: {
+                    format: '<div style="text-align:center"><span style="font-size:15px;color:' +
+                    ((Highcharts.theme && Highcharts.theme.contrastTextColor) || 'black') + '">{y}</span><br/>' +
+                    '<span style="font-size:12px;color:silver">m/s</span></div>'
+                },
+                tooltip: { valueSuffix: 'm/s' }
+            }],
+            plotOptions: { solidgauge: { dataLabels: { y: 5, borderWidth: 0, useHTML: true } } },
+            pane: {
+                center: ['50%', '85%'],
+                size: '140%',
+                startAngle: -90,
+                endAngle: 90,
+                background: {
+                    backgroundColor: (Highcharts.theme && Highcharts.theme.background2) || '#EEE',
+                    innerRadius: '60%',
+                    outerRadius: '100%',
+                    shape: 'arc'
+                }
+            }
+        }, function (c) {
+            windspeedControl = c;
+        });
+        $(".weather-block[name='windspeed']").append($("<div style=\"position: absolute;width: 100%;height: 25px;line-height: 25px;text-align: center\">风速</div>"));
+        $("<div style='width: 150px;height: 100%;'></div>").append($windspeed).appendTo($(".weather-block[name='windspeed']"));
+
+        //风向
+        winddirectionControl = new UCWindMeter(Dev, {
+            Width: 130, Height: 130, CSS: { "left": "20px", "top": "35px" },
+            annotations_fill_style: "#ababab",
+            guidewire_fill_style: "#e14cf3",
+            guidewire_stroke_style: "#e14cf3",
+            tick_long_stroke_style: "#7e7e7e",
+            FillStyle: "#ffffff",
+            BorderStyle: "#d5dee8"
+        });
+        $(".weather-block[name='winddirection']").append($("<div style=\"position: absolute;width: 100%;height: 25px;line-height: 25px;text-align: center\">风向</div>"));
+        var aa = $("<div id='aaaa' style='width: 100%;height: 100%;'></div>").append(winddirectionControl.Target).appendTo($(".weather-block[name='winddirection']"));
+        winddirectionControl.Layout();
+
+
+        //2.1土壤温度1
+        soiltemperature1Control = new UCThermometer(Dev, { CSS: { "left": "50px", "top": '20px' }, MinValue: -50, MaxValue: 100, ValueInterval: 5 });
+        $(".weather-block[name='soiltemperature1']").append($("<div style=\"width: 100%;height: 25px;line-height: 25px;text-align: center\">土壤温度1</div>"));
+        $("<div style='width: 210px;height: 170px;'></div>").append(soiltemperature1Control.Target).appendTo($(".weather-block[name='soiltemperature1']"));
+        soiltemperature1Control.Layout();
+        //2.2土壤温度2
+        soiltemperature2Control = new UCThermometer(Dev, { CSS: { "left": "50px", "top": '20px' }, MinValue: -50, MaxValue: 100, ValueInterval: 5 });
+        $(".weather-block[name='soiltemperature2']").append($("<div style=\"width: 100%;height: 25px;line-height: 25px;text-align: center\">土壤温度2</div>"));
+        $("<div style='width: 210px;height: 170px;'></div>").append(soiltemperature2Control.Target).appendTo($(".weather-block[name='soiltemperature2']"));
+        soiltemperature2Control.Layout();
+        //2.7土壤温度3
+        soiltemperature3Control = new UCThermometer(Dev, { CSS: { "left": "50px", "top": '20px' }, MinValue: -50, MaxValue: 100, ValueInterval: 5 });
+        $(".weather-block[name='soiltemperature3']").append($("<div style=\"width: 100%;height: 25px;line-height: 25px;text-align: center\">土壤温度3</div>"));
+        $("<div style='width: 210px;height: 170px;'></div>").append(soiltemperature3Control.Target).appendTo($(".weather-block[name='soiltemperature3']"));
+        soiltemperature3Control.Layout();
+        //2.4土壤湿度1
+        var $soilhumidity1 = $("<div style='width: 200px;height: 195px;'></div>");
+        $soilhumidity1.highcharts({
+            chart: { type: 'gauge' },
+            credits: { enabled: false },
+            title: {
+                text: "土壤湿度1",
+                style: '#FFFFFF'
+            },
+            pane: {
+                startAngle: -150, endAngle: 150,
+                size: "100%"
+            },
+            yAxis: {
+                min: 0, max: 100, minorTickWidth: 1, minorTickLength: 5, minorTickPosition: 'inside',
+                minorTickColor: '#ababab', tickPixelInterval: 100, tickWidth: 2, tickPosition: 'inside',
+                tickLength: 15, tickColor: '#515151', tickWidth: 1,
+                labels: { step: 1, rotation: 'auto' },
+                title: { text: '%RH', y: 20 },
+                plotBands: [
+                    {
+                        from: 0,
+                        to: 33,
+                        color: '#0b86ee'
+                    }, {
+                        from: 33,
+                        to: 66,
+                        color: '#ff7f7f'
+                    }, {
+                        from: 66,
+                        to: 100,
+                        color: '#fe9024'
+                    }
+                ]
+            },
+            series: [{
+                name: '土壤湿度1',
+                data: [0],
+                tooltip: {
+                    // pointFormat: "<b>转速:{point.y}</b>r/min x100</b>"
+                },
+                dataLabels: {
+                    // format: "{y}r/min x100"
+                }
+            }]
+        }, function (c) {
+            soilhumidity1Control = c;
+        });
+        $(".weather-block[name='soilhumidity1']").append($soilhumidity1);
+
+        //2.6土壤湿度2
+        var $soilhumidity2 = $("<div style='width: 200px;height: 195px;'></div>");
+        $soilhumidity2.highcharts({
+            chart: { type: 'gauge' },
+            credits: { enabled: false },
+            title: {
+                text: "土壤湿度2",
+                style: '#FFFFFF'
+            },
+            pane: {
+                startAngle: -150, endAngle: 150,
+                size: "100%"
+            },
+            yAxis: {
+                min: 0, max: 100, minorTickWidth: 1, minorTickLength: 5, minorTickPosition: 'inside',
+                minorTickColor: '#ababab', tickPixelInterval: 100, tickWidth: 2, tickPosition: 'inside',
+                tickLength: 15, tickColor: '#515151', tickWidth: 1,
+                labels: { step: 1, rotation: 'auto' },
+                title: { text: '%RH', y: 20 },
+                plotBands: [
+                    {
+                        from: 0,
+                        to: 33,
+                        color: '#0b86ee'
+                    }, {
+                        from: 33,
+                        to: 66,
+                        color: '#ff7f7f'
+                    }, {
+                        from: 66,
+                        to: 100,
+                        color: '#fe9024'
+                    }
+                ]
+            },
+            series: [{
+                name: '土壤湿度2',
+                data: [0],
+                tooltip: {
+                    // pointFormat: "<b>转速:{point.y}</b>r/min x100</b>"
+                },
+                dataLabels: {
+                    // format: "{y}r/min x100"
+                }
+            }]
+        }, function (c) {
+            soilhumidity2Control = c;
+        });
+        $(".weather-block[name='soilhumidity2']").append($soilhumidity2);
+
+        //土壤湿度3
+        var $soilhumidity3 = $("<div style='width: 200px;height: 195px;'></div>");
+        $soilhumidity3.highcharts({
+            chart: { type: 'gauge' },
+            credits: { enabled: false },
+            title: {
+                text: "土壤湿度3",
+                style: '#FFFFFF'
+            },
+            pane: {
+                startAngle: -150, endAngle: 150,
+                size: "100%"
+            },
+            yAxis: {
+                min: 0, max: 100, minorTickWidth: 1, minorTickLength: 5, minorTickPosition: 'inside',
+                minorTickColor: '#ababab', tickPixelInterval: 100, tickWidth: 2, tickPosition: 'inside',
+                tickLength: 15, tickColor: '#515151', tickWidth: 1,
+                labels: { step: 1, rotation: 'auto' },
+                title: { text: '%RH', y: 20 },
+                plotBands: [
+                    {
+                        from: 0,
+                        to: 33,
+                        color: '#0b86ee'
+                    }, {
+                        from: 33,
+                        to: 66,
+                        color: '#ff7f7f'
+                    }, {
+                        from: 66,
+                        to: 100,
+                        color: '#fe9024'
+                    }
+                ]
+            },
+            series: [{
+                name: '土壤湿度3',
+                data: [0],
+                tooltip: {
+                    // pointFormat: "<b>转速:{point.y}</b>r/min x100</b>"
+                },
+                dataLabels: {
+                    // format: "{y}r/min x100"
+                }
+            }]
+        }, function (c) {
+            soilhumidity3Control = c;
+        });
+        $(".weather-block[name='soilhumidity3']").append($soilhumidity3);
+
+
+        /*PH*/
+        var $phvalue = $("<div style='width: 195px;height: 130px;margin-top: 30px'></div>");
+        $phvalue.highcharts({
+            title: null,
+            chart: { type: 'solidgauge' },
+            tooltip: { enabled: true },
+            yAxis: {
+                min: 0, max: 14,
+                stops: [
+                    [0, '#0b86ee'], // green
+                    [7, '#ff7f7f'], // yellow
+                    [14, '#fe9024'] // red
+                ],
+                // lineWidth: 0,
+                minorTickInterval: null,
+                //tickPixelInterval:110,
+                tickWidth: 0,
+                labels: { y: 16 }
+            },
+            credits: { enabled: false },
+            series: [{
+                name: 'PH',
+                data: [0],
+                dataLabels: {
+                    format: '<div style="text-align:center"><span style="font-size:15px;color:' +
+                    ((Highcharts.theme && Highcharts.theme.contrastTextColor) || 'black') + '">{y}</span><br/>' +
+                    '<span style="font-size:12px;color:silver"></span></div>'
+                },
+                tooltip: { valueSuffix: '' }
+            }],
+            plotOptions: { solidgauge: { dataLabels: { y: 5, borderWidth: 0, useHTML: true } } },
+            pane: {
+                center: ['50%', '85%'],
+                size: '140%',
+                startAngle: -90,
+                endAngle: 90,
+                background: {
+                    backgroundColor: (Highcharts.theme && Highcharts.theme.background2) || '#EEE',
+                    innerRadius: '60%',
+                    outerRadius: '100%',
+                    shape: 'arc'
+                }
+            }
+        }, function (c) {
+            phvalueControl = c;
+        });
+        $(".weather-block[name='phvalue']").append($("<div style=\"width: 100%;height: 25px;line-height: 25px;text-align: center\">PH值</div>"));
+        $("<div style='width: 100%;height: 100%;'></div>").append($phvalue).appendTo($(".weather-block[name='phvalue']"));
+
+
+
+        /*3.1光合有效辐射*/
+        var $effectiveradiation = $("<div style='width: 255px;height: 255px;margin-left: 10px;'></div>");
+        $effectiveradiation.highcharts({
+            chart: { type: 'gauge' },
+            credits: { enabled: false },
+            title: {
+                text: "光合有效辐射",
+                style: '#FFFFFF'
+            },
+            pane: {
+                startAngle: -150, endAngle: 150,
+                size: "100%"
+            },
+            yAxis: {
+                min: 0, max: 2000, minorTickWidth: 1, minorTickLength: 5, minorTickPosition: 'inside',
+                minorTickColor: '#ababab', tickPixelInterval: 100, tickWidth: 2, tickPosition: 'inside',
+                tickLength: 15, tickColor: '#515151', tickWidth: 1,
+                labels: { step: 1, rotation: 'auto' },
+                title: { text: 'w/m2', y: 20 },
+                plotBands: [
+                    {
+                        from: 0,
+                        to: 666,
+                        color: '#0b86ee'
+                    }, {
+                        from: 666,
+                        to: 1333,
+                        color: '#ff7f7f'
+                    }, {
+                        from: 1333,
+                        to: 2000,
+                        color: '#fe9024'
+                    }
+                ]
+            },
+            series: [{
+                name: '光合有效辐射',
+                data: [0],
+                tooltip: {
+                    // pointFormat: "<b>转速:{point.y}</b>r/min x100</b>"
+                },
+                dataLabels: {
+                    // format: "{y}r/min x100"
+                }
+            }]
+        }, function (c) {
+            effectiveradiationControl = c;
+        });
+        $(".weather-block[name='effectiveradiation']").append($effectiveradiation);
+        /*3.2总辐射*/
+        var $totalradiation = $("<div style='width: 255px;height: 255px;margin-left: 10px;'></div>");
+        $totalradiation.highcharts({
+            chart: { type: 'gauge' },
+            credits: { enabled: false },
+            title: {
+                text: "总辐射辐射",
+                style: '#FFFFFF'
+            },
+            pane: {
+                startAngle: -150, endAngle: 150,
+                size: "100%"
+            },
+            yAxis: {
+                min: 0, max: 2000, minorTickWidth: 1, minorTickLength: 5, minorTickPosition: 'inside',
+                minorTickColor: '#ababab', tickPixelInterval: 100, tickWidth: 2, tickPosition: 'inside',
+                tickLength: 15, tickColor: '#515151', tickWidth: 1,
+                labels: { step: 1, rotation: 'auto' },
+                title: { text: 'w/m2', y: 20 },
+                plotBands: [
+                    {
+                        from: 0,
+                        to: 666,
+                        color: '#0b86ee'
+                    }, {
+                        from: 666,
+                        to: 1333,
+                        color: '#ff7f7f'
+                    }, {
+                        from: 1333,
+                        to: 2000,
+                        color: '#fe9024'
+                    }
+                ]
+            },
+            series: [{
+                name: '总辐射辐射',
+                data: [0],
+                tooltip: {
+                    // pointFormat: "<b>转速:{point.y}</b>r/min x100</b>"
+                },
+                dataLabels: {
+                    // format: "{y}r/min x100"
+                }
+            }]
+        }, function (c) {
+            totalradiationControl = c;
+        });
+        $(".weather-block[name='totalradiation']").append($totalradiation);
+
+        //4.1液位
+        liquidControl = new UCBottle(Dev, { CSS: { "left": "63px", "top": '30px' }, MaxValue: 1000, MinValue: 0, Step: 50 });
+        $(".weather-block[name='liquid']").append($("<div style=\"position: absolute;width: 100%;height: 25px;line-height: 25px;text-align: center\">液位</div>"));
+        $("<div style='width: 100%;height: 100%;'></div>").append(liquidControl.Target).appendTo($(".weather-block[name='liquid']"));
+        liquidControl.Layout();
+
+
+
+        /**
+         * 绑定事件
+         */
+
+        $(".weather-block").click(function (a, dom) {
+            if (!Dev.IsNull(selected)) {
+                selected.style.outline = '0px';
+            }
+            selected = this;
+            this.style.outline = '#0b86ee solid 2px';
+            curDataType = this.dataset.datatype;
+            curName = this.dataset.name;
+            queryRealTimeData();
+        });
+
+
+        /**
+         * 实时数据
+         */
+        $("#realTimeData").highcharts({
+            chart: {
+                zoomType: 'x'
+            },
+            credits: { enabled: false },
+            title: {
+                text: ''
+            },
+            subtitle: {
+                text: document.ontouchstart === undefined ? '' : ''
+            },
+            lang: {
+                noData: "没有数据"
+            },
+            xAxis: {
+                type: 'datetime',
+                labels: {
+                    formatter: function () {
+                        return Highcharts.dateFormat('%H:%M', this.value + 8 * 3600 * 1000);
+                    },
+                },
+
+                dateTimeLabelFormats: {
+                    millisecond: '%H:%M:%S.%L',
+                    second: '%H:%M:%S',
+                    minute: '%H:%M',
+                    hour: '%H:%M',
+                    day: '%m-%d',
+                    week: '%m-%d',
+                    month: '%Y-%m',
+                    year: '%Y'
+                }
+            },
+            tooltip: {
+                dateTimeLabelFormats: {
+                    millisecond: '%H:%M:%S.%L',
+                    second: '%H:%M:%S',
+                    minute: '%H:%M',
+                    hour: '%H:%M',
+                    day: '%Y-%m-%d',
+                    week: '%m-%d',
+                    month: '%Y-%m',
+                    year: '%Y'
+                }
+            },
+            yAxis: {
+                title: {
+                    text: '天气走势图'
+                },
+                gridLineWidth: 0
+
+            },
+            legend: {
+                enabled: false
+            },
+            plotOptions: {
+                area: {
+                    fillColor: {
+                        linearGradient: {
+                            x1: 0,
+                            y1: 0,
+                            x2: 0,
+                            y2: 1
+                        },
+                        stops: [
+                            [0, Highcharts.getOptions().colors[0]],
+                            [1, Highcharts.Color(Highcharts.getOptions().colors[0]).setOpacity(0).get('rgba')]
+                        ]
+                    },
+                    marker: {
+                        radius: 2
+                    },
+                    lineWidth: 1,
+                    states: {
+                        hover: {
+                            lineWidth: 1
+                        }
+                    },
+                    threshold: null
+                }
+            },
+            series: [{
+                type: 'area',
+                name: '雨量',
+                data: []
+            }]
+        }, function (c) {
+            realTimeDataControl = c;
+        });
+        /* var array = [freeairtemperatureControl, soiltemperature1Control, soiltemperature2Control, soiltemperature3Control];
+         array.forEach(function (value) {
+             value.SetInnerBg("#bf3349");
+             value.SetOuterBg("#b2b2b2");
+         })*/
+
+    }
+
+
+    //查询实时数据
+    function queryRealTimeData(where) {
+        if (Dev.IsNull(curIndepeid)) {
+            realTimeDataControl.series[0].setData([]);
+            return;
+        }
+        var url = Dev.GetSystemUrlByRelID("Service") + "meteorYtjData/queryDataByType";
+        $.ajax({
+            url: url,
+            type: "POST",
+            dataType: 'json',
+            data: {
+                indepdId: curIndepeid,
+                meteorSerNum: curSerialnumber,
+                dataType: curDataType,
+                where: " 1=1 "
+            },
+            success: function (result) {
+                if (Dev.IsNull(result.data) || result.data.length == 0) {
+                    return;
+                }
+                //for (var i = 0; i < result.data.length; i++) {
+                //    result.data[i][0] = result.data[i][0] + (3600 * 1000 * 8);
+                //}
+                var dataArr = result.data;
+                var yAxisConf = { title: { text: curName } };
+                realTimeDataControl.yAxis[0].update(yAxisConf);
+                realTimeDataControl.series[0].update({ name: curName });
+                realTimeDataControl.series[0].setData(dataArr);
+                $("#chartscontains").show();
+
+
+            }
+        });
+    }
+
+
+    //查询监测站下面的所有气象
+    function query(indepeId, meteorSerNum) {
+        var url = Dev.GetSystemUrlByRelID("Service") + "meteorYtjData/queryLastTimeAmsDate";
+        $.ajax({
+            url: url,
+            type: "POST",
+            dataType: 'json',
+            data: {
+                indepeId: indepeId,
+                meteorSerNum: meteorSerNum
+            },
+            success: function (result) {
+                if (result.statusCode != 200 || Dev.IsNull(result.data) || result.data.length == 0) return;
+                var info = result.data[0];
+                for (var obj in info) {
+                    if (info.hasOwnProperty(obj)) {
+                        info[obj] = Dev.IsNull(info[obj]) ? 0 : parseFloat(info[obj]);
+                    }
+                }
+                freeairtemperatureControl.SetValue(info.freeairtemperature);
+                rainControl.SetValue(info.rain);
+                winddirectionControl.SetAngleValue(info.windspeed);
+                freeairhumidityControl.series[0].setData([info.freeairhumidity]);
+                freeairpressureControl.series[0].setData([info.freeairpressure]);
+                effectiveradiationControl.series[0].setData([info.effectiveradiation]);
+                totalradiationControl.series[0].setData([info.totalradiation]);
+                phvalueControl.series[0].points[0].update(info.phvalue);
+                windspeedControl.series[0].points[0].update(info.windspeed);
+                liquidControl.SetValue(info.liquid);
+                soiltemperature1Control.SetValue(info.soiltemperature1);
+                soilhumidity1Control.series[0].setData([info.soilhumidity1]);
+                soiltemperature2Control.SetValue(info.soiltemperature2);
+                soiltemperature3Control.SetValue(info.soiltemperature3);
+                soilhumidity2Control.series[0].setData([info.soilhumidity2]);
+                soilhumidity3Control.series[0].setData([info.soilhumidity3]);
+                // $(".item:nth-of-type(1)", $("#fisrtcontain")).click();
+
+            }
+        });
+    }
+
+
+
+
+
+
+
+
+</script>
+
+</body>
+</html>

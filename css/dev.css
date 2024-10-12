@@ -1,0 +1,2971 @@
+﻿/*目录图标*/
+.icon-menuSysmachine {
+    background-image: url(../image/menu/machinemana.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menuSysuav {
+    background-image: url(../image/menu/uavmana.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menuSysrotation {
+    background-image: url(../image/menu/rotationmana.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menuSysdbmanage {
+    background-image: url(../image/menu/dbmanage.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menuSysstrateanaly {
+    background-image: url(../image/menu/strateanalysis.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menuSysfarmmonitor {
+    background-image: url(../image/menu/farmmonitor.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menuSysmaintain {
+    background-image: url(../image/menu/maintainmana.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menuAgrimonitor {
+    background-image: url(../image/menu/agrimonitor.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+/*App3中对应的目录图标*/
+.icon-menudevicemana { /*农机管理*/
+    background-image: url(../image/menu/appconfig/devicemanage.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menuframemana { /*农具管理*/
+    background-image: url(../image/menu/appconfig/frammanage.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menumachinework { /*农机作业*/
+    background-image: url(../image/menu/appconfig/devicework.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menufishnet { /*电子围栏*/
+    background-image: url(../image/menu/appconfig/fishnet.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menustatic { /*农机统计*/
+    background-image: url(../image/menu/appconfig/devicestatic.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+/*App4中对应的目录图标*/
+.icon-menurealtime { /*实时监控*/
+    background-image: url(../image/menu/appconfig/realtime.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menuhistorytrack { /*历史轨迹*/
+    background-image: url(../image/menu/appconfig/historytrack.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menudevicemonitor { /*设备机能监测*/
+    background-image: url(../image/menu/appconfig/devicemonitor.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menualarmanage { /*报警*/
+    background-image: url(../image/menu/appconfig/alarmanage.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+/*App5中对应的目录图标*/
+.icon-menufindmanage { /*精细化管理*/
+    background-image: url(../image/menu/appconfig/findmanage.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menudisease { /*病虫害*/
+    background-image: url(../image/menu/appconfig/disease.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menugrowanaly { /*长势*/
+    background-image: url(../image/menu/appconfig/growanaly.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menusensation { /*墒情*/
+    background-image: url(../image/menu/appconfig/sensation.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menuproduce { /*产量分析*/
+    background-image: url(../image/menu/appconfig/produce.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menumanure { /*施肥分析*/
+    background-image: url(../image/menu/appconfig/manure.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+/*App6中对应的目录图标*/
+.icon-menuframer { /*农户管理*/
+    background-image: url(../image/menu/appconfig/framer.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menurotation { /*合同管理*/
+    background-image: url(../image/menu/appconfig/rotation.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menuverifiy { /*核实核查*/
+    background-image: url(../image/menu/appconfig/verifiy.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menucompare { /*对比分析*/
+    background-image: url(../image/menu/appconfig/compare.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menurfstatic { /*轮耕统计*/
+    background-image: url(../image/menu/appconfig/rfstatic.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menuprogramme { /*方案管理*/
+    background-image: url(../image/menu/appconfig/programme.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menuregulations { /*政策法规*/
+    background-image: url(../image/menu/appconfig/regulations.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+/*App7中对应的目录图标*/
+.icon-menuuav { /*无人机注册*/
+    background-image: url(../image/menu/appconfig/uav.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menuuavrealtime { /*无人机实时监测*/
+    background-image: url(../image/menu/appconfig/uavrealtime.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menuuavtrack { /*无人机历史轨迹*/
+    background-image: url(../image/menu/appconfig/uavtrack.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menuuavengine { /*无人机设备监控*/
+    background-image: url(../image/menu/appconfig/uavengine.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menuuavwarn { /*无人机报警*/
+    background-image: url(../image/menu/appconfig/uavwarn.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menuuavwork { /*无人机作业*/
+    background-image: url(../image/menu/appconfig/uavwork.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menuuavstatic { /*无人机统计*/
+    background-image: url(../image/menu/appconfig/uavstatic.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+/*App8中对应的目录图标*/
+.icon-menuallione {
+    background-image: url(../image/menu/appconfig/allione.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menuamstation { /*监测站点管理*/
+    background-image: url(../image/menu/appconfig/amstation.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menucamera { /*摄像头管理*/
+    background-image: url(../image/menu/appconfig/camera.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menuvisualization { /*地图可视化*/
+    background-image: url(../image/menu/appconfig/visualization.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menumetomonitor { /*实时监测*/
+    background-image: url(../image/menu/appconfig/metomonitor.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menucontrastanalysis { /*对比分析*/
+    background-image: url(../image/menu/appconfig/contrastanalysis.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menuvediomonitor { /*视频监控*/
+    background-image: url(../image/menu/appconfig/vediomonitor.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menuimgsearch { /*视频监控*/
+    background-image: url(../image/menu/appconfig/imgsearch.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+/*App9中对应的目录图标*/
+.icon-menucatalogfile { /*目录管理*/
+    background-image: url(../image/menu/appconfig/catalogfile.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menucontrolpoint { /*控制点管理*/
+    background-image: url(../image/menu/appconfig/controlpoint.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menuorganization { /*组织机构管理*/
+    background-image: url(../image/menu/appconfig/organization.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menupost { /*岗位*/
+    background-image: url(../image/menu/appconfig/post.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menuuser { /*用户管理*/
+    background-image: url(../image/menu/appconfig/user.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menuperm { /*授权管理*/
+    background-image: url(../image/menu/appconfig/perm.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menudictionary { /*字典管理*/
+    background-image: url(../image/menu/appconfig/dictionary.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menuaccessory { /*附件管理*/
+    background-image: url(../image/menu/appconfig/accessory.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+/*APP10*/
+.icon-menuorchardimput { /*果园导入*/
+    background-image: url(../image/menu/appconfig/orchardimput.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menuorchardquery { /*果园查询*/
+    background-image: url(../image/menu/appconfig/orchardquery.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.icon-menuorchardstatic { /*果园统计*/
+    background-image: url(../image/menu/appconfig/orchardstatic.png);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+/*目录图标end*/
+
+
+.icon-maptool-topic {
+    background-image: url(../image/maptool/topic.png);
+    background-position: center;
+    background-repeat: no-repeat;
+    /*background-position: -464px -113px;
+    background-image: url('../image/l1.png');*/
+}
+
+.icon-maptool-topic1 {
+    background-image: url(../image/maptool/topic1.png);
+    background-position: center;
+    background-repeat: no-repeat;
+    /*background-position: -480px -113px;
+    background-image: url('../image/l1.png');*/
+}
+
+.icon-layerup { /*图层排序中的上升按钮*/
+    background-position: -496px -113px;
+    background-image: url('../image/l1.png');
+}
+
+.icon-layerdown { /*图层排序中的下降按钮*/
+    background-position: -512px -113px;
+    background-image: url('../image/l1.png');
+}
+
+.icon-location { /*图层专题定位*/
+    background-image: url('../image/agri/location.png');
+    background-position: center;
+    background-size: 16px;
+}
+
+.icon-locationwhite { /*图层专题定位*/
+    background-image: url('../image/agri/locationwhite.png');
+    background-position: center;
+    background-size: 16px;
+}
+
+.icon-nav-TaxGridManage {
+    background-image: url('../image/l1.png');
+    background-position: -57px -132px;
+}
+
+.icon-statwork {
+    background-image: url('../image/statwork.png');
+    background-position: center;
+    background-size: 16px;
+}
+
+.icon-statlist {
+    background-image: url('../image/statlist.png');
+    background-position: center;
+    background-size: 16px;
+}
+
+.icon-statgraph {
+    background-image: url('../image/statgraph.png');
+    background-position: center;
+    background-size: 16px;
+}
+
+.icon-featureadd {
+    background-image: url('../image/agri/f_add.png');
+    background-position: center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+}
+
+.icon-featureselect {
+    background-image: url('../image/agri/f_select.png');
+    background-position: center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+}
+
+.icon-featureupdate {
+    background-image: url('../image/agri/f_update.png');
+    background-position: center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+}
+
+.icon-featuresave {
+    background-image: url('../image/agri/f_save.png');
+    background-position: center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+}
+
+.icon-featurecancel {
+    background-image: url('../image/agri/f_cancel.png');
+    background-position: center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+}
+
+.icon-imgadd {
+    background-image: url('../image/agri/img_add.png');
+    background-position: center;
+    background-size: 24px;
+    background-repeat: no-repeat;
+}
+
+.icon-imgdel {
+    background-image: url('../image/agri/img_del.png');
+    background-position: center;
+    background-size: 24px;
+    background-repeat: no-repeat;
+}
+
+.icon-setup {
+    background-image: url('../image/agri/setup.png');
+    background-position: center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+}
+/*核查*/
+.icon-inspect {
+    background-image: url('../image/agri/inspect.png');
+    background-position: center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+}
+/*核实*/
+.icon-verify {
+    background-image: url('../image/agri/verify.png');
+    background-position: center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+}
+/*详细信息*/
+.icon-detailinfo {
+    background-image: url('../image/agri/detailinfo.png');
+    background-position: center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+}
+/*行政区*/
+.icon-xzqinfo {
+    background-image: url('../image/agri/xzq.png');
+    background-position: center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+}
+/*历史回溯*/
+.icon-hislinetime {
+    background-image: url('../image/agri/hislinetime.png');
+    background-position: center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+}
+/*专题对比分析*/
+.icon-layercompare {
+    background-image: url('../image/agri/layercompare.png');
+    background-position: center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+}
+/*全部农作物*/
+.icon-nzw {
+    background-image: url('../image/agri/s2.png');
+    background-position: center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+}
+
+.icon-nzw1 {
+    background-image: url('../image/agri/s1.png');
+    background-position: center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+}
+/*大豆*/
+.icon-dadou {
+    background-image: url('../image/agri/dadou.png');
+    background-position: center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+}
+
+.icon-dadou1 {
+    background-image: url('../image/agri/dadou1.png');
+    background-position: center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+}
+/*大麦*/
+.icon-damai {
+    background-image: url('../image/agri/damai.png');
+    background-position: center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+}
+
+.icon-damai1 {
+    background-image: url('../image/agri/damai1.png');
+    background-position: center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+}
+/*绿豆*/
+.icon-lvdou {
+    background-image: url('../image/agri/lvdou.png');
+    background-position: center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+}
+
+.icon-lvdou1 {
+    background-image: url('../image/agri/lvdou1.png');
+    background-position: center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+}
+/*马铃薯*/
+.icon-malingshu {
+    background-image: url('../image/agri/malingshu.png');
+    background-position: center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+}
+
+.icon-malingshu1 {
+    background-image: url('../image/agri/malingshu1.png');
+    background-position: center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+}
+/*蔬菜*/
+.icon-shucai {
+    background-image: url('../image/agri/shucai.png');
+    background-position: center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+}
+
+.icon-shucai1 {
+    background-image: url('../image/agri/shucai1.png');
+    background-position: center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+}
+/*水稻*/
+.icon-shuidao {
+    background-image: url('../image/agri/shuidao.png');
+    background-position: center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+}
+
+.icon-shuidao1 {
+    background-image: url('../image/agri/shuidao1.png');
+    background-position: center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+}
+/*小麦*/
+.icon-xiaomai {
+    background-image: url('../image/agri/xiaomai.png');
+    background-position: center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+}
+
+.icon-xiaomai1 {
+    background-image: url('../image/agri/xiaomai1.png');
+    background-position: center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+}
+/*玉米*/
+.icon-yumi {
+    background-image: url('../image/agri/yumi.png');
+    background-position: center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+}
+
+.icon-yumi1 {
+    background-image: url('../image/agri/yumi1.png');
+    background-position: center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+}
+/*杂豆*/
+.icon-zadou {
+    background-image: url('../image/agri/zadou.png');
+    background-position: center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+}
+
+.icon-zadou1 {
+    background-image: url('../image/agri/zadou1.png');
+    background-position: center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+}
+
+.icon-export-white {
+    background-image: url('../image/agri/export-bai.png');
+    background-position: center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+}
+
+.icon-layercompare1 {
+    background-image: url('../image/agri/layercompare1.png');
+    background-position: center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+}
+/*多屏对比*/
+.icon-mutiscreen {
+    background-image: url('../image/agri/mutiscreen.png');
+    background-position: center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+}
+/*审批*/
+.icon-approvalWin {
+    background-image: url('../image/agri/approved1.png');
+    background-repeat: no-repeat;
+    background-size: 16px;
+    background-position: center;
+}
+
+/*编辑农机*/
+
+.MachineEdit {
+    height: 323px;
+    width: 498px;
+    position: relative;
+}
+
+    .MachineEdit .Row {
+        height: 35px;
+        width: 100%;
+        border-bottom: 1px solid #ddd;
+    }
+
+        .MachineEdit .Row .Cell {
+            height: 100%;
+            width: 249px;
+            display: inline-block;
+            margin-left: 0px;
+            margin-right: 0px;
+            float: left;
+        }
+
+            .MachineEdit .Row .Cell .Title {
+                width: 80px;
+                padding-right: 5px;
+                text-align: right;
+                line-height: 24px;
+                height: 29px;
+                display: inline-block;
+            }
+
+        .MachineEdit .Row .PositionBtn {
+            width: 22px;
+            height: 22px;
+            display: inline-block;
+            margin-left: 6px;
+            margin-top: 6px;
+            display: inline-block;
+            background-image: url(../image/maptool/location.png);
+            background-position: center;
+            background-repeat: no-repeat;
+            background-size: 16px;
+            border: 1px solid #0099cc;
+        }
+
+            .MachineEdit .Row .PositionBtn:hover {
+                background-color: #95B8E7;
+                cursor: pointer;
+            }
+
+    .MachineEdit .Submit {
+        width: 150px;
+        height: 45px;
+        text-align: center;
+        float: right;
+        margin-right: 10px;
+    }
+
+        .MachineEdit .Submit .Button {
+            width: 70px;
+            height: 26px;
+            margin-top: 10px;
+            background-color: #16dbbb;
+            border-radius: 5px;
+            text-align: center;
+            display: inline-block;
+            margin-left: 2px;
+            cursor: pointer;
+        }
+
+            .MachineEdit .Submit .Button:hover {
+                background-color: #5227de;
+                /* border: 1px solid #95B8E7;*/
+                cursor: pointer;
+            }
+
+            .MachineEdit .Submit .Button:active {
+                background-color: #210097;
+                /* border: 1px solid #95B8E7;*/
+                cursor: pointer;
+            }
+
+    .MachineEdit .file {
+        float: left;
+        position: relative;
+        display: block;
+        background: #03afD9;
+        border: 1px solid #99D3F5;
+        border-radius: 4px;
+        margin-left: 5px;
+        padding: 4px 12px;
+        overflow: hidden;
+        color: white;
+        text-decoration: none;
+        text-indent: 0;
+        line-height: 20px;
+        margin-top: 20px;
+    }
+
+        .MachineEdit .file input {
+            position: absolute;
+            font-size: 100px;
+            right: 0;
+            top: 0;
+            opacity: 0;
+        }
+
+        .MachineEdit .file:hover {
+            background: #95B8E7;
+            border-color: #78C3F3;
+            color: white;
+            text-decoration: none;
+        }
+
+/*播放器*/
+.icon-play {
+    background-image: url(../image/agri/trackplay.png);
+    background-size: 20px;
+}
+
+.icon-stop {
+    background-image: url(../image/agri/trackstop.png);
+    background-size: 20px;
+}
+
+.icon-rewind {
+    background-image: url(../image/agri/trackrewind.png);
+    background-size: 20px;
+}
+
+.icon-fast {
+    background-image: url(../image/agri/trackfast.png);
+    background-size: 20px;
+}
+
+.icon-timeout {
+    background-image: url(../image/agri/tracktimeout.png);
+    background-size: 20px;
+}
+
+.playicon {
+    height: 20px;
+    width: 20px;
+    display: inline-block;
+    margin-top: 5px;
+    float: left;
+    margin-left: 18px;
+}
+
+
+.machine-query {
+    background-image: url(../image/agri/query.png);
+    background-repeat: no-repeat;
+}
+
+.machine-add {
+    background-image: url(../image/agri/add.png);
+    background-repeat: no-repeat;
+}
+
+.machine-deletes {
+    background-image: url(../image/agri/deletes.png);
+    background-repeat: no-repeat;
+}
+
+.machine-carnum {
+    background-image: url(../image/agri/carnum.png);
+    background-repeat: no-repeat;
+}
+
+.machine-carpp {
+    background-image: url(../image/agri/carpp.png);
+    background-repeat: no-repeat;
+}
+
+.machine-cartype {
+    background-image: url(../image/agri/cartype.png);
+    background-repeat: no-repeat;
+}
+
+.machine-orgroot {
+    background-image: url(../image/agri/orgroot.png);
+    background-repeat: no-repeat;
+}
+
+.machine-orgchild {
+    background-image: url(../image/agri/orgchild.png);
+    background-repeat: no-repeat;
+}
+
+.machine-name {
+    background-image: url(../image/agri/name.png);
+    background-repeat: no-repeat;
+}
+
+.machine-carmanage {
+    background-image: url(../image/agri/carmanage.png);
+    background-repeat: no-repeat;
+}
+
+.machine-carmanage1 {
+    background-image: url(../image/agri/carmanage1.png);
+    background-repeat: no-repeat;
+}
+
+.machine-trackmanage {
+    background-image: url(../image/agri/trackmanage.png);
+    background-repeat: no-repeat;
+}
+
+.machine-reset {
+    background-image: url(../image/agri/reset.png);
+    background-repeat: no-repeat;
+}
+
+.machine-caralarm {
+    background-image: url(../image/agri/caralarm.png);
+    background-repeat: no-repeat;
+}
+
+.machine-trackedit {
+    background-image: url(../image/agri/trackedit.png);
+    background-repeat: no-repeat;
+    background-size: 16px;
+    background-position: center;
+}
+
+.machine-polygon {
+    background-image: url(../image/agri/polygon.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+
+.task-trackstart {
+    background-image: url(../image/agri/startpoint.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.task-trackstart1 {
+    background-image: url(../image/agri/startpoint1.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.task-trackend {
+    background-image: url(../image/agri/endpoint.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.task-trackend1 {
+    background-image: url(../image/agri/endpoint1.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.task-selectpalce {
+    background-image: url(../image/agri/selectplace.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.task-selectpalce1 {
+    background-image: url(../image/agri/selectplace1.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.task-addobstacle {
+    background-image: url(../image/agri/addobstacle.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.task-addobstacle1 {
+    background-image: url(../image/agri/addobstacle1.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.task-removeobstacle {
+    background-image: url(../image/agri/removeobstacle.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.task-removeobstacle1 {
+    background-image: url(../image/agri/removeobstacle1.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.alert-leftview {
+    background-image: url(../image/agri/leftbtn.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.alert-rightview {
+    background-image: url(../image/agri/rightbtn.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.alert-upview {
+    background-image: url(../image/agri/upbtn.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.alert-downview {
+    background-image: url(../image/agri/downbtn.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.data-folder {
+    background-image: url(../image/agri/folder.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.data-file {
+    background-image: url(../image/agri/file.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.rotation-infotitle {
+    background-image: url(../image/agri/infotitle.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.rotation-infotype {
+    background-image: url(../image/agri/infotype.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+/* 平凉管理系统*/
+.orchard-name {
+    background-image: url(../image/agri/orchard-type.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.orchard-type {
+    background-image: url(../image/agri/orchard-name.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.cooperative {
+    background-image: url(../image/agri/cooperative.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+/*全局查询*/
+.global {
+    /*width: 424px;*/
+    width: 384px;
+    /*height:435px;*/
+    top: 15px;
+    left: 5px;
+    position: absolute;
+    /*z-index: 10000;*/
+    background-color: transparent;
+}
+
+    .global .globalquery {
+        width: 384px;
+        /*width: 424px;*/
+        height: 35px;
+        background-color: #fcfcfc;
+    }
+
+        .global .globalquery .searchcontent {
+            height: 33px;
+            border: 1px solid #ddd;
+            width: 317px;
+            /*width: 357px;*/
+            display: inline-block;
+            float: left;
+        }
+
+            .global .globalquery .searchcontent .inputTool {
+                height: 33px;
+                width: 282px;
+                /*width: 160px;*/
+                display: inline-block;
+                float: left;
+            }
+
+            .global .globalquery .searchcontent .splitslider {
+                height: 20px;
+                margin-top: 8px;
+                width: 1px;
+                background-color: #ddd;
+                display: inline-block;
+                float: left;
+            }
+
+            .global .globalquery .searchcontent .graphicsdiv {
+                height: 33px;
+                width: 25px;
+                display: inline-block;
+                float: left;
+            }
+
+                .global .globalquery .searchcontent .graphicsdiv:hover {
+                    background-color: #c2f3f5;
+                }
+
+                .global .globalquery .searchcontent .graphicsdiv .icon {
+                    height: 16px;
+                    width: 16px;
+                    margin-top: 8px;
+                    margin-left: 4px;
+                    display: inline-block;
+                    float: left;
+                }
+
+            .global .globalquery .searchcontent .iconSelect {
+                width: 10px;
+                height: 33px;
+                display: inline-block;
+            }
+
+                .global .globalquery .searchcontent .iconSelect:hover {
+                    background-color: #dfeefe;
+                }
+
+    .global .graphicpopup {
+        width: 33px;
+        height: 122px;
+        border-left: 1px solid #ddd;
+        border-right: 1px solid #ddd;
+        border-bottom: 1px solid #ddd;
+        position: absolute;
+        right: 65px;
+        background-color: #fff;
+        display: none;
+        z-index: 10;
+        top: 34px;
+    }
+
+        .global .graphicpopup .BPanel {
+            height: 30px;
+            width: 33px;
+            margin-top: 0px;
+            float: left;
+        }
+
+            .global .graphicpopup .BPanel .Icon {
+                height: 16px;
+                width: 16px;
+                margin-top: 7px;
+                margin-left: 8px;
+            }
+
+            .global .graphicpopup .BPanel:hover {
+                background-color: #dfeefe;
+            }
+
+        .global .graphicpopup .splitslider {
+            height: 1px;
+            width: 20px;
+            background-color: #ddd;
+            margin-left: 7px;
+            float: left;
+        }
+
+    .global .detailPanel {
+        width: 317px;
+        display: none;
+        position: relative;
+        margin-top: 8px;
+    }
+
+    .global .resultPanel {
+        height: 512px;
+        width: 317px;
+        display: none;
+        border: 1px solid #99bbe8;
+        margin-top: 8px;
+        position: relative;
+    }
+
+        .global .resultPanel .closebtn {
+            height: 20px;
+            width: 20px;
+            background-image: url(../image/l1.png);
+            background-position: -400px -5px;
+            background-color: #0099cc;
+            border-radius: 10px;
+            position: absolute;
+            right: -5px;
+            top: -5px;
+            z-index: 10;
+        }
+
+            .global .resultPanel .closebtn:hover {
+                background-color: #ff0000;
+            }
+
+        .global .resultPanel .resultaccordion {
+            position: relative;
+        }
+
+            .global .resultPanel .resultaccordion .title {
+                height: 29px;
+                width: 100%;
+                background-color: #0099cc;
+                border-bottom: 1px solid #99bbe8;
+            }
+
+                .global .resultPanel .resultaccordion .title a {
+                    float: right;
+                    margin-right: 10px;
+                    width: 16px;
+                    height: 16px;
+                    margin-top: 7px;
+                }
+
+                    .global .resultPanel .resultaccordion .title a:hover {
+                        background-color: #9BE3FA;
+                    }
+
+                    .global .resultPanel .resultaccordion .title a:active {
+                        background-color: #6ABCD8;
+                    }
+
+.icon-globalback {
+    background-image: url(../image/agri/globalback.png);
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 16px;
+}
+/*.global .resultPanel .head {
+            height: 26px;
+            width: 317px;
+            background: #0099cc;
+            color: #fcfcfc;
+        }
+
+            .global .resultPanel .head .closebtn {
+                width: 16px;
+                height: 16px;
+                position: absolute;
+                right: -2px;
+                top: -2px;
+            }
+
+                .global .resultPanel .head .closebtn:hover {
+                    background-color: red;
+                }
+
+            .global .resultPanel .head .left {
+                height: 29px;
+                width: 18px;
+                position: absolute;
+                left: 0px;
+display: none; background-position: center; background-image: url('../image/left.png'); background-repeat: no-repeat; border-left: 1px solid #ddd; background-color: #0099cc;
+}
+
+.global .resultPanel .head .center {
+    height: 30px;
+    width: 357px;
+    position: absolute;
+    left: 0px;
+    overflow: hidden;
+}
+
+    .global .resultPanel .head .center .tabpanel {
+        height: 30px;
+    }
+
+        .global .resultPanel .head .center .tabpanel .tab {
+            height: 29px;
+            display: inline-block;
+            line-height: 30px;
+            text-align: center;
+            border-right: 1px solid #ddd;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .global .resultPanel .head .center .tabpanel .selecttab {
+            height: 30px;
+            display: inline-block;
+            line-height: 30px;
+            text-align: center;
+            background-color: #dfeefe;
+            border-right: 1px solid #ddd;
+        }
+
+.global .resultPanel .head .right {
+    height: 29px;
+    border-left: 1px solid #ddd;
+    width: 18px;
+    position: absolute;
+    right: 0px;
+    display: none;
+    background-position: center;
+    background-image: url('../image/right.png');
+    background-repeat: no-repeat;
+    background-color: #0099cc;
+}
+
+*/
+.MapTipContent {
+    width: 100%;
+}
+
+    .MapTipContent .Title {
+        width: 80px;
+        height: 30px;
+        line-height: 30px;
+        text-align: center;
+        display: inline-block;
+        border-bottom: 1px solid #E4E9EF;
+    }
+
+    .MapTipContent .Content {
+        height: 30px;
+        line-height: 30px;
+        display: inline-block;
+        border-bottom: 1px solid #E4E9EF;
+        border-left: 1px solid #E4E9EF;
+        padding-left: 5px;
+        word-break: keep-all;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+
+.dev-tab .NormalTabCls {
+    border-left: 1px solid #808080;
+    background-color: #ccc;
+    color: #000;
+}
+
+.dev-tab .SelectedTabCls {
+    background-color: #e6e6e6;
+    color: #000;
+}
+
+.dev-tab .SelectedTabCls1 {
+    background-color: #dfeefe;
+    /*color: #fcfcfc;*/
+    border-bottom: 1px solid #ddd;
+}
+
+.dev-tab .liveNormalTabCls {
+    border-left: 1px solid #808080;
+    background-color: #ccc;
+    color: #000;
+}
+
+.dev-tab .liveSelectedTabCls {
+    background-color: #e6e6e6;
+    color: #000;
+}
+
+
+.taskButton {
+    width: 70px;
+    height: 26px;
+    float: left;
+    margin-top: 6px;
+    background-color: #03afD9;
+    /*border-radius: 5px;*/
+    text-align: center;
+    border: 1px solid #03afD9;
+    display: inline-block;
+}
+
+    .taskButton:hover {
+        background-color: #95B8E7;
+        border: 1px solid #95B8E7;
+        cursor: pointer;
+    }
+
+.approvalWin {
+    width: 100%;
+    height: 100%;
+}
+
+    .approvalWin .Row {
+        height: 34px;
+        width: 100%;
+        border-bottom: 1px dashed #ddd;
+    }
+
+        .approvalWin .Row .Title {
+            width: 79px;
+            height: 34px;
+            display: inline-block;
+            float: left;
+            line-height: 34px;
+            text-align: right;
+            padding-right: 5px;
+            border-right: 1px dashed #ddd;
+        }
+
+    .approvalWin .ButtonDiv {
+        width: 600px;
+        height: 40px;
+        position: relative;
+    }
+
+        .approvalWin .ButtonDiv .Button {
+            width: 70px;
+            height: 28px;
+            background-color: #16dbbb;
+            position: absolute;
+            top: 6px;
+            text-align: center;
+            color: #fcfcfc;
+            line-height: 28px;
+        }
+
+            .approvalWin .ButtonDiv .Button:hover {
+                background-color: #5227de;
+                border: 1px solid #5227de;
+                cursor: pointer;
+            }
+
+
+.TaskWorkEdit {
+    /*height: 288px;*/
+    width: 510px;
+    position: relative;
+}
+
+.tree-icon {
+    display: none;
+}
+
+.TaskWorkEdit .Row {
+    height: 35px;
+    width: 100%;
+    border-bottom: 1px solid #ddd;
+}
+
+    .TaskWorkEdit .Row .Title {
+        text-align: right;
+        padding-right: 8px;
+    }
+
+    .TaskWorkEdit .Row .Cell {
+        height: 100%;
+        width: 250px;
+        display: inline-block;
+        margin-left: 0px;
+        margin-right: 0px;
+        float: left;
+    }
+
+.TaskWorkEdit .Submit {
+    width: 150px;
+    height: 45px;
+    text-align: center;
+    float: right;
+    margin-right: 10px;
+}
+
+    .TaskWorkEdit .Submit .Button {
+        width: 70px;
+        height: 26px;
+        margin-top: 10px;
+        background-color: #16dbbb;
+        border-radius: 5px;
+        text-align: center;
+        display: inline-block;
+        margin-left: 2px;
+    }
+
+        .TaskWorkEdit .Submit .Button:hover {
+            background-color: #5227de;
+            /* border: 1px solid #95B8E7;*/
+            cursor: pointer;
+        }
+
+        .TaskWorkEdit .Submit .Button:active {
+            background-color: #210097;
+            /* border: 1px solid #95B8E7;*/
+            cursor: pointer;
+        }
+
+.TaskWorkEdit .Icon {
+    border: 1px solid #95b8e7;
+}
+
+.TaskWorkEdit .Icon1 {
+    border: 1px solid #95b8e7;
+}
+
+    .TaskWorkEdit .Icon1:hover {
+        background-color: #95b8e7;
+    }
+
+.TaskWorkEdit .Icon:hover {
+    background-color: #95b8e7;
+}
+
+.TaskWorkEdit .Iconunable {
+    border: 1px solid #808080;
+}
+
+    .TaskWorkEdit .Iconunable:hover {
+        background-color: #fff;
+    }
+
+.TaskWorkEdit .Row .PicLeft {
+    width: 24px;
+    height: 24px;
+    position: absolute;
+    left: 0px;
+    top: 67px;
+    background-image: url('../image/agri/leftbtn.png');
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.TaskWorkEdit .Row .PicRight {
+    width: 24px;
+    height: 24px;
+    position: absolute;
+    right: 0px;
+    top: 67px;
+    background-image: url('../image/agri/rightbtn.png');
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.TaskWorkEdit .Row .PicAdd {
+    height: 24px;
+    width: 24px;
+    border: 1px solid #95b8e7;
+    top: 5px;
+    right: 35px;
+    position: absolute;
+}
+
+.TaskWorkEdit .Row .PicDel {
+    height: 24px;
+    width: 24px;
+    border: 1px solid #95b8e7;
+    top: 5px;
+    right: 5px;
+    position: absolute;
+}
+
+.TaskWorkEdit .Rules {
+    background-color: #fcfcfc;
+    position: relative;
+    display: none;
+}
+
+    .TaskWorkEdit .Rules .header {
+        display: inline-block;
+        height: 100%;
+        width: 66px;
+        line-height: 35px;
+        float: left;
+        text-align: right;
+        padding-right: 8px;
+        border-right: 1px solid #ddd;
+    }
+
+    .TaskWorkEdit .Rules .content {
+        display: inline-block;
+        height: 100%;
+        width: 417px;
+        float: left;
+    }
+
+        .TaskWorkEdit .Rules .content .Rule {
+            height: 35px;
+            width: 100%;
+        }
+
+            .TaskWorkEdit .Rules .content .Rule .Btn {
+                height: 26px;
+                width: 26px;
+                margin-left: 4px;
+                margin-top: 5px;
+                background-color: #16dbbb;
+                background-position: center;
+            }
+
+                .TaskWorkEdit .Rules .content .Rule .Btn:hover {
+                    background-color: #5227de;
+                }
+
+/*历史回溯时间轴样式*/
+.flagcontrol {
+    /*width: 100%;*/
+    height: 45px;
+    background-color: rgba(255,255,255,0.4);
+    border: 1px solid #ddd;
+    margin-top: 5px;
+    margin-left: 10px;
+    z-index: 9999;
+    position: relative;
+    min-width: 60px;
+    top:45px;
+}
+
+    .flagcontrol .flagpanel {
+        height: 45px;
+    }
+
+    .flagcontrol .btns {
+        width: 60px;
+        position: absolute;
+        right: 0px;
+        bottom: 0px;
+        height: 100%;
+    }
+
+        .flagcontrol .btns .iconplay {
+            height: 20px;
+            width: 20px;
+            display: inline-block;
+            float: left;
+            margin-top: 12px;
+        }
+
+        .flagcontrol .btns .iconclose {
+            height: 16px;
+            width: 16px;
+            display: inline-block;
+            margin-left: 24px;
+        }
+
+            .flagcontrol .btns .iconclose:hover {
+                background-color: red;
+            }
+
+    .flagcontrol .flagpanel .flag {
+        width: 100px;
+        height: 45px;
+        display: inline-block;
+        float: left;
+        position: relative;
+        margin-left: 5px;
+    }
+
+        .flagcontrol .flagpanel .flag .pointDiv {
+            width: 24px;
+            height: 24px;
+            position: absolute;
+            left: 28px;
+        }
+
+            .flagcontrol .flagpanel .flag .pointDiv .point {
+                width: 16px;
+                height: 16px;
+                background-color: #fff;
+                border: 2px solid #6BC30D;
+                border-radius: 18px;
+                margin-top: 2px;
+                margin-left: 2px;
+            }
+
+                .flagcontrol .flagpanel .flag .pointDiv .point:hover {
+                    border: 4px solid #6BC30D;
+                    border-radius: 20px;
+                    margin-left: 0px;
+                    margin-top: 0px;
+                }
+
+        .flagcontrol .flagpanel .flag .Text {
+            text-align: center;
+            color: #CCE8FF;
+            height: 21px;
+            font-weight: bold;
+            line-height: 21px;
+            position: absolute;
+            top: 24px;
+            width: 100%;
+        }
+
+        .flagcontrol .flagpanel .flag .pointDiv .SelectPoint {
+            width: 16px;
+            height: 16px;
+            background-color: #fff;
+            border: 2px solid #0099CD;
+            border-radius: 18px;
+            display: inline-block;
+            webkit-animation: spangle 1000ms ease infinite;
+            -moz-animation: spangle 1000ms ease infinite;
+            -o-animation: spangle 1000ms ease infinite;
+            animation: spangle 1000ms ease infinite;
+        }
+/*end*/
+
+.mappanelsymbol {
+    width: 60px;
+    height: 60px;
+    /*position: absolute;*/
+    /*right: 17px;
+    top: 230px;*/
+    border: 1px solid #999;
+    background: rgba(0,0,0,0.4);
+}
+
+    .mappanelsymbol .Icon {
+        height: 60px;
+        width: 60px;
+
+    }
+
+.toolsymbol {
+    height: 30px;
+    width: 100%;
+    position: absolute;
+}
+
+.floatPanel {
+    position: absolute;
+    background: #0099cc;
+    border: 1px solid #0099cc;
+    z-index:1000;
+    /*box-shadow: 2px 2px 3px #cccccc;
+    -moz-box-shadow: 2px 2px 3px #cccccc;
+    -webkit-box-shadow: 2px 2px 3px #cccccc;*/
+}
+
+    .floatPanel .Header {
+        height: 26px;
+      /*  background: linear-gradient(to right,#745dfd,#0e5fd1);*/
+        background: #14cdad;
+        width: 100%;
+        border-bottom: 1px solid #0099cc;
+    }
+
+        .floatPanel .Header .Icon {
+            height: 16px;
+            width: 16px;
+            margin-top: 5px;
+            margin-left: 5px;
+            float: left;
+        }
+
+        .floatPanel .Header .Text {
+            height: 26px;
+            line-height: 26px;
+            display: inline-block;
+            color: #fcfcfc;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        .floatPanel .Header .CloseButton {
+            height: 26px;
+            width: 26px;
+            background-image: url(../image/l1.png);
+            background-position: -397px -2px;
+            display: inline-block;
+            float: right;
+        }
+
+            .floatPanel .Header .CloseButton:hover {
+                background-color: #ff0000;
+            }
+
+        .floatPanel .Header .DockButton {
+            display: inline-block;
+            height: 26px;
+            width: 26px;
+            float: right;
+            margin-right: 6px;
+        }
+
+            .floatPanel .Header .DockButton:hover {
+                background-color: #ff0000;
+            }
+
+            .floatPanel .Header .DockButton .Icon {
+                height: 16px;
+                width: 16px;
+                margin-top: 5px;
+                margin-left: 5px;
+            }
+
+    .floatPanel .Content {
+        width: 100%;
+    }
+
+
+
+.statInfo {
+    border-collapse: collapse;
+    table-layout: fixed;
+    width: 100%;
+}
+
+    .statInfo th {
+        border-right: 1px solid #ddd;
+        border-bottom: 1px solid #ddd;
+        border-collapse: collapse;
+        text-align: center;
+        height: 30px;
+        white-space: nowrap;
+        overflow: hidden;
+        word-break: keep-all;
+        background-color: #f6f6f6;
+        color: #000;
+    }
+
+    .statInfo td {
+        border-right: 1px solid #ddd;
+        border-bottom: 1px solid #ddd;
+        border-collapse: collapse;
+        text-align: center;
+        height: 29px;
+        white-space: nowrap;
+        overflow: hidden;
+        word-break: keep-all;
+        width: 19%;
+    }
+
+        .statInfo td:nth-last-child(1) {
+            width: 12%;
+        }
+
+        .statInfo td:nth-last-child(2) {
+            width: 12%;
+        }
+
+
+.dev-layeredit {
+    width: 100%;
+    height: 35px;
+    position: relative;
+}
+
+    .dev-layeredit .Button {
+        height: 26px;
+        width: 30px;
+        background-color: #0099cc;
+        display: inline-block;
+        margin-left: 15px;
+        margin-top: 5px;
+    }
+
+    .dev-layeredit .DisableButton {
+        height: 26px;
+        width: 30px;
+        background-color: #ddd;
+        display: inline-block;
+        margin-left: 15px;
+        margin-top: 5px;
+    }
+
+    .dev-layeredit .Button:nth-child(1) {
+        margin-left: 20px;
+    }
+
+    .dev-layeredit .Button:hover {
+        background-color: #95B8E7;
+    }
+
+/*用户管理样式*/
+.user-usermanage {
+    background-image: url(../image/agri/usermanage.png);
+    background-repeat: no-repeat;
+}
+
+.user-username {
+    background-image: url(../image/agri/username.png);
+    background-repeat: no-repeat;
+}
+
+/*行政区定位*/
+.xzqposition {
+    display: none;
+    height: 30px;
+    border: 1px solid #999;
+    right: 245px;
+    position: absolute;
+    top: 18px;
+    background: rgba(0,0,0,0.4);
+    z-index:999;
+}
+
+    .xzqposition .selecttext {
+        height: 30px;
+        color: #fcfcfc;
+        line-height: 30px;
+        display: inline-block;
+        float: left;
+        padding: 0px 3px;
+    }
+
+    .xzqposition .xzqexpend {
+        height: 30px;
+        width: 15px;
+        display: inline-block;
+    }
+
+.xzqpositionpanel {
+    width: 250px;
+    height: 395px;
+    position: absolute;
+    right: 150px;
+    border: 1px solid #0099cc;
+    background-color: #fff;
+    top: 55px;
+    z-index:999;
+}
+
+    .xzqpositionpanel .title {
+        height: 25px;
+        border-bottom: 1px solid #0099cc;
+        width: 224px;
+      /*  background: linear-gradient(to right,#745dfd,#0e5fd1);*/
+        background: #14cdad;
+        display: inline-block;
+        float: left;
+    }
+
+    .xzqpositionpanel .CloseButton {
+        height: 26px;
+        width: 26px;
+        background-image: url(../image/l1.png);
+        background-position: -397px -2px;
+        display: inline-block;
+        float: right;
+        background-color: #0e5fd1;
+    }
+
+        .xzqpositionpanel .CloseButton:hover {
+            background-color: #ff0000;
+        }
+
+    .xzqpositionpanel .content {
+        border-bottom: 1px solid #998f60;
+        width: 100%;
+    }
+
+        .xzqpositionpanel .content .commoncity {
+            height: 55px;
+            width: 100%;
+            line-height: 25px;
+            margin-top: 5px;
+        }
+
+            .xzqpositionpanel .content .commoncity a {
+                margin-left: 6px;
+                color: #3d6dcc;
+            }
+
+                .xzqpositionpanel .content .commoncity a:hover {
+                    text-decoration: underline;
+                }
+
+        .xzqpositionpanel .content .searchbtns {
+            height: 30px;
+            width: 100%;
+        }
+
+            .xzqpositionpanel .content .searchbtns .btns {
+                width: 140px;
+                height: 22px;
+                border: 1px solid #cbcbcb;
+                margin-left: 5px;
+                display: inline-block;
+                float: left;
+            }
+
+                .xzqpositionpanel .content .searchbtns .btns .normalbtn {
+                    height: 100%;
+                    width: 46px;
+                    border-right: 1px solid #cbcbcb;
+                    display: inline-block;
+                    float: left;
+                    line-height: 22px;
+                    text-align: center;
+                    color: #4c4c4c;
+                    cursor: pointer;
+                }
+
+                .xzqpositionpanel .content .searchbtns .btns .select {
+                    background-color: #f0f0f0;
+                    font-weight: bold;
+                }
+
+            .xzqpositionpanel .content .searchbtns .searchkey {
+                width: 85px;
+                height: 100%;
+                display: inline-block;
+                border: 1px solid #cbcbcb;
+                height: 22px;
+                margin-left: 5px;
+            }
+
+                .xzqpositionpanel .content .searchbtns .searchkey .searchbtn {
+                    width: 16px;
+                    height: 22px;
+                    border-left: 1px solid #cbcbcb;
+                    background-color: #0099cc;
+                    display: inline-block;
+                    background-position: center;
+                }
+
+                    .xzqpositionpanel .content .searchbtns .searchkey .searchbtn:hover {
+                        background-color: #95B8E7;
+                    }
+
+        .xzqpositionpanel .content .chardiv {
+            width: 100%;
+            line-height: 25px;
+            margin-top: 5px;
+        }
+
+            .xzqpositionpanel .content .chardiv a {
+                color: #3d6dcc;
+                margin-left: 8px;
+            }
+
+                .xzqpositionpanel .content .chardiv a:hover {
+                    text-decoration: underline;
+                }
+
+    .xzqpositionpanel .result {
+        width: 100%;
+        position: relative;
+        margin-top: 5px;
+    }
+
+        .xzqpositionpanel .result a {
+            margin-left: 6px;
+            color: #3d6dcc;
+        }
+
+            .xzqpositionpanel .result a:hover {
+                text-decoration: underline;
+            }
+
+.farm {
+    background-image: url(../image/agri/farm.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.farmblue {
+    background-image: url(../image/agri/farmblue.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+
+.uav-logo {
+    background-image: url(../image/agri/UAV.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.liveposition-refresh {
+    background-image: url(../image/agri/refresh.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.uav-logoblue {
+    background-image: url(../image/agri/UAV1.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.uav-warnonline {
+    background-image: url(../image/agri/uavwarnonline.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.uav-offline {
+    background-image: url(../image/agri/UAVoffline.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.machine-offline {
+    background-image: url(../image/agri/carmanage2.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.machine-warnonline {
+    background-image: url(../image/agri/carwarnonline.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.search-reset {
+    background-image: url(../image/agri/reset1.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+    .search-reset:hover {
+        background-color: #95B8E7;
+        border: 1px solid #95B8E7;
+        cursor: pointer;
+    }
+
+.search-blue {
+    background-image: url(../image/agri/queryblue.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+    .search-blue:hover {
+        background-color: #95B8E7;
+        border: 1px solid #95B8E7;
+        cursor: pointer;
+    }
+
+/*文字不能选中*/
+.noselect {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+#fishnetEdit {
+    cursor: pointer;
+}
+
+    #fishnetEdit:hover {
+        background-color: #03afD9;
+    }
+
+.edit-selection {
+    background-color: #03afD9;
+}
+
+
+/*监测站 监测数据*/
+.mtitle1 {
+    text-align: right;
+    word-spacing: 1em;
+    left: 10px;
+    margin-top: 9px;
+    margin-bottom: 7px;
+    margin-left: 20px;
+    font-weight: bold;
+    float: left;
+    color: #3c3b3b;
+    width: 57px;
+}
+
+.mrow {
+    /*border: thin dotted #B3BBB9;*/
+    height: 33px;
+    min-width: 862px;
+}
+
+.monitor {
+    border-style: solid;
+    border-width: 0px 1px 1px 1px;
+    border-color: #ecf0f3;
+    width: 80px;
+    height: 50px;
+    margin-left: 20px;
+    margin-top: 4px;
+    display: inline-block;
+    float: left;
+}
+
+    .monitor:hover {
+        background-color: #e8e9f5;
+        cursor: pointer;
+    }
+
+    .monitor .mtitle2 {
+        width: 80px;
+        height: 15px;
+        background-color: #0099cc;
+        line-height: 10px;
+        color: #A9A9A9;
+        font-family: 宋体, Arial, Helvetica, sans-serif;
+        text-align: center;
+        font-size: small;
+        padding-top: 8px;
+    }
+
+    .monitor .mcontent {
+        color: #178c17;
+        text-align: center;
+        width: 80px;
+        height: 20px;
+        margin-top: 5px;
+        float: left;
+    }
+
+
+.mchart {
+    width: 100%;
+    height: 80%;
+    min-height: 350px;
+    border: 1px solid #ecf0f3;
+    margin-top: 10px;
+}
+
+/*未来天气*/
+.magic-container {
+    /*父*/
+    display: flex;
+    /*普通*/
+    position: absolute;
+    border-radius: 6px;
+    min-width: 1110px;
+    width: 100%;
+    height: 234px;
+    /*border: 1px solid #999999;*/
+    bottom: 0px;
+    white-space: nowrap; /*不换行*/
+    border-radius: 8px;
+    background-color: rgba(65,94,230,0.5);
+    transition: all 1s;
+}
+
+.magic-block {
+    /*子*/
+    flex-basis: auto;
+    flex-grow: 1;
+    flex-shrink: 1;
+    /*父*/
+    display: flex;
+    flex-direction: column; /*朝向*/
+    justify-content: space-around; /*主轴*/
+    align-items: center; /*交叉轴*/
+    /*普通*/
+    /*border-left: 1px solid #9c9c9c;*/
+    color: #ffffff;
+    font-family: '微软雅黑';
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.5s;
+    /*opacity: 0.5;*/
+    border: 1px solid transparent;
+}
+
+    .magic-block:hover {
+        /*background-color: #495765;*/
+        border-color: rgba(230, 138, 0, 0.51);
+        /*-webkit-transform: scale(1.02) rotateY(360deg); !* Safari 与 Chrome *!
+        transform:  scale(1.02) rotateY(360deg);*/
+        -webkit-transform: translateY(-10px); /* Safari 与 Chrome */
+        transform: translateY(-10px);
+    }
+
+
+.weather-sun {
+    background: #186d8b; /* fallback for old browsers */
+    background: -webkit-linear-gradient(to right, #b8b6a5, #186d8b); /* Chrome 10-25, Safari 5.1-6 */
+    background: linear-gradient(to right, #b8b6a5, #186d8b); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+}
+
+.weather-rain {
+    background: #485563; /* fallback for old browsers */
+    background: -webkit-linear-gradient(to right, #6a7c8c, #29323c); /* Chrome 10-25, Safari 5.1-6 */
+    background: linear-gradient(to right, #6A7C8C, #29323c); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+}
+
+.weather-cloudy {
+    background: #3E5151; /* fallback for old browsers */
+    background: -webkit-linear-gradient(to right, #DECBA4, #3E5151); /* Chrome 10-25, Safari 5.1-6 */
+    background: linear-gradient(to right, #DECBA4, #3E5151); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+}
+
+.block-normal {
+    background-color: rgba(4, 155, 199, 0.35);
+}
+
+.block-sun {
+    background-color: #b8b6a5;
+}
+
+.block-rain {
+    background-color: #29323C;
+}
+
+.block-cloudy {
+    background-color: #d53812;
+}
+
+/*空气质量*/
+.air-quality {
+    width: 156px;
+    height: 30px;
+    line-height: 30px;
+    text-align: center;
+    border-radius: 5px;
+    /*font-size: 19px;*/
+    /*font-family: cursive;*/
+    margin-bottom: 9px;
+}
+
+.air-quality-nice {
+    background-color: #40c057;
+}
+
+    .air-quality-nice:before {
+        content: '优';
+    }
+
+.air-quality-good {
+    background-color: #34ad69;
+}
+
+    .air-quality-good:after {
+        content: '良';
+    }
+
+.air-quality-waring {
+    background-color: #e68a00;
+}
+
+    .air-quality-waring:after {
+        content: '差';
+    }
+
+.air-quality-bad {
+    background-color: #d53812;
+}
+
+    .air-quality-bad:before {
+        content: '糟糕';
+    }
+
+
+/*气象管理 气象类型按钮*/
+.fruit-container {
+    position: absolute;
+    top: 15px;
+    left: 170px;
+    height: 30px;
+}
+
+.peach-container {
+    /*父*/
+    display: flex;
+    /*普通*/
+    position: absolute;
+    /*left: 120px;*/
+    transition: all 0.6s;
+}
+
+.peach-block {
+    /**/
+    width: 76px;
+    height: 30px;
+    text-align: center;
+    line-height: 30px;
+    background-color: rgba(255, 255, 255, 0.65);
+    border-radius: 2px;
+    color: #007da0;
+    margin-right: 1px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+    .peach-block:active {
+        position: relative;
+        top: 2px;
+    }
+
+    .peach-block:hover {
+        background-color: rgba(65,94,230,0.5) !important;
+        color: #FFFFFF !important;
+    }
+
+.tomato-container {
+    /*父*/
+    display: flex;
+    /*普通*/
+    transform-origin: 0 -8% 0;
+    -webkit-transform: rotateX(90deg); /* Safari 与 Chrome */
+    transform: rotateX(90deg);
+    transition: all 0.6s;
+}
+
+.tomato-block {
+    /**/
+    width: 76px;
+    height: 30px;
+    text-align: center;
+    line-height: 30px;
+    background-color: rgba(255, 255, 255, 0.65);
+    border-radius: 2px;
+    color: #007da0;
+    margin-right: 1px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+    .tomato-block:active {
+        position: relative;
+        top: 2px;
+    }
+
+    .tomato-block:hover {
+        background-color: rgba(65,94,230,0.5) !important;
+        color: #FFFFFF !important;
+    }
+
+.sugar1-block:checked + .peach-container {
+    transform-origin: 0 -8% 0;
+    -webkit-transform: rotateX(90deg); /* Safari 与 Chrome */
+    transform: rotateX(90deg);
+}
+
+.sugar2-block:checked + .tomato-container {
+    transform-origin: 0 -8% 0;
+    -webkit-transform: rotateX(0deg); /* Safari 与 Chrome */
+    transform: rotateX(0deg);
+}
+/*更多*/
+.more-block {
+    position: absolute;
+    width: 40px;
+    height: 30px;
+    top: 0px;
+    border-radius: 5px;
+    cursor: pointer;
+    left: 390px;
+    background: rgba(65,94,230,0.5) url(../image/weather/qiehuan.png) no-repeat center center;
+    background-size: 14px 14px;
+}
+/*切换*/
+.exchange-container {
+    /*父*/
+    display: flex;
+    position: relative;
+    top: -30px;
+    left: 455px;
+    width: 160px;
+}
+
+.exchange-block {
+    width: 76px;
+    height: 30px;
+    background-color: rgba(255, 255, 255, 0.65);
+    margin-right: 1px;
+    border-radius: 3px;
+    cursor: pointer;
+    color: #007da0;
+    text-align: center;
+    line-height: 30px;
+}
+
+    .exchange-block:active {
+        position: relative;
+        top: 2px;
+    }
+
+    .exchange-block:hover {
+        background-color: rgba(65, 94, 230, 0.5) !important;
+        color: #FFFFFF !important;
+    }
+
+/*详情面板*/
+.plate-container {
+    /*父*/
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    /*普通*/
+    position: absolute;
+    right: 220px;
+    top: 10px;
+}
+
+.plate-block {
+    /*父*/
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /*普通*/
+    width: 135px;
+    height: 40px;
+    min-width: 135px;
+    margin-bottom: 2px;
+    cursor: pointer;
+    border-radius: 1px;
+    margin-right: 3px;
+    background-color: rgba(65,94,230,0.5);
+    text-align: center;
+    line-height: 40px;
+    color: #FFFFFF;
+    transition: all 0.5s;
+}
+
+    .plate-block:hover {
+        /*transform-origin: 0 0% 0;*/
+        /*-webkit-transform: rotateX(35deg); !* Safari 与 Chrome *!
+        transform: rotateX(35deg);*/
+        animation: dance-plate 0.7s ease-out;
+        -webkit-animation: dance-plate 0.7s ease-out;
+    }
+
+@keyframes dance-plate {
+    0% {
+        transform-origin: 0 0% 0;
+        transform: rotateX(0deg);
+    }
+
+    20% {
+        transform-origin: 0 0% 0;
+        transform: rotateX(35deg);
+    }
+
+    100% {
+        transform-origin: 0 0% 0;
+        transform: rotateX(0deg);
+    }
+}
+
+@-webkit-keyframes dance-plate /* Safari and Chrome */
+{
+    0% {
+        transform-origin: 0 0% 0;
+        -webkit-transform: rotateX(0deg);
+    }
+
+    20% {
+        transform-origin: 0 0% 0;
+        -webkit-transform: rotateX(35deg);
+    }
+
+    100% {
+        transform-origin: 0 0% 0;
+        -webkit-transform: rotateX(0deg);
+    }
+}
+
+
+/*历史天气折线图*/
+.watermelon-container {
+    width: 560px;
+    position: absolute;
+    top: 52px;
+    left: 40px;
+    transition: all 1s;
+    -webkit-transform: translateX(-591px); /* Safari 与 Chrome */
+    transform: translateX(-591px);
+}
+
+/*折线图容器*/
+.watermelon-content {
+    width: 560px;
+    height: 250px;
+    background-color: rgba(65,94,230,0.5);
+    border-radius: 3px;
+}
+
+/*按钮栏*/
+.watermelon-exchange {
+    display: flex;
+    width: 560px;
+    height: 30px;
+    margin-bottom: 1px;
+}
+/*按钮*/
+.watermelon-button {
+    width: 56px;
+    background-color: rgba(255, 255, 255, 0.78);
+    text-align: center;
+    line-height: 30px;
+    font-size: 12px;
+    border-right: 1px solid #b2b2b2;
+    cursor: pointer;
+    color: rgb(29, 141, 163);
+}
+
+/*一系列收起按钮*/
+.packup-botton {
+    position: absolute;
+    border-radius: 14px;
+    background-image: url(../image/weather/packup.png);
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    transition: all 1s;
+    opacity: 0.6;
+}
+
+    .packup-botton:hover {
+        opacity: 1;
+    }
+
+/*历史气象的收起按钮*/
+.packup1 {
+    background-image: url(../image/weather/packup1.png);
+    opacity: 1;
+}
+
+.sugar3-block:checked + .watermelon-container {
+    /*transform-origin: 0 -8% 0;*/
+    -webkit-transform: translateX(0px); /* Safari 与 Chrome */
+    transform: translateX(0px);
+    animation: packup1-watermelon 1.5s ease-out;
+}
+
+.sugar3-block:checked ~ .packup1 {
+    /*transform-origin : -10% 100% 0;*/
+    -webkit-transform: translateX(-7px) rotate(630deg); /* Safari 与 Chrome */
+    transform: translateX(-7px) rotate(630deg);
+    background-color: rgba(4, 155, 199, 0.1);
+    opacity: 0.6;
+}
+
+/*未来天气模块的收取按钮*/
+.sugar4-block:checked ~ .magic-container {
+    /*transform-origin : -10% 100% 0;*/
+    -webkit-transform: translateY(200px); /* Safari 与 Chrome */
+    transform: translateY(200px);
+    background-color: rgba(65, 94, 230, 0.1);
+    /*animation: packup2-magic 2s;
+        -webkit-animation: packup2-magic 2s;*/
+}
+
+.sugar4-block:checked ~ .packup2 {
+    /*transform-origin : -10% 100% 0;*/
+    -webkit-transform: translateY(200px) rotate(450deg); /* Safari 与 Chrome */
+    transform: translateY(200px) rotate(450deg);
+    background-color: rgba(4, 155, 199, 0.1);
+    opacity: 1;
+    /* animation: packup2 2s;
+        -webkit-animation: packup2 2s;*/
+}
+/*右上角详情面板的收起按钮*/
+.sugar5-block:checked ~ .plate-block {
+    /*transform-origin : -10% 100% 0;*/
+    -webkit-transform: rotateY(90deg); /* Safari 与 Chrome */
+    transform: rotateY(90deg);
+}
+
+.sugar6-block:checked ~ .packup3 {
+    /*transform-origin : -10% 100% 0;*/
+    -webkit-transform: translateX(550px) rotate(900deg); /* Safari 与 Chrome */
+    transform: translateX(550px) rotate(900deg);
+    background-color: rgba(4, 155, 199, 0.1);
+    opacity: 1;
+}
+
+@keyframes packup1-watermelon {
+
+    0% {
+        transform: translateX(-591px);
+    }
+
+    70% {
+        transform: translateX(60px);
+    }
+
+    100% {
+        transform: translateX(0px);
+    }
+}
+
+
+/*一体机*/
+.allinone-blue {
+    background-image: url(../image/agri/allinone-blue.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.allinone-white {
+    background-image: url(../image/agri/allinone-white.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.allinone-gray {
+    background-image: url(../image/agri/allinone-gray.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.allinone-online {
+    background-image: url(../image/agri/allinone-online.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.allinone-offline {
+    background-image: url(../image/agri/allinone-offline.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.ams-blue {
+    background-image: url(../image/agri/ams-blue.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.ams-white {
+    background-image: url(../image/agri/ams-white.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.ams-gray {
+    background-image: url(../image/agri/ams-gray.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.ams-online {
+    background-image: url(../image/agri/ams-online.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.ams-offline {
+    background-image: url(../image/agri/ams-offline.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+/*监测数据 选项*/
+.options {
+    margin-left: 10px;
+    margin-right: 5px;
+    margin-top: 6px;
+    vertical-align: sub;
+}
+
+/*新时间轴样式*/
+.timeline {
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    overflow: hidden;
+}
+
+    .timeline .line {
+        position: relative;
+        background-color: #ddd;
+    }
+
+    .timeline .point {
+        background-color: #fff;
+        border: 2px solid #6BC30D;
+        position: absolute;
+    }
+
+        .timeline .point:hover {
+            border: 4px solid #6BC30D;
+            cursor:pointer;
+        }
+
+    .timeline .texttip {
+        color: #fff;
+        font-size: 18px;
+        font-weight: bold;
+        text-align: center;
+        height: 24px;
+        position: absolute;
+    }
+
+    .timeline .selectpoint {
+        background-color: #fff;
+        border: 2px solid #0099CD;
+        webkit-animation: spangle 500ms ease infinite;
+        -moz-animation: spangle 500ms ease infinite;
+        -o-animation: spangle 500ms ease infinite;
+        animation: spangle 500ms ease infinite;
+    }
+
+.timeline-imageplay {
+    background-position: -32px -113px;
+    background-image: url(../image/l1.png);
+    margin-left: 4px;
+    margin-top: 4px;
+    width: 16px;
+    height: 16px;
+}
+
+.timeline-imagestop {
+    background-position: -16px -113px;
+    background-image: url(../image/l1.png);
+    margin-left: 4px;
+    margin-top: 4px;
+    width: 15px;
+    height: 16px;
+}
+
+.icon-statistics {
+    background-position: -32px -113px;
+    background-image: url(../image/statgraph.png);
+    margin-left: 4px;
+    margin-top: 4px;
+    width: 16px;
+    height: 16px;
+}
+
+/*分析决策中农作物显示样式*/
+.croplegends {
+    position: absolute;
+    bottom: 20px;
+    left: 4px;
+    background: rgba(255,255,255,0.5);
+    min-width: 110px;
+}
+
+    .croplegends:hover {
+        background: rgba(255,255,255,0.8);
+    }
+
+    .croplegends .item {
+        height: 28px;
+        position: relative;
+    }
+
+        .croplegends .item:hover {
+            border: 1px solid #0099cc;
+            cursor:pointer;
+            /*background-color: #cce8ff;*/
+        }
+
+        .croplegends .item .icon {
+            width: 16px;
+            height: 16px;
+            margin-left: 5px;
+            margin-top: 6px;
+            display: inline-block;
+            float: left;
+        }
+
+        .croplegends .item .text {
+            height: 28px;
+            margin-left: 5px;
+            line-height: 28px;
+            display: inline-block;
+            padding: 0px 5px;
+        }
+
+    .croplegends .itemselect {
+        background-color: #0099cc;
+    }
+
+/*关闭按钮*/
+.close-botton {
+    position: absolute;
+    border-radius: 14px;
+    /*background-image: url(../image/weather/packup.png);*/
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    transition: all 1s;
+    opacity: 1;
+    background-color: #D3D3D3;
+    z-index:10000;
+}
+/*瓦片图例*/
+.Tilelegend {
+    position: absolute;
+}
+
+    .Tilelegend .legendheader {
+        height: 24px;
+        line-height: 24px;
+        background-color: #fcfcfc;
+        width: 100%;
+        color: #000;
+        font-weight: bold;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .Tilelegend .legendcontain {
+        position: relative;
+        width: 100%;
+        height: calc(100% - 28px);
+    }
+
+        .Tilelegend .legendcontain .legendtree {
+            margin: 0;
+            padding: 0;
+        }
+
+        .Tilelegend .legendcontain ul li {
+            list-style-type: none;
+        }
+
+        .Tilelegend .legendcontain .legendtree ul li {
+            line-height: 28px;
+            height: 28px;
+            padding-left: 40px;
+        }
+
+            .Tilelegend .legendcontain .legendtree ul li .icon {
+                height: 16px;
+                width: 16px;
+                margin-left: 5px;
+                float: left;
+                margin-top: 6px;
+            }
+
+.grab {
+    cursor: -webkit-grab;
+    cursor: -moz-grab;
+    cursor: grab;
+}
+
+.grabbing {
+    cursor: -webkit-grabbing;
+    cursor: -moz-grabbing;
+    cursor: grabbing;
+}
+/*坐标系切换*/
+.crstools {
+    display: none;
+    position: absolute;
+    top: 18px;
+    height: 30px;
+    width: 85px;
+    right: 150px;
+    cursor: default;
+    background: rgba(0,0,0,0.4);
+    border: 1px solid #999;
+    cursor: default;
+    z-index:999;
+}
+
+    .crstools .img {
+        height: 30px;
+        width: 30px;
+        display: inline-block;
+        float: left;
+        background-image: url(../image/agri/projection.png);
+        background-repeat: no-repeat;
+        background-position: center;
+    }
+
+    .crstools .text {
+        height: 30px;
+        width: 40px;
+        line-height: 30px;
+        color: #fcfcfc;
+        display: inline-block;
+        float: left;
+    }
+
+    .crstools .arrowcontain {
+        width: 15px;
+        height: 30px;
+        display: inline-block;
+    }
+
+.crstoolspanel {
+    height: 60px;
+    width: 85px;
+    position: absolute;
+    top: 46px;
+    right: 150px;
+    border: 1px solid #999;
+    cursor: default;
+    display:none;
+    z-index:10006;
+    background-color:#fff;
+}
+
+    .crstoolspanel .item {
+        height: 30px;
+        width: 100%;
+    }
+
+        .crstoolspanel .item:hover {
+            background-color: #f2f2f2;
+        }
+
+    .crstoolspanel .selectitem {
+        color: #0099cc;
+    }
+
+    .crstoolspanel .item .selectedimgpanel {
+        width: 20px;
+        height: 30px;
+        line-height: 30px;
+        display: inline-block;
+        float: left;
+    }
+
+    .crstoolspanel .item .selectedimg {
+        background-image: url(../image/agri/selected.png);
+        background-repeat: no-repeat;
+        background-position: center;
+    }

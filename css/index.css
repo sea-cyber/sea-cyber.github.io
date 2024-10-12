@@ -1,0 +1,280 @@
+﻿body {
+    background-color: #E0E9F5;
+}
+
+.Panel-Top {
+    /* background:linear-gradient(to right,#745dfd,#0e5fd1); */
+    background:#14cdad;
+    height: 60px;
+    width: 100%;
+    position: absolute;
+    overflow: hidden;
+    z-index: 3;
+    /*background:url(../image/t_bg.png);*/
+}
+
+    .Panel-Top .Panel-MainTank {
+        height: 100%;
+
+        background-repeat: repeat;
+    }
+
+        .Panel-Top .Panel-MainTank .RightBackground {
+            right: 0px;
+            position: absolute;
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            background-repeat: no-repeat;
+            background-position: right top;
+        }
+
+        .Panel-Top .Panel-MainTank .LeftBackground {
+            left: 0px;
+            position: absolute;
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            background-repeat: no-repeat;
+        }
+
+        .Panel-Top .Panel-MainTank .ContentBox {
+            top: 0px;
+            left: 0px;
+            position: absolute;
+            height: 100%;
+            width: 100%;
+        }
+
+        .Panel-Top .Panel-MainTank .LeftBox {
+            position: absolute;
+            top: 0px;
+            left: 0px;
+            height: 100%;
+        }
+
+        .Panel-Top .Panel-MainTank .CenterBox {
+            position: absolute;
+            top: 0px;
+            height: 100%;
+        }
+
+        .Panel-Top .Panel-MainTank .RightBox {
+            position: absolute;
+            top: 0px;
+            right: 0px;
+            height: 100%;
+        }
+
+.Panel-Nav {
+    background: #EFEFF2;
+    height: 30px;
+    width: 100%;
+    position: absolute;
+    top: 80px;
+    overflow: hidden;
+    z-index: 2;
+}
+
+.Panel-Main {
+    background: #EFEFF2;
+    /*background:white;*/
+    width: 100%;
+    position: absolute;
+    overflow: hidden;
+}
+
+.Panel-Left {
+    left: 0px;
+    z-index: 2;
+    height: 100%;
+    overflow: hidden;
+    position: absolute;
+    background-color: #fff;
+    /*background-color: #293038;*/
+}
+
+.Panel-Right {
+    background: #EFEFF2;
+    position: absolute;
+    right: 0px;
+    height: 100%;
+    overflow: hidden;
+    z-index: 3;
+}
+
+.Panel-Center {
+    background: #EFEFF2;
+    position: absolute;
+    height: 100%;
+    overflow: hidden;
+}
+
+.Panel-MapTool {
+    background: #EFEFF2;
+    position: absolute;
+    top: 0px;
+    height: 30px;
+    width: 100%;
+    overflow: hidden;
+    z-index: 2;
+}
+
+.Panel-Map {
+    background: #fff;
+    /*background: #EFEFF2;*/
+    /*background-image: url('image/map.png');*/
+    width: 100%;
+    position: absolute;
+    overflow: hidden;
+    z-index: 4;
+}
+
+.Panel-Bottom {
+    background: #EFEFF2;
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    overflow: hidden;
+    z-index: 4;
+}
+
+.Panel-Foot {
+    /*background: #1e282e;*/
+    /*background: #0099cc;*/
+    background-color: #363636;
+    text-align: center;
+    position: absolute;
+    bottom: 0px;
+    width: 100%;
+    overflow: hidden;
+    z-index: 1;
+}
+
+.Panel-DockContent {
+    top: 26px;
+    width: 100%;
+    position: absolute;
+    overflow: hidden;
+}
+
+.Panel-Split-H, .Panel-Split-V {
+    position: absolute;
+    font-size: 1px;
+    z-index: 5;
+}
+
+.Panel-Split-H {
+    width: 2px;
+    height: 100%;
+    cursor: e-resize;
+}
+
+.Panel-Split-V {
+    width: 100%;
+    height: 2px;
+    cursor: n-resize;
+}
+
+.Panel-Foot .Panel-Split-V,
+.Panel-Bottom .Panel-Split-V {
+    top: 0px;
+}
+
+.Panel-Top .Panel-Split-V,
+.Panel-MapTool .Panel-Split-V,
+.Panel-Nav .Panel-Split-V {
+    bottom: 0px;
+}
+
+.Panel-Left .Panel-Split-H {
+    border-right:1px solid #0099cc;
+    right: 0px;
+}
+
+.Panel-Left .Panel-MainTank .Panel-DockContent {
+    /*background-color: #283038;*/
+    background-color: #fff;
+}
+
+.Panel-Right .Panel-Split-H {
+    left: 0px;
+}
+
+.Panel-Bottom .Panel-MainTank .Panel-DockContent {
+    background-color: white;
+}
+
+.Panel-Right .Panel-MainTank .Panel-DockContent {
+    background-color: #f0f4f8;
+}
+
+.Panel-MainTank {
+    position: absolute;
+    overflow: hidden;
+    border: solid 1px #CCCCCC;
+}
+
+.Panel-Right .Panel-MainTank {
+    right: 0px;
+}
+
+.Panel-Left-MinimizeButton {
+    width: 20px;
+    height: 50px;
+    position: absolute;
+    display: none;
+    z-index: 9998;
+    cursor: pointer;
+    background-image: url('../image/l1.png');
+}
+
+.Panel-Left-MinimizeButton-Closed {
+    background-position: -10px 0px;
+}
+
+.Panel-Header {
+    height: 26px;
+    width: 100%;
+    /* background: linear-gradient(to right,#745dfd,#0e5fd1); */
+    /*background: #37424F;*/
+    background-color: #14cdad;
+    border-bottom: 1px solid #37424F;
+    overflow: hidden;
+}
+
+    .Panel-Header .Icon {
+        height: 16px;
+        width: 16px;
+        position: absolute;
+        overflow: hidden;
+        left: 5px;
+        top: 5px;
+    }
+
+    .Panel-Header .Title {
+        left: 26px;
+        line-height: 26px;
+        position: absolute;
+        font-weight:bold;
+    }
+
+.Panel-Left .Panel-MainTank .Panel-Header .Title,
+.Panel-Right .Panel-MainTank .Panel-Header .Title {
+    color: white;
+}
+
+.Panel-Header .ButtonPanel {
+    position: absolute;
+    height: 26px;
+    width: 100%;
+    overflow: hidden;
+    right: 0px;
+}
+
+    .Panel-Header .ButtonPanel .Button {
+        margin: 5px 5px 5px 0px;
+        height: 16px;
+        width: 16px;
+        float: right;
+    }

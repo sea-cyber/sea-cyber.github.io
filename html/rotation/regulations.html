@@ -1,0 +1,707 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>政策法规</title>
+    <link rel="stylesheet" href="../../theme/default/easyui.css" />
+    <link rel="stylesheet" type="text/css" href="../../theme/icon.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/app.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/icon.css" />
+    <link type="text/css" href="../../css/dev.css" rel="stylesheet" />
+    <script type="text/javascript" src="../../js/jquery.min.js"></script>
+    <script type="text/javascript" src="../../js/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="../../js/easyui-lang-zh_CN.js"></script>
+    <script type="text/javascript" src="../../js/linq.min.js"></script>
+    <script type="text/javascript" src="../../js/data.util.js"></script>
+    <script type="text/javascript" src="../../js/jquery.dev.control.js"></script>
+    <script src="../../js/dev.ui.js"></script>
+    <style type="text/css">
+        .content {
+            height: 100%;
+            width: 100%;
+            position: relative;
+        }
+
+        .Title {
+            width: 75px;
+            text-align: right;
+            line-height: 40px;
+            height: 38px;
+            display: inline-block;
+            float: left;
+        }
+
+            .Title .Icon {
+                width: 16px;
+                height: 16px;
+                display: inline-block;
+                margin-top: 11px;
+            }
+
+            .Title .Text {
+                display: inline-block;
+                float: right;
+                /*width: 49px;*/
+            }
+
+        .content .SearchDiv {
+            width: 210px;
+            height: 40px;
+            display: inline-block;
+            margin-left: 0px;
+            margin-right: 0px;
+            float: left;
+        }
+
+        .Button {
+            width: 70px;
+            height: 26px;
+            float: left;
+            margin-top: 7px;
+            background-color: #16dbbb;
+            /*border-radius: 5px;*/
+            text-align: center;
+            border: 1px solid #16dbbb;
+            display: inline-block;
+            margin-left: 5px;
+        }
+
+            .Button:hover {
+                background-color: #5227de;
+                border: 1px solid #5227de;
+                cursor: pointer;
+            }
+
+        .ButtonDisable {
+            background-color: #808080;
+            color: #000;
+            border: 1px solid #808080;
+        }
+
+            .ButtonDisable:hover {
+                background-color: #808080;
+                color: #000;
+                border: 1px solid #808080;
+            }
+    </style>
+    <script type="text/javascript">
+        var Dev = window.top.window.dev;
+        var parent;
+        var treeControl, dataGrid;
+        var orgFilter;
+        var searchNum, searchName;
+        var pageIndex = 1, pageSize = 5;
+        var orgids, selectorgid, selectorgName;
+        var regulationWin, detailWin, comboTree;
+        var dialog;
+        var updateid;
+        var model = {};
+        var row;
+        var searchType, bindType;
+        dialog = new Dev.Messager({ Height: 95, AutoShow: false, Type: "question", Timeout: 1000, ButtonVisible: false, AutoVisible: true, Effect: "normal" });
+        var dialog1 = new Dev.Messager({ AutoShow: false, Type: "question" });
+        var msg = {
+            netout: "网络超时，请稍后再试！",
+            deleteFailed: "删除失败，请稍后再试！",
+            deleteSuccess: "删除成功！",
+            addSuccess: "操作成功！",
+            addFailed: "操作失败，请稍后再试！"
+        };
+        function WidgetCommunication(s) {//部件通讯
+            parent = s.parent;
+            Dev.App.BottomPanel.Header.css({ "background": "#14cdad", "color": "#fcfcfc", "font-weight": "bold" });
+            Dev.App.BottomPanel.SetIconCls("machine-trackmanage");
+            Dev.App.BottomPanel.bind("onVisShow", function () {
+                Dev.App.BottomPanel.SetHeight(262);
+            });
+            Dev.App.BottomPanel.bind("onExpand", function () {
+                Dev.App.BottomPanel.SetHeight(262);
+            });
+            //初始化列表
+            initDataGrid();
+            inittree();
+            resize();
+            $(window).resize(function () {
+                resize();
+            });
+            $(".Button").click(function () {
+                var tag = $(this).attr("tag");
+                if (tag == "search") { pageIndex = 1; searchData(); }
+                if (tag == "clear") { searchclear(); searchData(); }
+                if (tag == "add") {
+                    initWindow();
+                    var win = $(".MachineEdit", Dev.App.FillPanel.Target);
+                    $("#errorlog", win).html("");
+                }
+                if (tag == "save") saveInfo();
+                if (tag == "deletes") deletes();
+                if (tag == "cancel") cancel();
+            });
+            parent.one("onClosing", function () {
+                Dev.App.BottomPanel.unbind("onVisShow");
+                Dev.App.BottomPanel.unbind("onExpand");
+                if (!Dev.IsNull(regulationWin)) {
+                    clearwin();
+                    regulationWin.bind("onClosing");
+                    regulationWin.Close();
+                    regulationWin.Destroy(); regulationWin = null;
+                }
+                if (!Dev.IsNull(treeControl)) { treeControl.unbind("onSelectChanged"); treeControl = null; }
+                if (!Dev.IsNull(dataGrid)) { dataGrid.Target.unbind("onSelectPage"); dataGrid = null; }
+
+            });
+            bindType = Dev.GetDicData(["InfoType"]);
+            searchName = $("#info-type").prop("$this");
+            if (!Dev.IsNull(bindType) && bindType.length > 0) searchName.SetData(bindType);
+            searchData();
+        }
+
+        //保存
+        function saveInfo() {
+            var chooseorg;
+            var selectitem;
+            var isupdate = (!Dev.IsNull(updateid) && updateid.length > 0);
+            if (isupdate) model.id = updateid;
+            var textcontrol = $(".dev-textbox", regulationWin);
+            var win = $(".MachineEdit", Dev.App.FillPanel.Target);
+            for (var i = 0; i < textcontrol.length; i++) {
+                var tag = $(textcontrol[i]).attr("name");
+                var value = $(textcontrol[i]).prop("$this").GetValue().trim();
+                model[tag] = value;
+            }
+            if (!Dev.IsNull(searchType)) model.type = searchType.GetValue();
+            selectitem = comboTree.tree.SelectedItem;
+            if (Dev.IsNull(selectitem)) {
+                $("#errorlog", win).html("请选择组织!");
+                return;
+            }
+            chooseorg = selectitem.prop("$this").id;
+            model.orgid = chooseorg;
+
+            var timestamp = new Date().getTime();
+            if (isupdate) {
+                model["updatedate"] = timestamp;
+            } else {
+                model["createdate"] = timestamp;
+                model.id = null;
+            }
+            if (!check()) {
+                return;
+            }
+
+            $.ajax({
+                type: "POST",
+                data: JSON.stringify(model),
+                contentType: 'application/json',
+                url: Dev.cookie.baseUri + "regulations/" + (isupdate ? "updateReg" : "addReg"),
+                success: function (response) {
+                    var str = isupdate ? "修改" : "新增";
+                    if (response.statusCode != 200) {
+                        dialog.Alert(str + "失败！", { Type: "error" });
+                        return;
+                    }
+                    dialog.Alert(str + "成功！", { Type: "info" });
+                    row = null;
+                    pageIndex = 1;
+                    regulationWin.Close();
+                    searchData();
+
+                },
+                error: function (e) {
+                    dialog.Alert(msg.addFailed, "error");
+                }
+            })
+
+        }
+        //验证输入栏是否输入
+        function check() {
+            var win = $(".MachineEdit", Dev.App.FillPanel.Target);
+            var textcontrol = $(".redbox", win);
+            for (var i = 0; i < textcontrol.length; i++) {
+                if (i == 1) {
+                    var value = $(textcontrol[i]).prop("$this").GetText();
+                } else {
+                    var value = $(textcontrol[i]).prop("$this").GetValue();
+                }
+                if (Dev.IsNull(value)) {
+                    if (i == 0) $("#errorlog", win).html("\"信息标题\"不能为空！");
+                    if (i == 1) $("#errorlog", win).html("\"信息类别\"不能为空！");
+                    if (i == 2) $("#errorlog", win).html("\"信息内容\"不能为空！");
+                    return false;
+                }
+            }
+            var len = $(".textbox1", Dev.App.FillPanel.Target);
+            for (var i = 0; i < len.length; i++) {
+                var value = $(len[i]).prop("$this").GetValue();
+                if (i == 0) {
+                    if (value.length > 36) {
+                        $("#errorlog", win).html("\"信息标题\"长度在36位以内！");
+                        return false;
+                    }
+                }
+                if (i == 1) {
+                    if (value.length > 120) {
+                        $("#errorlog", win).html("\"备注\"长度在120位以内！");
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+        //修改
+        function update(id, index) {
+            var win = $(".MachineEdit", Dev.App.FillPanel.Target);
+            $("#errorlog", win).html("");
+            if (Dev.IsNull(id)) return;
+            dataGrid.DataGrid.datagrid("selectRow", index);
+            row = dataGrid.DataGrid.datagrid("getSelected");
+            updateorgid = row.orgid;
+            initWindow(id);
+        }
+        //点击修改时绑定数据
+        function loadData(model) {
+            var textcontrol = $(".dev-textbox", $(".MachineEdit", Dev.App.FillPanel.Target));
+            for (var i = 0; i < textcontrol.length; i++) {
+                var tag = $(textcontrol[i]).attr("name");
+                var currcontrol = $(textcontrol[i]).prop("$this");
+                currcontrol.SetValue(model[tag]);
+            }
+            searchType.SetValue(model.type);
+        }
+        //初始化窗体
+        function initWindow(id) {
+            clearwin();
+            var title = "政策法规新增";
+            updateid = null;
+            if (id) {
+                title = "政策法规修改";
+                updateid = id;
+            }
+            if (dev.IsNull(regulationWin)) {
+                regulationWin = new Dev.Window({
+                    ID: "regulationWin",
+                    IconCls: 'icon-featureupdate',
+                    Title: title,
+                    Parent: Dev.App.FillPanel.Target,
+                    Maximizable: false,
+                    Modal: true,
+                    Draggable: true,
+                    HAlign: 'center',
+                    VAlign: 'center',
+                    Resizable: false,
+                    Content: $(".MachineEdit"),
+                    Height: 340,
+                    Width: 500
+                });
+                comboTree = new Dev.Combotree({
+                    Required: true, PopupHeight: 120, TipInfo: "请选择",
+                    MultiSelect: false, StateField: "State", ValueField: "id",
+                    TextField: "name", ChildrenField: "child", Height: 24, Border: "1px", Width: 149
+                });
+                $("#treecomboDiv", $(".MachineEdit", Dev.App.FillPanel.Target)).append(comboTree.Target);
+                comboTree.Layout();
+                var selectnode = treeControl.GetSelectNode();
+                comboTree.SetData(selectnode[0].$this);
+                regulationWin.bind("onClosing", function () {
+                    model = {};
+                });
+                searchType = $("#macType", regulationWin.Target).prop("$this");
+                if (!Dev.IsNull(bindType) && bindType.length > 0) searchType.SetData(bindType);
+            }
+            else {
+                regulationWin.Open();
+                regulationWin.SetTitle(title);
+                var selectnode = treeControl.GetSelectNode();
+                comboTree.SetData(selectnode[0].$this);
+            }
+            if (id) {
+                //加载数据
+                var row = dataGrid.DataGrid.datagrid("getSelected");
+                loadData(row);
+                comboTree.SetValueEx(row.orgid);
+                row = {};
+            }
+        }
+        function cancel() {
+            regulationWin.Close();
+        }
+        function clearwin() {
+            var textcontrol = $('.dev-textbox', $(".MachineEdit", Dev.App.FillPanel.Target));
+            var combocontrol = $('.dev-combobox', $(".MachineEdit", Dev.App.FillPanel.Target));
+            for (var i = 0; i < textcontrol.length; i++) {
+                var currcontrol = $(textcontrol[i]).prop("$this");
+                currcontrol.Clear();
+                if (!Dev.IsNull(currcontrol.SetLengthTip)) currcontrol.SetLengthTip("");
+            }
+            for (var i = 0; i < combocontrol.length; i++) {
+                var currcontrol = $(combocontrol[i]).prop("$this");
+                currcontrol.SetValue("");
+            }
+        }
+        //初始化树
+        function inittree() {
+            treeControl = $('.dev-tree').prop("$this");
+            treeControl.bind("onSelectChanged", function (s, e) {
+                pageIndex = 1;          //切换组织结构时，从第一面开始显示
+                searchclear();
+                var treenode = e;
+                var isleaf = treeControl.IsLeaf(treenode);
+                var orgids = [];
+                orgids.push(e.id);
+                if (!isleaf) {
+                    var allchilds = treeControl.GetAllChildren(treenode);
+                    for (var i = 0; i < allchilds.length; i++) orgids.push(allchilds[i].id);
+                }
+                orgFilter = "";
+                if (Dev.IsNull(orgids) || orgids.length == 0) return;
+                orgFilter = "\"ORGID\"  IN(";
+                for (var i = 0; i < orgids.length; i++) orgFilter += "'" + orgids[i] + "',";
+                orgFilter = orgFilter.substr(0, orgFilter.length - 1);
+                orgFilter += ")";
+                searchData();
+            });
+            var orgid = Dev.cookie.user.orgid;
+            $.ajax({
+                url: Dev.GetSystemUrlByRelID("Service") + "organize/gettreebyid/" + orgid + "?" + new Date().getTime(),
+                type: "Get",
+                contentType: 'application/json',
+                dataType: 'json',
+                success: function (result) {
+                    treedata = Dev.ConvertTreeData(result.data, orgid);
+                    treeControl.LoadData(treedata);
+                    if (treedata.length > 0) treeControl.SetSelectNode(treeControl.GetRoots()[0]);
+                }
+            });
+            searchData();
+        }
+
+        //初始化列表控件
+        function initDataGrid() {
+            if (Dev.IsNull(dataGrid)) {
+                var columns = [
+                    { field: "ck", width: 30, align: 'center', title: '勾选', sortable: false, checkbox: true },
+                    { field: "title", width: 80, align: 'center', title: '信息标题', sortable: false },
+                    { field: "type", width: 80, align: 'center', title: '信息类别', sortable: false },
+                    { field: "content", width: 200, align: 'center', title: '信息内容', sortable: false },
+                    {
+                        field: "createdate", width: 80, align: 'center', title: '发布时间', sortable: false, formatter: function (value, row, index) { return Dev.GetDateString(value); }
+                    },
+                    { field: "frequency", width: 80, align: 'center', title: '点击次数', sortable: false, formatter: function (value, row, index) { return Dev.IsNull(value) ? 0 : value; } },
+                      {
+                          field: "_oprate", width: 50, align: 'center', title: '操作', sortable: false, formatter: function (value, row, index) {
+                              return '<a href="javascript:void(0)" style="color:blue;"onclick="update(\'' + row.id + '\',\'' + index + '\')"><img src="../../image/agri/update.png"/></a>' + '&nbsp;<a href="javascript:void(0)" style="color:blue;margin-left:6px;" onclick="deleteinfo(\'' + index + '\')"><img src="../../image/agri/delete.png"/></a>&nbsp;<a href="javascript:void(0)" style="color:blue;margin-left:6px;" onclick="detailInfo(\'' + index + '\')" title="详细信息"><img src="../../image/agri/cartype.png"/></a>';
+                          }
+                      },
+                ];
+                dataGrid = new UCDataGrid(Dev, {
+                    PageIndex: pageIndex, PageSize: pageSize, RowNumbers: false, ID: "trackGrid", pagequery: false
+                });
+                $("#gridDiv").append(dataGrid.Target);
+                dataGrid.Layout(columns);
+                dataGrid.Target.bind("onSelectPage", function (s, e) {
+                    pageIndex = e.index;
+                    searchData();
+                });
+            }
+        }
+        //查询数据
+        function searchData() {
+            $.ajax({
+                type: "POST",
+                data: getCondition(),
+                contentType: "application/json;charset=UTF-8",
+                url: Dev.cookie.baseUri + "regulations/getbyfilter/" + pageIndex + "/" + pageSize,
+                success: function (response) {
+                    if (response.statusCode != 200 || Dev.IsNull(response.data)) loadError();
+                    else {
+                        dataGrid.Load(response.data.dataSource, response.data.pageInfo);
+                    }
+                },
+                error: function (e) {
+                    dialog.Alert(msg.netout, "error");
+                    loadError();
+                }
+            })
+        }
+        //删除
+        function deleteinfo(index) {
+            dataGrid.DataGrid.datagrid("selectRow", index);
+            var row = dataGrid.DataGrid.datagrid("getSelected");
+            var curRowNo = dataGrid.DataGrid.datagrid("getData").total;       //获取已有的数据行数
+            if (curRowNo == 1 && pageIndex != 1) pageIndex -= 1;                //删光则返回上一页
+            if (Dev.IsNull(row)) return;
+            dialog1.Confirm('确定删除选中记录吗？', function (r) {
+                if (!r) return;
+                $.ajax({
+                    type: "POST",
+                    data: { ids: row.id },
+                    url: Dev.GetSystemUrlByRelID("Service") + "regulations/deleteManyRegByIds",
+                    success: function (result) {
+                        if (!result.statusCode == 200) { dialog.Alert("删除失败！", { Type: "error" }); return; }
+                        dialog.Alert("删除成功!", { Type: "info" });
+                        searchData();
+                    }
+                });
+            }, "question");
+        }  //删除
+        function detailInfo(index) {
+            if (Dev.IsNull(detailWin)) {
+                detailWin = new Dev.Window({
+                    ID: "detailWin",
+                    IconCls: 'icon-detailinfo',
+                    Title: "政策法规详情",
+                    Parent: Dev.App.FillPanel.Target,
+                    Maximizable: false,
+                    Modal: true,
+                    Draggable: true,
+                    Content: $("#infoDetail"),
+                    HAlign: 'center',
+                    VAlign: 'center',
+                    Resizable: false,
+                    Height: 333,
+                    Width: 500,
+                });
+                detailWin.bind("onClosing", function () {
+                });
+            } else {
+                detailWin.Open();
+            }
+            dataGrid.DataGrid.datagrid("selectRow", index);
+            var row = dataGrid.DataGrid.datagrid("getSelected");
+            $("#infoTitle", detailWin.Target).html(row.title);
+            $("#infoType", detailWin.Target).html(row.type);
+            //$("#org", detailWin.Target).html(row.orgid);
+            $("#infoContent", detailWin.Target).html(row.content);
+            $("#remark", detailWin.Target).html(row.remark);
+        } //初始化Tab页
+
+        //批量删除
+        function deletes() {
+            var rows = dataGrid.DataGrid.datagrid("getChecked");
+            var curRowNo = dataGrid.DataGrid.datagrid("getData").total;       //获取已有的数据行数
+            if (curRowNo == rows.length && pageIndex != 1) pageIndex -= 1;     //如果没删完，保持在本页，删完回到上一页。
+            if (Dev.IsNull(rows) || rows.length == 0) {
+                dialog.Alert("请选择需要删除的数据!", "info");
+                return;
+            }
+            dialog1.Confirm('确定删除所有勾选记录吗？', function (r) {
+                if (!r) return;
+                var ids = [];
+                for (var i = 0; i < rows.length; i++) ids.push(rows[i].id);
+                $.ajax({
+                    type: "POST",
+                    data: { ids: ids.join(',') },
+                        url: Dev.GetSystemUrlByRelID("Service") + "regulations/deleteManyRegByIds",
+                        success: function (re) {
+                            if (!re.statusCode == 200) { dialog.Alert("批量删除失败！", { Type: "error" }); return; }
+                            dialog.Alert("批量删除成功!", { Type: "info" });
+                            searchData();
+                        }
+                    })
+            }, "question");
+        }
+        //获取查询条件
+        function getCondition() {
+            searchNum = $("#info-title").prop("$this");
+            var condition = "1=1";
+            if (!Dev.IsNull(searchName)) {
+                var name = searchName.GetValue();
+                if (!Dev.IsNull(name)) condition += " AND \"TYPE\" like '%" + name + "%'";
+            }
+            if (!Dev.IsNull(searchNum)) {
+                var num = searchNum.GetValue();
+                if (!Dev.IsNull(num) && num.length > 0) condition += " AND \"TITLE\" like '%" + num + "%'";
+            }
+            //获取上次时间
+            var time1 = $("#uploadtime1").datebox("getValue");
+            var time2 = $("#uploadtime2").datebox("getValue");
+            if (!Dev.IsNull(time1) && !Dev.IsNull(time2)) {
+                var t1 = new Date(time1.replace(/-/g, "/"));
+                var t2 = new Date(time2.replace(/-/g, "/"));
+                if (t1.getTime() > t2.getTime()) {
+                    var temp = time1;
+                    time1 = time2;
+                    time2 = temp;
+                }
+            }
+            if (!Dev.IsNull(time1)) condition += " AND \"CREATEDATE\">='" + time1 + " 00:00:00'";
+            if (!Dev.IsNull(time2)) condition += " AND \"CREATEDATE\"<='" + time2 + " 24:00:00'";
+            if (!dev.IsNull(orgFilter)) condition += " AND  " + orgFilter;
+            if (!Dev.IsNull(orgids) && orgids.length > 0) {
+                condition += " AND \"ORGID\" IN (";
+                for (var i = 0, len = orgids.length; i < len; i++) {
+                    condition += "'" + orgids[i] + "',";
+                }
+                condition = condition.substr(0, condition.length - 1);
+                condition += ")";
+            }
+            condition += " ORDER BY \"CREATEDATE\" DESC";
+            return condition;
+        }
+        //列表绑定空值
+        function loadError() {
+            dataGrid.Load([], { totalCount: 0, pageIndex: pageIndex, pageSize: pageSize, pageCount: 0 });
+        }
+        //获取左侧树数据
+        //辅助函数
+        function resize() {
+            Dev.App.BottomPanel.SetHeight(262);
+            var height = $(window).outerHeight();
+            treeControl.SetHeight(height == 0 ? (262 - 26) : (height - 26));
+
+            var gridheight = height - 40;
+            var gridwidth = parseInt($(window).width() * 0.80) - 2;
+            if (gridwidth < 1100) {
+                gridwidth = 1100;
+                gridheight = parseInt(gridheight) - 16;
+            }
+            $("#searchDiv").width(gridwidth);
+            $("#gridDiv").height(gridheight).width(gridwidth);
+            if (!Dev.IsNull(dataGrid)) dataGrid.Resize(gridwidth, gridheight);
+        }
+        function searchclear() {
+            pageIndex = 1;
+            if (!Dev.IsNull(searchNum)) searchNum.Clear();
+            if (!Dev.IsNull(searchName)) searchName.SetValue("");
+            $("#uploadtime1").datebox("setValue", "");
+            $("#uploadtime2").datebox("setValue", "");
+        }
+    </script>
+</head>
+<body>
+    <div id="content" class="content">
+        <div style="height: 100%; width: 20%; position: absolute;">
+            <!-- <div style="height: 26px; line-height: 26px; width: 100%; background-color: #ddd;">
+                <span style="margin-left: 15px; color: #0099cc; line-height: 26px; letter-spacing: 3px; font-size: 12px;">组织机构</span>
+            </div>-->
+            <div id="treediv" style="width: 100%; height: 100%;">
+                <div class="dev-tree" opt='{"ValueField":"id","TextField":"name","ChildrenField":"child","Height":220}'>
+                </div>
+            </div>
+        </div>
+        <div style="height: 100%; width: 80%; position: absolute; left: 20%; overflow: auto; overflow: auto;">
+            <div id="searchDiv"
+                style="height: 38px; border-left: 1px solid #ddd; position: relative; min-width: 1020px;">
+                <div style="height: 38px; position: absolute; left: 0px;">
+                    <div class="SearchDiv">
+                        <div id="info-title" class="dev-textbox" style="z-index: 2; width: 200px; display: inline-block;"
+                            opt='{"TipInfo":"请输入信息标题","HeaderCSS":{"padding":"0px","width":"75px"},"IsOverShow":true,"Padding":"0px 5px","TextAlign":"left","BodyCSS": { "background-color": "transparent","margin-top":"8px","margin-left":"5px" },"Title":"<div class=\"Title\"><div class=\"Icon rotation-infotitle \"></div><span class=\"Text\" style=\"width:50px;margin-left:3px\">信息标题</span></div>"}'>
+                        </div>
+                    </div>
+                    <div class="SearchDiv" style="width: 200px;">
+                        <div style="width: 75px; height: 38px; line-height: 38px; text-align: right; display: inline-block; float: left;">
+                            <div class="rotation-infotype" style="height: 16px; width: 16px; display: inline-block; float: left; margin-left: 5px; margin-top: 11px;"></div>
+                            <span style="height: 40px; line-height: 40px; width: 49px; float: right;">信息类别</span>
+                        </div>
+                        <div style="width: 110px; height: 40px; line-height: 38px; padding: 0px 5px; display: inline-block; float: left; margin-top: 0px; margin-left: 3px;">
+                            <div id="info-type" class="dev-combobox" style="z-index: 2; width: 110px; margin-top: 8px;"
+                                opt='{"TextField":"data","ValueField":"data","TipInfo":"请选择信息类别","IsOverShow":true,"Padding":"0px 5px","TextAlign":"left","BodyCSS": {"background-color": "transparent"}}'>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="SearchDiv" style="width: 209px;">
+                        <div style="width: 75px; height: 38px; line-height: 38px; text-align: right; display: inline-block; float: left;">
+                            <div class="icon-calendar"
+                                style="height: 16px; width: 16px; display: inline-block; float: left; margin-left: 5px; margin-top: 11px;">
+                            </div>
+                            <span style="height: 40px; line-height: 40px; width: 49px; float: right;">发布时间</span>
+                        </div>
+                        <div style="width: 120px; height: 40px; line-height: 38px; padding: 0px 5px; display: inline-block; float: left; margin-top: 0px; margin-left: 3px">
+                            <input id="uploadtime1" class="easyui-datebox"
+                                data-options="width:120,height:24,editable:false" />
+                        </div>
+                    </div>
+                    <div class="SearchDiv">
+                        <div style="width: 16px; height: 38px; display: inline-block; line-height: 40px; text-align: center; float: left;">
+                            至
+                        </div>
+                        <div style="width: 120px; height: 38px; line-height: 38px; padding: 0px 5px; display: inline-block; float: left; margin-top: 0px;">
+                            <input id="uploadtime2" class="easyui-datebox"
+                                data-options="editable:false,width:120,height:24" />
+                        </div>
+                    </div>
+                </div>
+                <div style="width: 320px; height: 100%; position: absolute; right: 17px; z-index: 2; top: -2px;">
+                    <div class="Button" tag="search" style="margin-left: 10px;">
+                        <div class="machine-query" style="height: 16px; width: 16px; margin-top: 4px; margin-left: 5px; display: inline-block; float: left;"></div>
+                        <span style="line-height: 28px; color: #fcfcfc;">查&nbsp;询</span>
+                    </div>
+                    <div class="Button" tag="clear">
+                        <div class="machine-reset" style="height: 16px; width: 16px; margin-top: 4px; margin-left: 5px; display: inline-block; float: left;"></div>
+                        <span style="line-height: 28px; color: #fcfcfc;">重&nbsp;置</span>
+                    </div>
+                    <div class="Button" tag="add">
+                        <div class="machine-add" style="height: 16px; width: 16px; margin-top: 4px; margin-left: 5px; display: inline-block; float: left;"></div>
+                        <span style="line-height: 28px; color: #fcfcfc;">新&nbsp;增</span>
+                    </div>
+                    <div class="Button" tag="deletes" style="width: 75px;">
+                        <div class="machine-deletes" style="height: 16px; width: 16px; margin-top: 4px; margin-left: 5px; display: inline-block; float: left;"></div>
+                        <span style="line-height: 28px; color: #fcfcfc;">批量删除</span>
+                    </div>
+                </div>
+            </div>
+            <div id="gridDiv" style="border-left: 1px solid #ddd; border-top: 1px solid #ddd;"></div>
+        </div>
+    </div>
+    <div class="MachineEdit" style="height: 268px;">
+        <div class="Row">
+            <div class="Cell">
+                <div id="no" class="dev-textbox redbox textbox1 tip-info" name="title" style="width: 487px; height: 24px; margin-top: 6px;" maxlength='36' opt='{"Required":true, "TipInfo":"36位以内","HeaderCSS":{"padding":"0px","width":"85px"},"IsOverShow":true,"Padding":"0px 5px","Title":"<div class=\"Title\"><span>信息标题</span></div>"}'></div>
+            </div>
+        </div>
+        <div class="Row">
+            <div class="Cell">
+                <div class="dev-combobox redbox tip-info" id="macType" name="type" style="width: 239px; height: 24px; margin-top: 6px;" maxlength='32' opt='{"TextField":"data","ValueField":"data","TipInfo":"请选择信息类别","Required":true, "HeaderCSS":{"padding":"0px","width":"85px"},"IsOverShow":true,"Padding":"0px 5px","Title":"<div class=\"Title\"><span>信息类别</span></div>"}'></div>
+            </div>
+            <div class="Cell">
+                <div style="width: 85px; height: 100%; line-height: 35px; text-align: right; padding-right: 5px; float: left">
+                    组织机构
+                </div>
+                <div id="treecomboDiv" style="height: 24px; width: 149px; margin-top: 5px; display: block; float: left">
+                </div>
+            </div>
+        </div>
+        <div class="Row" style="height: 96px">
+            <div class="Cell" style="height: 89px; width: 488px;">
+                <div class="dev-textbox redbox" name="content" style="z-index: 2; width: 488px; height: 85px; margin-top: 6px;" maxlength='120' opt='{"MaxLength":120,"Required":true,"TipInfo":"256位以内","Type":"multi-text","HeaderCSS":{"padding":"0px","width":"85px"},"IsOverShow":true,"Padding":"5px","Title":"<div class=\"Title\">信息内容</div>"}'></div>
+            </div>
+        </div>
+        <div class="Row" style="height: 90px; width: 100%; border-bottom: 1px solid #ddd;">
+            <div class="Cell" style="height: 89px; width: 488px;">
+                <div class="dev-textbox textbox1" name="remark" style="z-index: 2; width: 488px; height: 85px; margin-top: 6px;" maxlength='120' opt='{"MaxLength":120,"TipInfo":"256位以内","Type":"multi-text","HeaderCSS":{"padding":"0px","width":"85px"},"IsOverShow":true,"Padding":"5px","Title":"<div class=\"Title\">备注</div>"}'></div>
+            </div>
+        </div>
+        <div id="errorlog" style="width: 250px; display: inline-block; float: left; margin-top: 16px; margin-left: 20px; color: red"></div>
+        <div class="Submit">
+            <div class="Button" tag="save">
+                <span style="line-height: 26px; color: #fcfcfc;">保&nbsp;&nbsp;存</span>
+            </div>
+            <div class="Button" tag="cancel">
+                <span style="line-height: 26px; color: #fcfcfc;">取&nbsp;&nbsp;消</span>
+            </div>
+        </div>
+    </div>
+    <div id="infoDetail" style="width: 488px; height: 300px">
+        <div style="width: 500px; height: 30px; border-bottom: 1px solid #ddd">
+            <div style="width: 80px; line-height: 30px; display: inline-block;color:grey; float: left; text-align: right; padding-right: 8px">信息标题</div>
+            <div id="infoTitle" style="width: 400px; line-height: 30px; display: inline-block; float: left"></div>
+        </div>
+        <div style="width: 500px; height: 30px; border-bottom: 1px solid #ddd">
+            <div style="width: 80px; line-height: 30px; display: inline-block; color:grey;float: left; text-align: right; padding-right: 8px">信息类别</div>
+            <div id="infoType" style="width: 156px; line-height: 30px; display: inline-block; float: left"></div>
+            <!--                <div style="width:80px;line-height:30px;display:inline-block;float:left;text-align:right;padding-right:8px">组织机构</div>
+                <div id="org" style="width:156px;line-height:30px;display:inline-block;float:left"></div>-->
+        </div>
+        <div style="width: 500px; height: 115px; border-bottom: 1px solid #ddd; margin-top: 5px">
+            <div style="width: 80px; line-height: 100px; display: inline-block; color:grey;float: left; text-align: right; padding-right: 8px">信息内容</div>
+            <div id="infoContent" style="width: 400px; height: 100px; display: inline-block; float: left; overflow-x: hidden; overflow-y: auto"></div>
+        </div>
+        <div style="width: 500px; height: 115px; border-bottom: 1px solid #ddd; margin-top: 5px">
+            <div style="width: 80px; line-height: 110px; display: inline-block;color:grey; float: left; text-align: right; padding-right: 8px">备注</div>
+            <div id="remark" style="width: 400px; height: 110px; display: inline-block; float: left; overflow-x: hidden; overflow-y: auto"></div>
+        </div>
+    </div>
+</body>
+</html>
